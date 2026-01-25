@@ -1,62 +1,24 @@
-import { Outlet, NavLink } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 
-function AdminLayout() {
+export default function AdminLayout() {
   return (
     <div className="flex min-h-screen bg-gray-100">
-      
+
       {/* Sidebar */}
-      <aside className="w-64 bg-green-900 text-white p-6">
-        <h2 className="text-2xl font-bold mb-8">Lakwedha Admin</h2>
+      <aside className="w-64 bg-green-900 text-white flex flex-col px-6 py-8">
+        <h1 className="text-2xl font-bold mb-10">
+          Lakwedha Admin
+        </h1>
 
-        <nav className="flex flex-col gap-4">
-          <NavLink
-            to="/admin"
-            end
-            className={({ isActive }) =>
-              isActive
-                ? "font-semibold text-green-300"
-                : "text-white hover:text-green-200"
-            }
-          >
-            Dashboard
-          </NavLink>
-
-          <NavLink
-            to="/admin/users"
-            className={({ isActive }) =>
-              isActive
-                ? "font-semibold text-green-300"
-                : "text-white hover:text-green-200"
-            }
-          >
-            Users
-          </NavLink>
-
-          <NavLink
-            to="/admin/doctors"
-            className={({ isActive }) =>
-              isActive
-                ? "font-semibold text-green-300"
-                : "text-white hover:text-green-200"
-            }
-          >
-            Doctors
-          </NavLink>
-
-          <NavLink
-            to="/admin/settings"
-            className={({ isActive }) =>
-              isActive
-                ? "font-semibold text-green-300"
-                : "text-white hover:text-green-200"
-            }
-          >
-            Settings
-          </NavLink>
+        <nav className="flex flex-col gap-3">
+          <SidebarLink to="/admin" end label="Dashboard" />
+          <SidebarLink to="/admin/users" label="Users" />
+          <SidebarLink to="/admin/doctors" label="Doctors" />
+          <SidebarLink to="/admin/settings" label="Settings" />
         </nav>
       </aside>
 
-      {/* Main content */}
+      {/* Main Content */}
       <main className="flex-1 p-8">
         <Outlet />
       </main>
@@ -65,4 +27,20 @@ function AdminLayout() {
   );
 }
 
-export default AdminLayout;
+function SidebarLink({ to, label, end }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) =>
+        `px-4 py-2 rounded-md transition ${
+          isActive
+            ? "bg-green-700 font-semibold"
+            : "hover:bg-green-800"
+        }`
+      }
+    >
+      {label}
+    </NavLink>
+  );
+}
