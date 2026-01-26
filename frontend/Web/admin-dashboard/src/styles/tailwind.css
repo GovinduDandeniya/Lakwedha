@@ -1,9 +1,0 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-.test-proof {
-  background: red;
-  color: white;
-  padding: 40px;
-}
