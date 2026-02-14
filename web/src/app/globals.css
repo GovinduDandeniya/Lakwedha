@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* FORCE LIGHT MODE – NO VARIABLES */
+html,
+body {
+  background-color: #ffffff !important;
+  color: #111827 !important; /* gray-900 */
+  margin: 0;
+  padding: 0;
+}
