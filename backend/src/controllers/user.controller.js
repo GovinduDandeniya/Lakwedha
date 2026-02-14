@@ -37,12 +37,25 @@ exports.login = async (req, res) => {
         const user = await User.findOne({ email }).select('+password');
         if (!user) return res.status(401).json({ message: 'Invalid credentials' });
 
+        // Enforce account status
+        if (user.status === 'pending') {
+            return res.status(403).json({ message: 'Account is pending approval' });
+        }
+        if (user.status === 'suspended') {
+            return res.status(403).json({ message: 'Account has been suspended' });
+        }
+        if (user.status === 'rejected') {
+            return res.status(403).json({ message: 'Account registration was rejected' });
+        }
+
         const match = await bcrypt.compare(password, user.password);
         if (!match) return res.status(401).json({ message: 'Invalid credentials' });
 
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-            expiresIn: '1d',
-        });
+        const token = jwt.sign(
+            { id: user._id, role: user.role, status: user.status },
+            process.env.JWT_SECRET,
+            { expiresIn: '1d' }
+        );
 
         res.json({
             token,
@@ -51,6 +64,7 @@ exports.login = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                status: user.status,
             },
         });
     } catch (err) {
