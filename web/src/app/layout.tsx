@@ -17,18 +17,20 @@ export const metadata: Metadata = {
   description: "Ayurvedic E-Channeling Platform",
 };
 
-import DevAuthTrigger from "@/components/DevAuthTrigger";
+export default function RootLayout(
+  props: {
+    children: React.ReactNode;
+  }
+) {
+  const { children } = props;
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
   return (
     <html lang="en">
-      <body className="bg-sand min-h-screen text-earth font-sans antialiased">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        style={{ backgroundColor: "#ffffff", color: "#111827" }}
+      >
         {children}
-        <DevAuthTrigger />
       </body>
     </html>
   );
