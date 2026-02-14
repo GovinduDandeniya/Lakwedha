@@ -21,9 +21,27 @@ const userSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ['user', 'admin'],
+            enum: ['user', 'admin', 'doctor', 'pharmacy'],
             default: 'user',
         },
+        status: {
+            type: String,
+            enum: ['pending', 'active', 'suspended', 'rejected'],
+            default: function () {
+                return ['doctor', 'pharmacy'].includes(this.role) ? 'pending' : 'active';
+            },
+        },
+        phone: { type: String, trim: true },
+
+        // Doctor-specific fields
+        specialty: { type: String, trim: true },
+        experience: { type: String, trim: true },
+        qualifications: { type: String, trim: true },
+
+        // Pharmacy-specific fields
+        pharmacyName: { type: String, trim: true },
+        licenseNumber: { type: String, trim: true },
+        address: { type: String, trim: true },
     },
     { timestamps: true }
 );
