@@ -14,4 +14,7 @@ app.use('/api/pharmacy', pharmacyRoutes);
 const orderRoutes = require('./routes/orderRoutes');
 app.use('/api/orders', orderRoutes);
 
+const adminRoutes = require('./routes/adminRoutes');
+app.use('/api/admin', adminRoutes);
+
 module.exports = app;
