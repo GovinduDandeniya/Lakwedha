@@ -22,4 +22,13 @@ router.get('/patients', admin.getPatients);
 router.put('/users/:id/suspend', admin.suspendUser);
 router.put('/users/:id/activate', admin.activateUser);
 
+/* ── Appointments ── */
+router.get('/appointments', admin.getAppointments);
+
+/* ── Orders ── */
+router.get('/orders', admin.getOrders);
+
+/* ── Analytics ── */
+router.get('/analytics/overview', admin.getAnalyticsOverview);
+
 module.exports = router;
