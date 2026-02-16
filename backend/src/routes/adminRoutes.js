@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const admin = require('../controllers/adminController');
+const emergency = require('../controllers/emergencyController');
 
 // All admin routes require authentication + admin role
 router.use(auth, requireRole('admin'));
@@ -30,5 +31,10 @@ router.get('/orders', admin.getOrders);
 
 /* ── Analytics ── */
 router.get('/analytics/overview', admin.getAnalyticsOverview);
+
+/* ── Emergency Centers (admin CRUD) ── */
+router.post('/emergency-centers', emergency.createCenter);
+router.put('/emergency-centers/:id', emergency.updateCenter);
+router.delete('/emergency-centers/:id', emergency.deleteCenter);
 
 module.exports = router;

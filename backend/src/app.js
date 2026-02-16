@@ -17,4 +17,7 @@ app.use('/api/orders', orderRoutes);
 const adminRoutes = require('./routes/adminRoutes');
 app.use('/api/admin', adminRoutes);
 
+const emergencyRoutes = require('./routes/emergencyRoutes');
+app.use('/api/emergency-centers', emergencyRoutes);
+
 module.exports = app;
