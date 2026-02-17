@@ -5,7 +5,11 @@ const {
     getAllPrescriptions,
     reviewPrescription,
     updatePrescriptionMedicines,
+    uploadPrescription,
 } = require('../controllers/pharmacyController');
+
+// POST upload prescription - Public for now
+router.post('/prescriptions', uploadPrescription);
 
 // GET all prescriptions - Protected
 router.get('/prescriptions', auth, getAllPrescriptions);

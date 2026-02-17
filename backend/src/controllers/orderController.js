@@ -87,3 +87,26 @@ exports.updatePaymentStatus = async (req, res, next) => {
         next(err);
     }
 };
+
+// GET all orders
+exports.getAllOrders = async (req, res, next) => {
+    try {
+        console.log('Fetching all orders');
+        const orders = await Order.find().sort({ createdAt: -1 });
+        res.json(orders);
+    } catch (err) {
+        next(err);
+    }
+};
+
+// GET single order by ID
+exports.getOrderById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const order = await Order.findById(id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        res.json(order);
+    } catch (err) {
+        next(err);
+    }
+};
