@@ -5,7 +5,15 @@ const {
     createOrderFromPrescription,
     updatePaymentStatus,
     updateOrderStatus,
+    getAllOrders,
+    getOrderById,
 } = require('../controllers/orderController');
+
+// GET all orders - Protected
+router.get('/', auth, getAllOrders);
+
+// GET single order - Protected
+router.get('/:id', auth, getOrderById);
 
 // Create order from prescription - Protected
 router.post('/from-prescription/:prescriptionId', auth, createOrderFromPrescription);
