@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 /* REGISTER */
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
     try {
         const { name, email, password } = req.body;
 
@@ -21,28 +21,38 @@ exports.register = async (req, res) => {
             password: hashedPassword,
         });
 
+        console.log(`New user registered: ${email}`);
+
         res.status(201).json({
             message: 'User registered successfully',
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        next(err);
     }
 };
 
 /* LOGIN */
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
         const user = await User.findOne({ email }).select('+password');
-        if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+        if (!user) {
+            console.log(`Failed login attempt: ${email}`);
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
 
         const match = await bcrypt.compare(password, user.password);
-        if (!match) return res.status(401).json({ message: 'Invalid credentials' });
+        if (!match) {
+            console.log(`Incorrect password for: ${email}`);
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
 
         const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
             expiresIn: '1d',
         });
+
+        console.log(`User logged in: ${email}`);
 
         res.json({
             token,
@@ -54,6 +64,6 @@ exports.login = async (req, res) => {
             },
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        next(err);
     }
 };
