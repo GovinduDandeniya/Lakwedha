@@ -1,4 +1,5 @@
 const Prescription = require('../models/Prescription');
+const Order = require('../models/Order');
 const { PRESCRIPTION_STATUS } = require('../config/constants');
 const { reviewPrescriptionSchema, updateMedicinesSchema } = require('../utils/validationSchemas');
 
@@ -13,7 +14,28 @@ exports.getAllPrescriptions = async (req, res, next) => {
     }
 };
 
-const Order = require('../models/Order');
+// Patient: Upload Prescription
+exports.uploadPrescription = async (req, res, next) => {
+    try {
+        const { imageUrl, patientName, userId } = req.body;
+
+        if (!imageUrl) {
+            return res.status(400).json({ message: 'Prescription image is required.' });
+        }
+
+        const prescription = await Prescription.create({
+            userId: userId || '65cc6e32d18442001c8a1234', // Dummy ID if not logged in
+            imageUrl,
+            patientName: patientName || 'Guest Patient',
+            pharmacyStatus: 'pending'
+        });
+
+        console.log(`New prescription uploaded: ${prescription._id}`);
+        res.status(201).json({ message: 'Prescription submitted successfully', prescription });
+    } catch (err) {
+        next(err);
+    }
+};
 
 // Review prescription (Approve/Reject)
 exports.reviewPrescription = async (req, res, next) => {
@@ -31,7 +53,7 @@ exports.reviewPrescription = async (req, res, next) => {
             return res.status(404).json({ message: 'Prescription not found' });
         }
 
-        // 1. Synchronize Prescription State
+        // 1. Update Prescription State
         if (medicines) {
             prescription.medicines = medicines.map(m => ({
                 name: m.name,
@@ -45,15 +67,16 @@ exports.reviewPrescription = async (req, res, next) => {
 
         // 2. Spawn Order Record
         if (status === 'approved') {
-            const order = await Order.create({
+             const order = await Order.create({
                 userId: prescription.userId,
                 prescriptionId: prescription._id,
                 medicines: prescription.medicines,
-                totalAmount: Number(totalAmount), // Direct trust of FE value
+                totalAmount: Number(totalAmount),
                 status: 'pending',
                 paymentStatus: 'pending'
             });
-            console.log(`Financial Checkpoint: Order ${order._id} initialized with FE total: ${totalAmount}`);
+
+            console.log(`Order created: ${order._id}`);
         }
 
         res.json({
