@@ -93,7 +93,7 @@ app.get("/students", verifyToken, (req, res) => {
 
 // Start server
 app.listen(5000, () => {
-  console.log("Server running on port 3000");
+  console.log("Server running on port 5000");
 });
 
 app.get('/', (req, res) => {
