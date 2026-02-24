@@ -1,25 +1,24 @@
-const Availability = require('../models/Availability.model');
-const { generateTimeSlots } = require('../utils/timeSlot.utils');
+const availabilityService = require('../services/availability.service');
+const { validateAvailability } = require('../validators/availability.validator');
 
 /**
  * Create availability session
- * POST /api/v1/doctors/availability
+ * POST /api/v1/doctor-channeling/availability
  */
 exports.createAvailability = async (req, res) => {
     try {
-        const { doctorId, date, startTime, endTime, slotDuration, breaks } = req.body;
+        const { error } = validateAvailability(req.body);
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: error.details[0].message
+            });
+        }
 
-        // Generate time slots based on duration
-        const slots = generateTimeSlots(startTime, endTime, slotDuration, breaks);
-
-        const availability = new Availability({
-            doctorId,
-            date,
-            slots,
-            breaks
-        });
-
-        await availability.save();
+        const availability = await availabilityService.createAvailability(
+            req.user.id, // doctorId from auth middleware
+            req.body
+        );
 
         res.status(201).json({
             success: true,
@@ -36,24 +35,18 @@ exports.createAvailability = async (req, res) => {
 
 /**
  * Get doctor availability
- * GET /api/v1/doctors/availability/:doctorId
+ * GET /api/v1/doctor-channeling/availability
  */
 exports.getAvailability = async (req, res) => {
     try {
-        const { doctorId } = req.params;
         const { fromDate, toDate } = req.query;
+        const doctorId = req.params.doctorId || req.user.id;
 
-        const query = { doctorId };
-
-        if (fromDate || toDate) {
-            query.date = {};
-            if (fromDate) query.date.$gte = new Date(fromDate);
-            if (toDate) query.date.$lte = new Date(toDate);
-        }
-
-        const availability = await Availability.find(query)
-            .sort({ date: 1 })
-            .lean();
+        const availability = await availabilityService.getAvailability(
+            doctorId,
+            fromDate,
+            toDate
+        );
 
         res.status(200).json({
             success: true,
@@ -69,27 +62,45 @@ exports.getAvailability = async (req, res) => {
 
 /**
  * Update availability slot
- * PATCH /api/v1/doctors/availability/slot/:slotId
+ * PATCH /api/v1/doctor-channeling/availability/slot/:slotId
  */
 exports.updateSlot = async (req, res) => {
     try {
         const { slotId } = req.params;
-        const { status, isBooked } = req.body;
+        const updates = req.body;
 
-        const availability = await Availability.findOneAndUpdate(
-            { 'slots._id': slotId },
-            {
-                $set: {
-                    'slots.$.status': status,
-                    'slots.$.isBooked': isBooked
-                }
-            },
-            { new: true }
+        const availability = await availabilityService.updateSlot(
+            req.user.id,
+            slotId,
+            updates
         );
 
         res.status(200).json({
             success: true,
-            data: availability
+            data: availability,
+            message: 'Slot updated successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Delete availability
+ * DELETE /api/v1/doctor-channeling/availability/:availabilityId
+ */
+exports.deleteAvailability = async (req, res) => {
+    try {
+        const { availabilityId } = req.params;
+
+        await availabilityService.deleteAvailability(req.user.id, availabilityId);
+
+        res.status(200).json({
+            success: true,
+            message: 'Availability deleted successfully'
         });
     } catch (error) {
         res.status(500).json({
