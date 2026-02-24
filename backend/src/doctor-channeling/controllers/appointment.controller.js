@@ -2,26 +2,71 @@ const Appointment = require('../models/Appointment.model');
 const Availability = require('../models/Availability.model');
 const queueService = require('../services/queue.service');
 const notificationService = require('../services/notification.service');
+const { validateAppointment } = require('../validators/appointment.validator');
 
 /**
  * Book appointment (queue-based)
- * POST /api/v1/appointments/book
+ * POST /api/v1/doctor-channeling/appointments/book
  */
 exports.bookAppointment = async (req, res) => {
     try {
-        const { doctorId, slotId, patientId, symptoms } = req.body;
+        const { error } = validateAppointment(req.body);
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: error.details[0].message
+            });
+        }
 
-        // Check if slot is available
+        const { doctorId, slotId, symptoms } = req.body;
+        const patientId = req.user.id;
+
+        // Find the availability and slot
         const availability = await Availability.findOne({
-            'slots._id': slotId,
-            'slots.isBooked': false
+            'slots._id': slotId
         });
 
         if (!availability) {
+            return res.status(404).json({
+                success: false,
+                error: 'Slot not found'
+            });
+        }
+
+        const slot = availability.slots.id(slotId);
+
+        // Check if slot is available
+        if (!slot.isBooked) {
+            // Create appointment
+            const appointment = new Appointment({
+                doctorId,
+                patientId,
+                slotTime: new Date(`${availability.date.toDateString()} ${slot.startTime}`),
+                symptoms,
+                status: 'confirmed'
+            });
+
+            await appointment.save();
+
+            // Mark slot as booked
+            slot.isBooked = true;
+            slot.bookedBy = patientId;
+            await availability.save();
+
+            // Send notifications
+            await notificationService.sendAppointmentConfirmation(appointment);
+
+            return res.status(201).json({
+                success: true,
+                data: appointment,
+                message: 'Appointment booked successfully'
+            });
+        } else {
             // Add to queue
+            const slotTime = new Date(`${availability.date.toDateString()} ${slot.startTime}`);
             const queueInfo = await queueService.addToQueue(
                 doctorId,
-                slotId,
+                slotTime,
                 patientId
             );
 
@@ -32,30 +77,6 @@ exports.bookAppointment = async (req, res) => {
                 message: 'Added to waiting queue'
             });
         }
-
-        // Create appointment
-        const appointment = new Appointment({
-            doctorId,
-            patientId,
-            slotTime: availability.slots.find(s => s._id == slotId).startTime,
-            symptoms
-        });
-
-        await appointment.save();
-
-        // Mark slot as booked
-        availability.slots.id(slotId).isBooked = true;
-        availability.slots.id(slotId).bookedBy = patientId;
-        await availability.save();
-
-        // Send notifications
-        await notificationService.sendAppointmentConfirmation(appointment);
-
-            res.status(201).json({
-            success: true,
-            data: appointment,
-            message: 'Appointment booked successfully'
-        });
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -66,25 +87,38 @@ exports.bookAppointment = async (req, res) => {
 
 /**
  * Update appointment status
- * PUT /api/v1/appointments/:appointmentId/status
+ * PATCH /api/v1/doctor-channeling/appointments/:appointmentId/status
  */
 exports.updateStatus = async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const { status, reason } = req.body;
 
-        const appointment = await Appointment.findByIdAndUpdate(
-            appointmentId,
-            {
-                status,
-                ...(status === 'cancelled' && { cancellationReason: reason }),
-                updatedAt: new Date()
-            },
-            { new: true }
-        );
+        const appointment = await Appointment.findById(appointmentId);
 
-        // If cancelled, free up the slot
+        if (!appointment) {
+            return res.status(404).json({
+                success: false,
+                error: 'Appointment not found'
+            });
+        }
+
+        // Check authorization (doctor or patient)
+        if (req.user.id !== appointment.doctorId.toString() && 
+        req.user.id !== appointment.patientId.toString()) {
+            return res.status(403).json({
+                success: false,
+                error: 'Unauthorized'
+            });
+        }
+
+        appointment.status = status;
+        appointment.updatedAt = new Date();
+
         if (status === 'cancelled') {
+            appointment.cancellationReason = reason;
+
+            // Free up the slot
             await Availability.findOneAndUpdate(
                 { 'slots._id': appointment.slotId },
                 {
@@ -102,17 +136,21 @@ exports.updateStatus = async (req, res) => {
             );
 
             if (nextPatient) {
-                // Notify next patient
-                await notificationService.sendSlotAvailableNotification(nextPatient);
+                await notificationService.sendSlotAvailableNotification(
+                    nextPatient.patientId,
+                    appointment.doctorId,
+                    appointment.slotTime
+                );
             }
         }
 
-        // Send status update notification
+        await appointment.save();
         await notificationService.sendStatusUpdate(appointment, status);
 
         res.status(200).json({
             success: true,
-            data: appointment
+            data: appointment,
+            message: `Appointment ${status} successfully`
         });
     } catch (error) {
         res.status(500).json({
@@ -124,12 +162,12 @@ exports.updateStatus = async (req, res) => {
 
 /**
  * Get appointment history
- * GET /api/v1/appointments/history/:userId
+ * GET /api/v1/doctor-channeling/appointments/history
  */
 exports.getHistory = async (req, res) => {
     try {
-        const { userId } = req.params;
         const { role, status, fromDate, toDate } = req.query;
+        const userId = req.user.id;
 
         const query = {};
 
@@ -155,8 +193,7 @@ exports.getHistory = async (req, res) => {
         const appointments = await Appointment.find(query)
             .populate('doctorId', 'name specialization profileImage')
             .populate('patientId', 'name age gender')
-            .sort({ slotTime: -1 })
-            .lean();
+            .sort({ slotTime: -1 });
 
         // Group by status
         const grouped = {
@@ -169,8 +206,45 @@ exports.getHistory = async (req, res) => {
             data: grouped,
             total: appointments.length
         });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+};
 
+/**
+ * Get queue status for a slot
+ * GET /api/v1/doctor-channeling/appointments/queue/:slotId
+ */
+exports.getQueueStatus = async (req, res) => {
+    try {
+        const { slotId } = req.params;
 
+        const availability = await Availability.findOne({
+            'slots._id': slotId
+        });
+
+        if (!availability) {
+            return res.status(404).json({
+                success: false,
+                error: 'Slot not found'
+            });
+        }
+
+        const slot = availability.slots.id(slotId);
+        const slotTime = new Date(`${availability.date.toDateString()} ${slot.startTime}`);
+
+        const queueStatus = await queueService.getQueueStatus(
+            availability.doctorId,
+            slotTime
+        );
+
+        res.status(200).json({
+            success: true,
+            data: queueStatus
+        });
     } catch (error) {
         res.status(500).json({
             success: false,
