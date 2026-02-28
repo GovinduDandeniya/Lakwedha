@@ -22,6 +22,7 @@ const emrSchema = new mongoose.Schema(
         },
     },
 
+    // Add name to schema
     {
         timestamps: true,
         collection: 'emrs'
