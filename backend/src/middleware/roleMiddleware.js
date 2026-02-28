@@ -9,7 +9,7 @@ const authorizeRoles = (...roles) => {
         }
 
         const userRole = req.user.role.toUpperCase();
-        const allowedRoles = roles.map(r => r.toUpperCase());
+        const allowedRoles = roles.map(role => role.toUpperCase());
 
         if (!allowedRoles.includes(userRole)) {
             return res.status(403).json({
