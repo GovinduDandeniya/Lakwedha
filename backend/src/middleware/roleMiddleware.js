@@ -16,6 +16,7 @@ const authorizeRoles = (...roles) => {
                 message: `Forbidden: User role ${req.user.role} is not authorized to access this route.`
             });
         }
+        // User is authorized → proceed to next middleware/controller
         next();
     };
 };
