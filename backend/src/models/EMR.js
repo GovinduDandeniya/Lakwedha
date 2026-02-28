@@ -32,4 +32,8 @@ const emrSchema = new mongoose.Schema(
 
 emrSchema.index({ patientId: 1, doctorId: 1 });
 
+emrSchema.methods.isOwnedByDoctor = function (doctorId) {
+    return this.doctorId.toString() === doctorId.toString();
+};
+
 module.exports = mongoose.model('EMR', emrSchema);
