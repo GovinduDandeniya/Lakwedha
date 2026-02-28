@@ -30,7 +30,10 @@ const prescriptionSchema = new mongoose.Schema(
             default: Date.now,
         },
     },
-    { timestamps: true }
+    {
+        timestamps: true,
+        collection: 'prescriptions'
+    }
 );
 
 module.exports = mongoose.model('Prescription', prescriptionSchema);
