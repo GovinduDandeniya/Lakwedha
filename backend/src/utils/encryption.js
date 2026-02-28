@@ -59,6 +59,7 @@ const decrypt = (encryptedText) => {
     }
 };
 
+// Export encryption and decryption utility functions
 module.exports = {
     encrypt,
     decrypt,
