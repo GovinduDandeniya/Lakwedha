@@ -27,6 +27,11 @@ const prescriptionSchema = new mongoose.Schema(
         ],
 
         pharmacyNote: { type: String },
+
+        rejectionReason: {
+            type: String,
+            minlength: 10
+        }
     },
     { timestamps: true }
 );
