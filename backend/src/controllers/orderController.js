@@ -69,6 +69,7 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
         from: currentStatus,
         to: status,
         changedAt: new Date(),
+        changedBy: req.user ? req.user.id : null, // Added tracking of who changed it
         reason: reason || 'Status updated automatically'
     });
 

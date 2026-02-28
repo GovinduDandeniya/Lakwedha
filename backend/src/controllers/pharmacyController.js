@@ -92,6 +92,7 @@ exports.reviewPrescription = asyncHandler(async (req, res) => {
             statusHistory: [{
                 from: 'none',
                 to: 'pending',
+                changedBy: req.user ? req.user.id : null,
                 reason: 'Order automatically generated on prescription approval'
             }]
         });
