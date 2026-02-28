@@ -23,7 +23,7 @@ const orderSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ['pending', 'approved', 'processing', 'shipped', 'completed'],
+            enum: ['pending', 'approved', 'processing', 'shipped', 'completed', 'cancelled', 'rejected'],
             default: 'pending'
         },
         paymentStatus: {
@@ -36,6 +36,16 @@ const orderSchema = new mongoose.Schema(
             enum: ['online', 'cod'],
             default: 'online'
         },
+
+        statusHistory: [
+            {
+                from: String,
+                to: String,
+                changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+                changedAt: { type: Date, default: Date.now },
+                reason: String
+            }
+        ]
     },
     { timestamps: true }
 );
