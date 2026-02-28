@@ -403,7 +403,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
                   const Icon(Icons.lock_rounded, color: Colors.white, size: 18),
                 const SizedBox(width: 10),
                 Text(
-                  _isPaying ? 'PROCESSING MOCK PAYMENT...' : 'PAY NOW — LKR $total',
+                  _isPaying ? 'Confirming your order...' : 'PAY NOW — LKR $total',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
