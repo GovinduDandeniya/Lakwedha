@@ -7,6 +7,7 @@ const {
     updateOrderStatus,
     getAllOrders,
     getOrderById,
+    calculateOrderPrice
 } = require('../controllers/orderController');
 
 // GET all orders - Protected
@@ -24,11 +25,13 @@ router.put('/:id/payment', auth, updatePaymentStatus);
 // Update order status (lifecycle) - Protected
 router.put('/:id/status', auth, updateOrderStatus);
 
-// Initiate payment (get gateway params) - Protected
+// Get real price check before payment - Protected
+router.get('/:id/calculate-price', auth, calculateOrderPrice);
+
+// Initiate payment (get gateway params) - Protected (Skipping as requested)
 router.get('/:id/pay', auth, (req, res, next) => {
     const { id } = req.params;
-    // Controller logic will go here
-    res.json({ message: 'Gateway integration ready', orderId: id });
+    res.json({ success: true, data: { orderId: id }, message: 'Gateway integration ready' });
 });
 
 module.exports = router;
