@@ -19,6 +19,7 @@ const emrSchema = new mongoose.Schema(
         diagnosis: {
             type: String,
             required: true,
+            trim: true,
         },
     },
 
