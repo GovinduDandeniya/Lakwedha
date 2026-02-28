@@ -21,6 +21,7 @@ const prescriptionSchema = new mongoose.Schema(
         ],
         notes: {
             type: String,
+            trim: true,
         },
         fileUrl: {
             type: String,
