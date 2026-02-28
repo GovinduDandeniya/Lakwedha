@@ -30,4 +30,6 @@ const emrSchema = new mongoose.Schema(
     }
 );
 
+emrSchema.index({ patientId: 1, doctorId: 1 });
+
 module.exports = mongoose.model('EMR', emrSchema);
