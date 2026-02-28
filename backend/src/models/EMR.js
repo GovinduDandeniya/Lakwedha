@@ -21,7 +21,11 @@ const emrSchema = new mongoose.Schema(
             required: true,
         },
     },
-    { timestamps: true }
+
+    {
+        timestamps: true,
+        collection: 'emrs'
+    }
 );
 
 module.exports = mongoose.model('EMR', emrSchema);
