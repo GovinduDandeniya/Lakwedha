@@ -56,7 +56,7 @@ const decrypt = (encryptedText) => {
 
         return decrypted;
     } catch (error) {
-        throw new Error('Decryption failed');
+        throw new Error('Error, Decryption failed');
     }
 };
 
