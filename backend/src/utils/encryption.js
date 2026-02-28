@@ -1,3 +1,4 @@
+// Node.js built-in cryptography module
 const crypto = require('crypto');
 
 const ALGORITHM = 'aes-256-cbc';
