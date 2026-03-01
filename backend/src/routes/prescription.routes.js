@@ -7,7 +7,7 @@ const authorizeRoles = require('../middleware/roleMiddleware');
 // Post a Prescription (Doctor only)
 router.post('/', auth, authorizeRoles('DOCTOR', 'doctor'), prescriptionController.createPrescription);
 
-// Get Patient's own Prescriptions (Patient only)
-router.get('/my-prescriptions', auth, authorizeRoles('PATIENT', 'patient'), prescriptionController.getPatientPrescriptions);
+// Get Prescriptions (Doctor fetching for a patient or Patient fetching their own)
+router.get('/', auth, authorizeRoles('PATIENT', 'patient', 'DOCTOR', 'doctor'), prescriptionController.getPrescriptions);
 
 module.exports = router;
