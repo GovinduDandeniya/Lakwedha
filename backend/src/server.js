@@ -3,13 +3,15 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const prescriptionRoutes = require("./src/routes/prescription.routes");
-const emrRoutes = require("./src/routes/emr.routes");
+
 
 const app = express();
 
 app.use(cors());
 app.use(bodyParser.json());
+
+
+
 
 // Secret key for JWT
 const SECRET_KEY = "mysecretkey123";
