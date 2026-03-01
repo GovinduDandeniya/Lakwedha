@@ -4,26 +4,27 @@ const emrSchema = new mongoose.Schema(
     {
         patientId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Patient',
+            ref: 'User',
             required: true,
         },
         doctorId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Doctor',
+            ref: 'User',
+            required: true,
+        },
+        encryptedDiagnosis: {
+            type: String,
+            required: true,
+        },
+        encryptedTreatment: {
+            type: String,
             required: true,
         },
         encryptedNotes: {
             type: String,
             required: true,
         },
-        diagnosis: {
-            type: String,
-            required: true,
-            trim: true,
-        },
     },
-
-    // Add name to schema
     {
         timestamps: true,
         collection: 'emrs'
@@ -31,6 +32,5 @@ const emrSchema = new mongoose.Schema(
 );
 
 emrSchema.index({ patientId: 1, doctorId: 1 });
-
 
 module.exports = mongoose.model('EMR', emrSchema);
