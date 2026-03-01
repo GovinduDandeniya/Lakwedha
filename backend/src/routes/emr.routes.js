@@ -7,7 +7,7 @@ const authorizeRoles = require('../middleware/roleMiddleware');
 // Post an EMR record (Doctor only)
 router.post('/', auth, authorizeRoles('DOCTOR', 'doctor'), emrController.createEMR);
 
-// Get Patient's own EMR records (Patient only)
-router.get('/my-records', auth, authorizeRoles('PATIENT', 'patient'), emrController.getPatientEMR);
+// Get EMR records (Doctor fetching for a patient or Patient fetching their own)
+router.get('/', auth, authorizeRoles('PATIENT', 'patient', 'DOCTOR', 'doctor'), emrController.getEMRs);
 
 module.exports = router;
