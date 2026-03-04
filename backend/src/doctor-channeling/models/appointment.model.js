@@ -17,8 +17,8 @@ const appointmentSchema = new mongoose.Schema({
         required: true
     },
   slotTime: { type: Date, required: true },
-  status: { 
-    type: String, 
+  status: {
+    type: String,
     enum: ['pending', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no-show'],
     default: 'pending'
   },
