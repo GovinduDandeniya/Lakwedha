@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
+
 class AppConstants {
+  static const Color primaryColor = Color(0xFF2E7D32);
   // SharedPreferences keys
   static const String tokenKey = 'auth_token';
   static const String userRoleKey = 'user_role';
