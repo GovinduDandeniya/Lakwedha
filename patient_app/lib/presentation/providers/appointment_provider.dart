@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/models/appointment_model.dart';
-import '../data/datasources/remote/api_service.dart';
+import '../../data/models/appointment_model.dart';
+import '../../data/datasources/remote/api_service.dart';
 
 class AppointmentProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
