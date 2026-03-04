@@ -1,0 +1,40 @@
+name: patient_app
+description: A new Flutter project.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  http: ^1.2.0
+  cupertino_icons: ^1.0.6
+  dio: ^5.4.0
+  provider: ^6.1.2
+  go_router: ^14.2.0
+  intl: ^0.19.0
+  shared_preferences: ^2.2.3
+  cached_network_image: ^3.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  # If you add images later, use this format:
+  # assets:
+  #   - assets/images/
+
+  # If you add custom fonts later:
+  # fonts:
+  #   - family: Poppins
+  #     fonts:
+  #       - asset: assets/fonts/Poppins-Regular.ttf
