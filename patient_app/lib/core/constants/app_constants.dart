@@ -4,6 +4,8 @@ class AppConstants {
   static const Color primaryColor = Color(0xFF2E7D32);
   // SharedPreferences keys
   static const String tokenKey = 'auth_token';
+  static const String userIdKey = 'user_id';
+  static const String userKey = 'user_data';
   static const String userRoleKey = 'user_role';
 
   // Base URL

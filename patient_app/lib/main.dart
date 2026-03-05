@@ -1,32 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/booking_provider.dart';
 import 'presentation/providers/appointment_provider.dart';
-import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/patient/doctor_search_screen.dart';
 import 'core/constants/app_constants.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Check auth status on startup
-  final authProvider = AuthProvider();
-  await authProvider.checkAuthStatus();
-
-  runApp(MyApp(authProvider: authProvider));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final AuthProvider authProvider;
-
-  const MyApp({Key? key, required this.authProvider}) : super(key: key);
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
         ChangeNotifierProvider(create: (_) => AppointmentProvider()),
       ],
@@ -51,19 +41,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: Consumer<AuthProvider>(
-          builder: (context, auth, child) {
-            if (auth.isLoading) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (auth.isAuthenticated) {
-              return const DoctorSearchScreen();
-            }
-            return const LoginScreen();
-          },
-        ),
+        home: const DoctorSearchScreen(),
       ),
     );
   }
