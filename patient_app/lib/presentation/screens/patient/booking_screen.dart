@@ -85,6 +85,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey,
+                          minimumSize: const Size(100, 45),
                         ),
                         child: const Text('Back'),
                       )
@@ -102,6 +103,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           : () => _confirmBooking(provider),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppConstants.primaryColor,
+                        minimumSize: const Size(100, 45),
                       ),
                       child: Text(_currentStep == 2 ? 'Confirm Booking' : 'Next'),
                     ),

@@ -1,123 +1,291 @@
 import 'package:flutter/material.dart';
 import '../../data/models/doctor_model.dart';
-import '../../core/constants/app_constants.dart';
+
+const Color _primary = Color(0xFF2E7D32);
 
 class DoctorCard extends StatelessWidget {
   final Doctor doctor;
   final VoidCallback onTap;
 
-  const DoctorCard({
-    Key? key,
-    required this.doctor,
-    required this.onTap,
-  }) : super(key: key);
+  const DoctorCard({Key? key, required this.doctor, required this.onTap})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Column(
             children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.green[100],
-                backgroundImage: doctor.profileImage != null
-                    ? NetworkImage(doctor.profileImage!)
-                    : null,
-                child: doctor.profileImage == null
-                    ? const Icon(Icons.person, size: 30, color: Colors.green)
-                    : null,
+              // Gradient top strip
+              Container(
+                height: 4,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                      colors: [_primary, Color(0xFF66BB6A)]),
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(18)),
+                ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            doctor.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        if (doctor.isVerified)
-                          const Icon(
-                            Icons.verified,
-                            size: 16,
-                            color: Colors.blue,
-                          ),
+                        _avatar(),
+                        const SizedBox(width: 12),
+                        Expanded(child: _doctorInfo()),
+                        const SizedBox(width: 8),
+                        _feeBadge(),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      doctor.specialization,
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 12),
+                    Container(height: 1, color: const Color(0xFFF0F0F0)),
+                    const SizedBox(height: 12),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Icon(Icons.star, size: 14, color: Colors.amber),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${doctor.rating}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          ' (${doctor.reviewCount})',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, size: 14, color: Colors.grey),
-                        const SizedBox(width: 2),
-                        Expanded(
-                          child: Text(
-                            doctor.clinicAddress,
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
+                        Expanded(child: _hospitalInfo()),
+                        _bookButton(),
                       ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'LKR ${doctor.consultationFee}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppConstants.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  if (doctor.distance != null)
-                    Text(
-                      '${doctor.distance!.toStringAsFixed(1)} km',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                ],
-              ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _avatar() {
+    return Stack(
+      children: [
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _primary.withValues(alpha: 0.15),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: ClipOval(
+            child: doctor.profileImage != null
+                ? Image.network(
+                    doctor.profileImage!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _initials(),
+                  )
+                : _initials(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _initials() {
+    final letter =
+        doctor.name.isNotEmpty ? doctor.name[0].toUpperCase() : 'D';
+    return Center(
+      child: Text(letter,
+          style: const TextStyle(
+              fontSize: 22, fontWeight: FontWeight.bold, color: _primary)),
+    );
+  }
+
+  Widget _doctorInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          doctor.name,
+          style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A2E)),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 3),
+        Text(
+          doctor.specialization,
+          style: const TextStyle(
+              fontSize: 12,
+              color: _primary,
+              fontWeight: FontWeight.w600),
+        ),
+        if (doctor.qualification.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            doctor.qualification,
+            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+        const SizedBox(height: 7),
+        _infoRow(),
+      ],
+    );
+  }
+
+  Widget _infoRow() {
+    return Row(
+      children: [
+        if (doctor.experience > 0) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE3F2FD),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text('${doctor.experience} yrs exp',
+                style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF1565C0),
+                    fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(width: 6),
+        ],
+        if (doctor.isVerified)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.verified_rounded, size: 11, color: _primary),
+                SizedBox(width: 3),
+                Text('Verified',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: _primary,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _feeBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text('LKR',
+              style: TextStyle(
+                  fontSize: 9,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500)),
+          const SizedBox(height: 2),
+          Text('${doctor.consultationFee.toInt()}',
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: _primary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _hospitalInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.local_hospital_outlined,
+                size: 13, color: Colors.grey[500]),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                doctor.clinicName,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A2E)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            Icon(Icons.location_on_outlined,
+                size: 12, color: Colors.grey[400]),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                doctor.clinicAddress,
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _bookButton() {
+    return ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _primary,
+        foregroundColor: Colors.white,
+        padding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: const Text('Book Now',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
     );
   }
 }
