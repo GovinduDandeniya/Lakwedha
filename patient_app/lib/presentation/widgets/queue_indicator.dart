@@ -6,18 +6,18 @@ class QueueIndicator extends StatelessWidget {
   final int? estimatedWaitMinutes;
 
   const QueueIndicator({
-    Key? key,
+    super.key,
     required this.position,
     required this.totalInQueue,
     this.estimatedWaitMinutes,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.1),
+        color: Colors.orange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.orange),
       ),

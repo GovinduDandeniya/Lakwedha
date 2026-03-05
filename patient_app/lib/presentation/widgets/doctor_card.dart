@@ -6,9 +6,14 @@ const Color _primary = Color(0xFF2E7D32);
 class DoctorCard extends StatelessWidget {
   final Doctor doctor;
   final VoidCallback onTap;
+  final String buttonLabel;
 
-  const DoctorCard({Key? key, required this.doctor, required this.onTap})
-      : super(key: key);
+  const DoctorCard({
+    super.key,
+    required this.doctor,
+    required this.onTap,
+    this.buttonLabel = 'Book Now',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -158,9 +163,11 @@ class DoctorCard extends StatelessWidget {
   }
 
   Widget _infoRow() {
-    return Row(
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
       children: [
-        if (doctor.experience > 0) ...[
+        if (doctor.experience > 0)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
@@ -173,8 +180,6 @@ class DoctorCard extends StatelessWidget {
                     color: Color(0xFF1565C0),
                     fontWeight: FontWeight.w600)),
           ),
-          const SizedBox(width: 6),
-        ],
         if (doctor.isVerified)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -182,9 +187,9 @@ class DoctorCard extends StatelessWidget {
               color: const Color(0xFFE8F5E9),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Icon(Icons.verified_rounded, size: 11, color: _primary),
                 SizedBox(width: 3),
                 Text('Verified',
@@ -284,8 +289,8 @@ class DoctorCard extends StatelessWidget {
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
-      child: const Text('Book Now',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      child: Text(buttonLabel,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
     );
   }
 }

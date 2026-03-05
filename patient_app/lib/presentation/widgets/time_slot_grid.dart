@@ -41,7 +41,7 @@ class TimeSlotGrid extends StatelessWidget {
                     ? Colors.green
                     : slot.isAvailable
                         ? Colors.transparent
-                        : Colors.red.withOpacity(0.3),
+                        : Colors.red.withValues(alpha: 0.3),
               ),
             ),
             child: Text(

@@ -5,6 +5,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../models/doctor_model.dart';
 import '../../models/availability_model.dart';
 import '../../models/appointment_model.dart';
+import '../../models/doctor_availability_model.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -263,6 +264,25 @@ class ApiService {
       return data['data'] ?? {};
     } else {
       throw Exception('Failed to get queue status');
+    }
+  }
+
+  /// =========================
+  /// DOCTOR AVAILABILITY BY NAME
+  /// =========================
+  Future<DoctorAvailabilityResult> getDoctorAvailabilityByName(
+      String doctorName) async {
+    final response = await http.get(
+      Uri.parse(
+          '${AppConstants.baseUrl}/api/doctor-availability?doctorName=${Uri.encodeComponent(doctorName)}'),
+      headers: await _getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return DoctorAvailabilityResult.fromJson(data);
+    } else {
+      throw Exception('Failed to load doctor availability');
     }
   }
 }
