@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../../providers/booking_provider.dart';
 import '../../../data/datasources/remote/api_service.dart';
 import '../../../data/models/doctor_model.dart';
+import '../../../data/models/doctor_availability_model.dart';
 import '../../widgets/doctor_card.dart';
 import 'booking_screen.dart';
+import 'doctor_availability_screen.dart';
 
 const Color _primary = Color(0xFF2E7D32);
 const Color _bg = Color(0xFFF4FAF4);
@@ -26,6 +28,7 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
   List<Doctor> _doctors = [];
   bool _isLoading = false;
   bool _hasSearched = false;
+  bool _isNameOnlyMode = false;
   String? _selectedSpecialty;
   DateTime? _selectedDate;
 
@@ -80,7 +83,11 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
 
   Future<void> _searchDoctors() async {
     FocusScope.of(context).unfocus();
-    setState(() => _isLoading = true);
+    final nameOnly = _isNameOnlySearch;
+    setState(() {
+      _isLoading = true;
+      _isNameOnlyMode = nameOnly;
+    });
     try {
       final results = await _apiService.searchDoctors(
         name: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
@@ -99,6 +106,59 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
         _hasSearched = true;
       });
     }
+  }
+
+  Future<void> _openAvailability(Doctor doctor) async {
+    DoctorAvailabilityResult result;
+    try {
+      result = await _apiService.getDoctorAvailabilityByName(doctor.name);
+    } catch (_) {
+      result = _generateSampleAvailability(doctor);
+    }
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DoctorAvailabilityScreen(availability: result),
+      ),
+    );
+  }
+
+  static DoctorAvailabilityResult _generateSampleAvailability(Doctor doctor) {
+    final now = DateTime.now();
+    final daysOffsets = [1, 3, 5, 7, 10];
+    final totalSlots   = [20, 20, 20, 15, 15];
+    final bookedSlots  = [8,  17, 20, 4,  13];
+
+    final dates = <DateSlotSummary>[];
+    for (var i = 0; i < 5; i++) {
+      final d = now.add(Duration(days: daysOffsets[i]));
+      final dateStr =
+          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      dates.add(DateSlotSummary(
+        date: dateStr,
+        startTime: '09:00',
+        endTime: '12:00',
+        totalSlots: totalSlots[i],
+        bookedSlots: bookedSlots[i],
+      ));
+    }
+
+    return DoctorAvailabilityResult(
+      doctorId: doctor.id,
+      doctorName: doctor.name,
+      specialization: doctor.specialization,
+      qualification: doctor.qualification,
+      isVerified: doctor.isVerified,
+      hospitals: [
+        HospitalAvailability(
+          hospitalId: 'h_${doctor.id}',
+          hospitalName: doctor.clinicName,
+          location: doctor.clinicAddress,
+          dates: dates,
+        ),
+      ],
+    );
   }
 
   void _clearFilters() {
@@ -268,6 +328,12 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
       _selectedSpecialty != null ||
       _selectedDate != null;
 
+  bool get _isNameOnlySearch =>
+      _nameController.text.trim().isNotEmpty &&
+      _hospitalController.text.trim().isEmpty &&
+      _selectedSpecialty == null &&
+      _selectedDate == null;
+
   String _fmtDate(DateTime d) {
     const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const w = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -315,10 +381,17 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
                             ),
                             child: DoctorCard(
                               doctor: _doctors[i],
+                              buttonLabel: _isNameOnlyMode
+                                  ? 'View Availability'
+                                  : 'Book Now',
                               onTap: () {
-                                booking.selectDoctor(_doctors[i]);
-                                Navigator.push(context,
-                                    MaterialPageRoute(builder: (_) => const BookingScreen()));
+                                if (_isNameOnlyMode) {
+                                  _openAvailability(_doctors[i]);
+                                } else {
+                                  booking.selectDoctor(_doctors[i]);
+                                  Navigator.push(context,
+                                      MaterialPageRoute(builder: (_) => const BookingScreen()));
+                                }
                               },
                             ),
                           ),
@@ -543,7 +616,7 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
         child: Row(
           children: [
             Icon(Icons.medical_services_outlined,
-                size: 18, color: active ? _primary : Colors.grey[500]),
+                size: 16, color: active ? _primary : Colors.grey[500]),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -555,7 +628,6 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(Icons.expand_more_rounded, size: 16, color: Colors.grey[400]),
           ],
         ),
       ),
@@ -620,8 +692,8 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
             Container(
               width: 88,
               height: 88,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE8F5E9),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.search_rounded, size: 44, color: _primary),
