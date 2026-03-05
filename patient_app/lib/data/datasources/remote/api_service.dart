@@ -57,8 +57,11 @@ class ApiService {
   /// DOCTOR METHODS
   /// =========================
   Future<List<Doctor>> searchDoctors({
+    String? name,
     String? specialty,
+    String? hospital,
     String? location,
+    String? date,
     double? lat,
     double? lng,
   }) async {
@@ -67,7 +70,10 @@ class ApiService {
 
     final queryParams = <String, String>{};
 
+    if (name != null) queryParams['q'] = name;
     if (specialty != null) queryParams['specialty'] = specialty;
+    if (hospital != null) queryParams['hospital'] = hospital;
+    if (date != null) queryParams['date'] = date;
     if (location != null) queryParams['location'] = location;
     if (lat != null) queryParams['lat'] = lat.toString();
     if (lng != null) queryParams['lng'] = lng.toString();
