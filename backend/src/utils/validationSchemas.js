@@ -34,7 +34,22 @@ const updatePaymentStatusSchema = Joi.object({
     paymentStatus: Joi.string().valid('pending', 'paid', 'failed').required()
 });
 
-
+// Prescription form validation
+const createPrescriptionSchema = Joi.object({
+    patientId: Joi.string().required(),
+    medications: Joi.alternatives().try(
+        Joi.string(), // When sent via FormData, arrays come as stringified JSON
+        Joi.array().items(
+            Joi.object({
+                name: Joi.string().required(),
+                dosage: Joi.string().required(),
+                duration: Joi.string().required(),
+            })
+        )
+    ).required(),
+    notes: Joi.string().allow('').optional(),
+    fileUrl: Joi.string().allow('').optional()
+});
 
 module.exports = {
     reviewPrescriptionSchema,
