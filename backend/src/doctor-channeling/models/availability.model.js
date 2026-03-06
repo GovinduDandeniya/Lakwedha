@@ -38,4 +38,4 @@ const availabilitySchema = new mongoose.Schema({
 // Compound index for efficient queries
 availabilitySchema.index({ doctorId: 1, date: 1 }, { unique: true });
 
-module.exports = mongoose.model('Availability', availabilitySchema);
+module.exports = mongoose.models.Availability || mongoose.model('Availability', availabilitySchema);

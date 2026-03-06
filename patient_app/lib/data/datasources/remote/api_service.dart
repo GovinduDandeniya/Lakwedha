@@ -5,105 +5,63 @@ import '../../../core/constants/app_constants.dart';
 import '../../models/doctor_model.dart';
 import '../../models/availability_model.dart';
 import '../../models/appointment_model.dart';
-import '../../models/doctor_availability_model.dart';
+
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
 
-  /// =========================
-  /// HEADERS
-  /// =========================
   Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConstants.tokenKey);
 
-    final headers = {
-      'Content-Type': 'application/json',
-    };
-
+    final headers = {'Content-Type': 'application/json'};
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
-
     return headers;
   }
 
-  /// =========================
-  /// AUTH METHODS
-  /// =========================
-  Future<Map<String, dynamic>> login(
-      String email, String password) async {
+  // ===================== AUTH =====================
+  Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await http.post(
-      Uri.parse(
-          '${AppConstants.baseUrl}${AppConstants.loginEndpoint}'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.loginEndpoint}'),
       headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'email': email,
-        'password': password,
-      }),
+      body: json.encode({'email': email, 'password': password}),
     );
 
     final data = json.decode(response.body);
-
-    if (response.statusCode == 200) {
-      return data;
-    } else {
-      throw Exception(data['error'] ?? 'Login failed');
-    }
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Login failed');
   }
 
-  /// =========================
-  /// DOCTOR METHODS
-  /// =========================
+  // ===================== DOCTOR =====================
   Future<List<Doctor>> searchDoctors({
-    String? name,
     String? specialty,
-    String? hospital,
     String? location,
-    String? date,
     double? lat,
     double? lng,
   }) async {
-    String url =
-        '${AppConstants.baseUrl}${AppConstants.doctorsEndpoint}';
-
+    String url = '${AppConstants.baseUrl}${AppConstants.doctorsEndpoint}';
     final queryParams = <String, String>{};
 
-    if (name != null) queryParams['q'] = name;
     if (specialty != null) queryParams['specialty'] = specialty;
-    if (hospital != null) queryParams['hospital'] = hospital;
-    if (date != null) queryParams['date'] = date;
     if (location != null) queryParams['location'] = location;
     if (lat != null) queryParams['lat'] = lat.toString();
     if (lng != null) queryParams['lng'] = lng.toString();
+    if (queryParams.isNotEmpty) url += '?${Uri(queryParameters: queryParams).query}';
 
-    if (queryParams.isNotEmpty) {
-      url += '?${Uri(queryParameters: queryParams).query}';
-    }
-
-    final response = await http.get(
-      Uri.parse(url),
-      headers: await _getHeaders(),
-    );
-
+    final response = await http.get(Uri.parse(url), headers: await _getHeaders());
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      final List doctorsList =
-          (data['data'] ?? data['doctors'] ?? []) as List;
-
-      return doctorsList
-          .map((item) => Doctor.fromJson(item))
-          .toList();
-    } else {
-      throw Exception('Failed to load doctors');
+      final List doctorsList = (data['data'] ?? data['doctors'] ?? []) as List;
+      return doctorsList.map((json) => Doctor.fromJson(json)).toList();
     }
+    throw Exception('Failed to load doctors');
   }
 
-  /// =========================
-  /// AVAILABILITY METHODS
-  /// =========================
+  // ===================== AVAILABILITY =====================
   Future<List<Availability>> getDoctorAvailability(
     String doctorId, {
     DateTime? fromDate,
@@ -111,63 +69,34 @@ class ApiService {
   }) async {
     String url =
         '${AppConstants.baseUrl}${AppConstants.availabilityEndpoint}/doctor/$doctorId';
-
     final queryParams = <String, String>{};
+    if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
+    if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
+    if (queryParams.isNotEmpty) url += '?${Uri(queryParameters: queryParams).query}';
 
-    if (fromDate != null) {
-      queryParams['fromDate'] = fromDate.toIso8601String();
-    }
-
-    if (toDate != null) {
-      queryParams['toDate'] = toDate.toIso8601String();
-    }
-
-    if (queryParams.isNotEmpty) {
-      url += '?${Uri(queryParameters: queryParams).query}';
-    }
-
-    final response = await http.get(
-      Uri.parse(url),
-      headers: await _getHeaders(),
-    );
-
+    final response = await http.get(Uri.parse(url), headers: await _getHeaders());
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      final List availabilityList =
-          (data['data'] ?? []) as List;
-
-      return availabilityList
-          .map((item) => Availability.fromJson(item))
-          .toList();
-    } else {
-      throw Exception('Failed to load availability');
+      final List availabilities = (data['data'] ?? []) as List;
+      return availabilities.map((json) => Availability.fromJson(json)).toList();
     }
+    throw Exception('Failed to load availability');
   }
 
-  /// =========================
-  /// BOOK APPOINTMENT
-  /// =========================
+  // ===================== APPOINTMENTS =====================
   Future<Map<String, dynamic>> bookAppointment({
     required String doctorId,
     required String slotId,
     String? symptoms,
   }) async {
     final response = await http.post(
-      Uri.parse(
-          '${AppConstants.baseUrl}${AppConstants.bookAppointmentEndpoint}'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.bookAppointmentEndpoint}'),
       headers: await _getHeaders(),
-      body: json.encode({
-        'doctorId': doctorId,
-        'slotId': slotId,
-        'symptoms': symptoms ?? '',
-      }),
+      body: json.encode({'doctorId': doctorId, 'slotId': slotId, 'symptoms': symptoms ?? ''}),
     );
 
     final data = json.decode(response.body);
-
-    if (response.statusCode == 200 ||
-        response.statusCode == 201 ||
-        response.statusCode == 202) {
+    if (response.statusCode == 201 || response.statusCode == 202) {
       return {
         'success': true,
         'inQueue': response.statusCode == 202,
@@ -175,114 +104,59 @@ class ApiService {
         'queuePosition': data['queuePosition'],
         'message': data['message'],
       };
-    } else {
-      throw Exception(data['error'] ?? 'Booking failed');
     }
+    throw Exception(data['error'] ?? 'Booking failed');
   }
 
-  /// =========================
-  /// APPOINTMENT HISTORY
-  /// =========================
-  Future<Map<String, List<Appointment>>>
-      getAppointmentHistory() async {
+  Future<Map<String, List<Appointment>>> getAppointmentHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    final userRole =
-        prefs.getString(AppConstants.userRoleKey) ?? 'patient';
+    final userRole = prefs.getString(AppConstants.userRoleKey) ?? 'patient';
 
     final response = await http.get(
-      Uri.parse(
-          '${AppConstants.baseUrl}${AppConstants.appointmentHistoryEndpoint}?role=$userRole'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.appointmentHistoryEndpoint}?role=$userRole'),
       headers: await _getHeaders(),
     );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-
-      final upcomingList =
-          (data['data']?['upcoming'] as List?) ?? [];
-      final pastList =
-          (data['data']?['past'] as List?) ?? [];
-
-      final upcoming = upcomingList
-          .map((item) => Appointment.fromJson(item))
-          .toList();
-
-      final past = pastList
-          .map((item) => Appointment.fromJson(item))
-          .toList();
-
+      final upcomingList = (data['data']?['upcoming'] as List?) ?? [];
+      final pastList = (data['data']?['past'] as List?) ?? [];
       return {
-        'upcoming': upcoming,
-        'past': past,
+        'upcoming': upcomingList.map((json) => Appointment.fromJson(json)).toList(),
+        'past': pastList.map((json) => Appointment.fromJson(json)).toList(),
       };
-    } else {
-      throw Exception(
-          'Failed to load appointment history');
     }
+    throw Exception('Failed to load appointment history');
   }
 
-  /// =========================
-  /// UPDATE APPOINTMENT STATUS
-  /// =========================
   Future<Appointment> updateAppointmentStatus(
     String appointmentId,
     String status, {
     String? reason,
   }) async {
     final response = await http.patch(
-      Uri.parse(
-          '${AppConstants.baseUrl}${AppConstants.appointmentStatusEndpoint}/$appointmentId/status'),
+      Uri.parse('${AppConstants.baseUrl}/doctor-channeling/appointments/$appointmentId/status'),
       headers: await _getHeaders(),
-      body: json.encode({
-        'status': status,
-        if (reason != null) 'reason': reason,
-      }),
+      body: json.encode({'status': status, if (reason != null) 'reason': reason}),
     );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       return Appointment.fromJson(data['data']);
-    } else {
-      throw Exception(
-          'Failed to update appointment status');
     }
+    throw Exception('Failed to update appointment status');
   }
 
-  /// =========================
-  /// QUEUE STATUS
-  /// =========================
-  Future<Map<String, dynamic>> getQueueStatus(
-      String slotId) async {
+  Future<Map<String, dynamic>> getQueueStatus(String slotId) async {
     final response = await http.get(
-      Uri.parse(
-          '${AppConstants.baseUrl}${AppConstants.queueStatusEndpoint}/$slotId'),
+      Uri.parse('${AppConstants.baseUrl}/doctor-channeling/appointments/queue/$slotId'),
       headers: await _getHeaders(),
     );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       return data['data'] ?? {};
-    } else {
-      throw Exception('Failed to get queue status');
     }
-  }
-
-  /// =========================
-  /// DOCTOR AVAILABILITY BY NAME
-  /// =========================
-  Future<DoctorAvailabilityResult> getDoctorAvailabilityByName(
-      String doctorName) async {
-    final response = await http.get(
-      Uri.parse(
-          '${AppConstants.baseUrl}/api/doctor-availability?doctorName=${Uri.encodeComponent(doctorName)}'),
-      headers: await _getHeaders(),
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return DoctorAvailabilityResult.fromJson(data);
-    } else {
-      throw Exception('Failed to load doctor availability');
-    }
+    throw Exception('Failed to get queue status');
   }
 }

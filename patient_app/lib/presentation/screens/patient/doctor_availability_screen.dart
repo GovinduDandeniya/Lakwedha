@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../data/models/doctor_availability_model.dart';
 import '../../../data/models/doctor_model.dart';
-import '../../providers/booking_provider.dart';
-import 'booking_screen.dart';
+import 'appointment_registration_screen.dart';
 
 const Color _primary = Color(0xFF2E7D32);
 const Color _bg = Color(0xFFF4FAF4);
@@ -398,9 +396,6 @@ class DoctorAvailabilityScreen extends StatelessWidget {
 
   void _bookDate(BuildContext context, HospitalAvailability hospital,
       DateSlotSummary slot) {
-    final booking = Provider.of<BookingProvider>(context, listen: false);
-
-    // Build a Doctor object from availability data + selected hospital
     final doctor = Doctor(
       id: availability.doctorId,
       name: availability.doctorName,
@@ -416,21 +411,15 @@ class DoctorAvailabilityScreen extends StatelessWidget {
       isVerified: availability.isVerified,
     );
 
-    booking.selectDoctor(doctor);
-
-    // Pre-select the tapped date
-    final parts = slot.date.split('-');
-    if (parts.length == 3) {
-      booking.selectDate(DateTime(
-        int.parse(parts[0]),
-        int.parse(parts[1]),
-        int.parse(parts[2]),
-      ));
-    }
-
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const BookingScreen()),
+      MaterialPageRoute(
+        builder: (_) => AppointmentRegistrationScreen(
+          doctor: doctor,
+          hospital: hospital,
+          slot: slot,
+        ),
+      ),
     );
   }
 
