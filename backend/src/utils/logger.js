@@ -6,14 +6,14 @@ const logFormat = winston.format.combine(
     winston.format.printf(info => `[${info.timestamp}] ${info.level.toUpperCase()}: ${info.message}`)
 );
 
-/*const logger = winston.createLogger({
+const logger = winston.createLogger({
     level: 'info',
     format: logFormat,
     transports: [
         new winston.transports.File({ filename: path.join(__dirname, '../../reports/error.log'), level: 'error' }),
         new winston.transports.File({ filename: path.join(__dirname, '../../reports/combined.log') })
     ]
-});*/
+});
 
 if (process.env.NODE_ENV !== 'production') {
     logger.add(new winston.transports.Console({
