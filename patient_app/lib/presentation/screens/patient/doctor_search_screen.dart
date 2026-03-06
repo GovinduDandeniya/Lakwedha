@@ -90,12 +90,8 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
     });
     try {
       final results = await _apiService.searchDoctors(
-        name: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
         specialty: _selectedSpecialty,
-        hospital: _hospitalController.text.trim().isNotEmpty ? _hospitalController.text.trim() : null,
-        date: _selectedDate != null
-            ? '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}'
-            : null,
+        location: _hospitalController.text.trim().isNotEmpty ? _hospitalController.text.trim() : null,
       );
       _doctors = results.isEmpty ? _filterSamples() : results;
     } catch (_) {
@@ -111,7 +107,7 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
   Future<void> _openAvailability(Doctor doctor) async {
     DoctorAvailabilityResult result;
     try {
-      result = await _apiService.getDoctorAvailabilityByName(doctor.name);
+      result = await _apiService.getDoctorAvailabilityResult(doctor.id);
     } catch (_) {
       result = _generateSampleAvailability(doctor);
     }
