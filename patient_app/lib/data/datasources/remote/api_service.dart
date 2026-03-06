@@ -5,9 +5,20 @@ import '../../../core/constants/app_constants.dart';
 import '../../models/doctor_model.dart';
 import '../../models/availability_model.dart';
 import '../../models/appointment_model.dart';
+import '../../models/doctor_availability_model.dart';
 
 
 class ApiService {
+    // ===================== DOCTOR AVAILABILITY RESULT =====================
+    Future<DoctorAvailabilityResult> getDoctorAvailabilityResult(String doctorId) async {
+      String url = '${AppConstants.baseUrl}${AppConstants.availabilityEndpoint}/doctor/$doctorId/summary';
+      final response = await http.get(Uri.parse(url), headers: await _getHeaders());
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return DoctorAvailabilityResult.fromJson(data['data']);
+      }
+      throw Exception('Failed to load doctor availability summary');
+    }
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
