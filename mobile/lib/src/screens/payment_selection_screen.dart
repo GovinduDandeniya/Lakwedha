@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:payhere_mobilesdk_flutter/payhere_mobilesdk_flutter.dart';
 import 'package:shimmer/shimmer.dart';
+// PayHere SDK is mobile-only. Import is conditionally used via kIsWeb guard.
+import 'package:payhere_mobilesdk_flutter/payhere_mobilesdk_flutter.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:ravana_app/src/core/api_client.dart';
 import 'order_tracking_screen.dart';
@@ -126,6 +128,17 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
 
       // Step 2: Launch PayHere SDK with params from server
       final completer = Completer<void>();
+
+      if (kIsWeb) {
+        // PayHere SDK is not available on web. Show a message.
+        if (mounted) {
+          setState(() {
+            _paymentError = 'PayHere card payment is available on mobile only. Use Cash on Delivery for now.';
+            _isPaying = false;
+          });
+        }
+        return;
+      }
 
       PayHere.startPayment(
         paymentParams,
