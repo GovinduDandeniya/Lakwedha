@@ -343,7 +343,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Incoming Requests',
+                    'All Prescriptions',
                     style: TextStyle(
                       color: AppTheme.earth,
                       fontSize: 18,
@@ -362,9 +362,9 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
           // ── Request List ────────────────────────────────────────────────
           prescriptionsAsync.when(
             data: (prescriptions) {
-              final pendingPrescriptions = prescriptions.where((p) => p['pharmacyStatus'] == 'pending').toList();
+              final allPrescriptions = prescriptions.toList();
 
-              if (pendingPrescriptions.isEmpty) {
+              if (allPrescriptions.isEmpty) {
                 return SliverToBoxAdapter(
                   child: Center(
                     child: Padding(
@@ -379,7 +379,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'No pending prescriptions to review.',
+                            'No prescriptions found.',
                             style: TextStyle(color: AppTheme.earth.withOpacity(0.4)),
                           )
                         ],
@@ -390,9 +390,9 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
               }
 
               return SliverList.builder(
-                itemCount: pendingPrescriptions.length,
+                itemCount: allPrescriptions.length,
                 itemBuilder: (context, index) {
-                  final req = pendingPrescriptions[index];
+                  final req = allPrescriptions[index];
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                     child: _buildRealRequestCard(req, index),
@@ -414,83 +414,121 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
 
   Widget _buildRealRequestCard(Map<String, dynamic> request, int index) {
     final date = DateTime.parse(request['createdAt'].toString());
-    final timeStr = "${date.hour}:${date.minute.toString().padLeft(2, '0')}";
+    final timeStr = "${date.day}/${date.month}  ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
+    final status = request['pharmacyStatus'] as String? ?? 'pending';
 
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        _showReviewOptions(request['_id']);
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.clay),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppTheme.herbal.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppTheme.herbal.withOpacity(0.2)),
+    Color statusColor;
+    if (status == 'approved') statusColor = AppTheme.herbal;
+    else if (status == 'rejected') statusColor = Colors.red;
+    else statusColor = AppTheme.turmeric;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.clay),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.description_outlined, color: statusColor, size: 20),
               ),
-              child: const Icon(Icons.description_outlined,
-                  color: AppTheme.herbal, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    request['patientName'] ?? 'Guest',
-                    style: const TextStyle(
-                      color: AppTheme.earth,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      request['patientName'] ?? 'Guest',
+                      style: const TextStyle(
+                        color: AppTheme.earth,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${request['_id'].toString().substring(0, 8)}  ·  $timeStr',
-                    style: TextStyle(
-                      color: AppTheme.earth.withOpacity(0.45),
-                      fontSize: 12,
+                    const SizedBox(height: 2),
+                    Text(
+                      'ID: ${request['_id'].toString().substring(0, 8)} • $timeStr',
+                      style: TextStyle(
+                        color: AppTheme.earth.withOpacity(0.5),
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.earth,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Review',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                  ],
                 ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: statusColor.withOpacity(0.3)),
+                ),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          if (status == 'pending') ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1),
             ),
-          ],
-        ),
-      ).animate(delay: Duration(milliseconds: 100 * index)).fadeIn(duration: 300.ms).slideX(begin: 0.1, end: 0),
-    );
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _showRejectModal(request['_id']),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Reject'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _showApproveModal(request['_id']),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.herbal,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Approve'),
+                  ),
+                ),
+              ],
+            )
+          ]
+        ],
+      ),
+    ).animate(delay: Duration(milliseconds: 50 * index)).fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0);
   }
 
   Widget _buildStatsGrid(int pending, int approved) {
