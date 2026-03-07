@@ -38,7 +38,8 @@ dependencies:
   shimmer: ^3.0.0
   flutter_animate: ^4.5.0
   logger: ^2.4.0
-  payhere_mobilesdk_flutter: ^2.0.2
+  payhere_mobilesdk_flutter: ^3.2.2
+  image_picker_for_web: ^3.0.6
 
 dev_dependencies:
   flutter_test:
