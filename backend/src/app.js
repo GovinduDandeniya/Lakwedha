@@ -5,7 +5,16 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow all origins for dev (covers dynamic Flutter web ports like :12031)
+    callback(null, true);
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
+  credentials: true,
+}));
+app.options('*', cors()); // Pre-flight for all routes
 app.use(express.json());
 app.use(morgan('combined')); // Request logging
 
