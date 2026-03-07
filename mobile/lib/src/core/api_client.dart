@@ -10,8 +10,8 @@ const _storage = FlutterSecureStorage();
 final dioProvider = Provider((ref) {
   final dio = Dio(
     BaseOptions(
-      // Using 10.0.2.2 for Android Emulator to access localhost
-      baseUrl: 'http://10.0.2.2:5000/api',
+      // Using local IP address for physical iPhone testing on same WiFi
+      baseUrl: 'http://172.20.10.12:5000/api',
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       headers: {
