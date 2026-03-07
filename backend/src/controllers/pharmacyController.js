@@ -3,7 +3,6 @@ const Order = require('../models/Order');
 const { PRESCRIPTION_STATUS } = require('../config/constants');
 const { reviewPrescriptionSchema, updateMedicinesSchema } = require('../utils/validationSchemas');
 const asyncHandler = require('../utils/asyncHandler');
-const PriceCalculationService = require('../services/PriceCalculationService');
 
 // GET all prescriptions
 exports.getAllPrescriptions = asyncHandler(async (req, res) => {
@@ -75,18 +74,21 @@ exports.reviewPrescription = asyncHandler(async (req, res) => {
         prescription.pharmacyStatus = 'approved';
         await prescription.save();
 
-        // Calculate secure server-side price
-        const pricing = PriceCalculationService.calculateTotal(prescription.medicines);
+        // Calculate prices manually
+        const subtotal = prescription.medicines.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+        const tax = subtotal * 0.05; // 5% tax
+        const deliveryFee = 350; // Flat fee
+        const totalAmount = subtotal + tax + deliveryFee;
 
         // Spawn Order Record
         const order = await Order.create({
             userId: prescription.userId,
             prescriptionId: prescription._id,
             medicines: prescription.medicines,
-            subtotal: pricing.subtotal,
-            tax: pricing.tax,
-            deliveryFee: pricing.deliveryFee,
-            totalAmount: pricing.totalAmount,
+            subtotal,
+            tax,
+            deliveryFee,
+            totalAmount,
             status: 'pending',
             paymentStatus: 'pending',
             statusHistory: [{
