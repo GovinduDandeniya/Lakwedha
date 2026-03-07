@@ -70,10 +70,14 @@ final dioProvider = Provider((ref) {
     onRequest: (options, handler) async {
       logger.i('REQUEST[${options.method}] => PATH: ${options.path}');
 
-      // Inject Authorization token if it exists
+      // Inject Authorization token
       final token = await _tokenStorage.read('jwt_token');
       if (token != null && token.isNotEmpty) {
         options.headers['Authorization'] = 'Bearer $token';
+      } else if (kIsWeb) {
+        // On web dev, use the backend's built-in dev bypass token
+        // (auth.js passes this when NODE_ENV != 'production')
+        options.headers['Authorization'] = 'Bearer dummy-jwt-token-for-dev';
       }
 
       return handler.next(options);
