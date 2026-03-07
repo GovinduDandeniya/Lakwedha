@@ -7,7 +7,8 @@ const {
     updateOrderStatus,
     getAllOrders,
     getOrderById,
-    calculateOrderPrice
+    initiatePayment,
+    handlePayhereNotification
 } = require('../controllers/orderController');
 
 // GET all orders - Protected
@@ -25,13 +26,10 @@ router.put('/:id/payment', auth, updatePaymentStatus);
 // Update order status (lifecycle) - Protected
 router.put('/:id/status', auth, updateOrderStatus);
 
-// Get real price check before payment - Protected
-router.get('/:id/calculate-price', auth, calculateOrderPrice);
+// Initiate PayHere payment — returns hash and all params for mobile SDK - Protected
+router.post('/:id/pay/initiate', auth, initiatePayment);
 
-// Initiate payment (get gateway params) - Protected (Skipping as requested)
-router.get('/:id/pay', auth, (req, res, next) => {
-    const { id } = req.params;
-    res.json({ success: true, data: { orderId: id }, message: 'Gateway integration ready' });
-});
+// PayHere server-to-server webhook — no auth, signature verified internally
+router.post('/pay/notify', handlePayhereNotification);
 
 module.exports = router;
