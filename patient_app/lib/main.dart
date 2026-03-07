@@ -4,6 +4,9 @@ import 'presentation/providers/booking_provider.dart';
 import 'presentation/providers/appointment_provider.dart';
 import 'presentation/screens/patient/doctor_search_screen.dart';
 import 'core/constants/app_constants.dart';
+import 'presentation/screens/patient/payment_success_screen.dart';
+import 'data/models/doctor_model.dart';
+import 'data/models/doctor_availability_model.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
