@@ -15,3 +15,12 @@ exports.getNotifications = async (req, res, next) => {
         next(err);
     }
 };
+try {
+        const count = await notificationService.getUnreadCount(req.user.id);
+        res.json({ count });
+    } catch (err) {
+        
+    } catch (error) {
+        
+    } (err) 
+        next(err);
