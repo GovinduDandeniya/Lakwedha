@@ -23,3 +23,9 @@ const appointmentStatusChange = (patientName, status, slotTime) => {
 const orderStatusChange = (userName, orderId, status) => {
     const short = String(orderId).slice(-6).toUpperCase();
     const labels = {
+        pending: 'received and pending review',
+        approved: 'approved by the pharmacy',
+        processing: 'being prepared',
+        shipped: 'dispatched and on its way',
+        completed: 'delivered successfully',
+    };
