@@ -78,3 +78,7 @@ const getUserNotifications = async (userId, page = 1, limit = 20) => {
         },
     };
 };
+
+const getUnreadCount = async (userId) => {
+    return Notification.countDocuments({ userId, isRead: false });
+};
