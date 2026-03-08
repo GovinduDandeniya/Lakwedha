@@ -1,11 +1,16 @@
 const notificationService = require('./notificationService');
 /**
- * GET /api/notifications/unread-count
+ * GET /api/notifications
+ * Query: ?page=1&limit=20
  */
-exports.getUnreadCount = async (req, res, next) => {
+exports.getNotifications = async (req, res, next) => {
     try {
-        const count = await notificationService.getUnreadCount(req.user.id);
-        res.json({ count });
+        const userId = req.user.id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+
+        const result = await notificationService.getUserNotifications(userId, page, limit);
+        res.json(result);
     } catch (err) {
         next(err);
     }
