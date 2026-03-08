@@ -18,4 +18,11 @@ class AppColors {
   static const Color textMedium = Color(0xFF555555);
   static const Color textLight = Color(0xFF888888);
   static const Color textWhite = Color(0xFFFFFFFF);
+
+  // Status
+  static const Color error = Color(0xFFD32F2F);
+  static const Color success = Color(0xFF388E3C);
+
+  // Border
+  static const Color border = Color(0xFF6B0000);
 }
