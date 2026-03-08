@@ -113,6 +113,78 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ],
     );
   }
-
   
+  Widget _buildForm() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: AppColors.primaryDark,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.accent, width: 2.5),
+            ),
+            child: const Icon(
+              Icons.lock_reset_outlined,
+              size: 32,
+              color: AppColors.accentLight,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            AppStrings.forgotPasswordTitle,
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            AppStrings.forgotPasswordSub,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: AppColors.textMedium,
+            ),
+          ),
+          const SizedBox(height: 24),
+          CustomTextField(
+            label: AppStrings.emailLabel,
+            hint: AppStrings.emailHint,
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return AppStrings.fieldRequired;
+              if (!v.contains('@') || !v.contains('.')) return AppStrings.invalidEmail;
+              return null;
+            },
+          ),
+          const SizedBox(height: 24),
+          AuthButton(
+            label: AppStrings.sendResetLink,
+            onPressed: _sendResetLink,
+            isLoading: _isLoading,
+          ),
+          const SizedBox(height: 14),
+          TextButton.icon(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14, color: AppColors.primary),
+            label: Text(
+              AppStrings.backToSignIn,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
