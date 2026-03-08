@@ -55,6 +55,12 @@ class _SignInScreenState extends State<SignInScreen> {
     }
   }
 
+   Future<void> _continueAsGuest() async {
+    await StorageService.setGuest(true);
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, '/home');
+  }
+
 
 
 }
