@@ -1,4 +1,5 @@
 class AppStrings {
+    AppStrings._();
 
   // App
   static const String appName = 'Ravana 2.0';
