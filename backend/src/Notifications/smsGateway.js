@@ -7,6 +7,7 @@ if (SMS_ENABLED) {
     try {
         const twilio = require('twilio');
         twilioClient = twilio(
+            process.env.TWILIO_ACCOUNT_SID,
             process.env.TWILIO_AUTH_TOKEN
         );
         console.log('[SMS] Twilio client initialised successfully');
