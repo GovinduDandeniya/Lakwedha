@@ -1,8 +1,8 @@
-const Appointment = require('../models/Appointment.model');
-const Availability = require('../models/Availability.model');
+const Appointment = require('../models/appointment.model');
+const Availability = require('../models/availability.model');
 const queueService = require('../services/queue.service');
 const notificationService = require('../services/notification.service');
-const { validateAppointment } = require('../validators/appointment.validator');
+const { validateAppointment, validateStatusUpdate } = require('../validators/appointment.validator');
 
 /**
  * Book appointment (queue-based)
@@ -41,6 +41,7 @@ exports.bookAppointment = async (req, res) => {
             const appointment = new Appointment({
                 doctorId,
                 patientId,
+                slotId,
                 slotTime: new Date(`${availability.date.toDateString()} ${slot.startTime}`),
                 symptoms,
                 status: 'confirmed'
@@ -93,6 +94,14 @@ exports.updateStatus = async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const { status, reason } = req.body;
+
+        const { error } = validateStatusUpdate(req.body);
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: error.details[0].message
+            });
+        }
 
         const appointment = await Appointment.findById(appointmentId);
 

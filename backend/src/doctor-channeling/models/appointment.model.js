@@ -16,6 +16,7 @@ const appointmentSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+  slotId: { type: mongoose.Schema.Types.ObjectId },
   slotTime: { type: Date, required: true },
   status: {
     type: String,
