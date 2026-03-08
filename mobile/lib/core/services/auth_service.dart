@@ -20,11 +20,6 @@ class AuthService {
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 
-      if (response.statusCode == 200) {
-        return data;
-      } else {
-        throw data['message'] as String? ?? 'Invalid credentials. Please try again.';
-      }
     } on http.ClientException {
       throw 'Network error. Check your connection.';
     } catch (e) {
