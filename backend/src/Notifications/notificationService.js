@@ -135,10 +135,11 @@ const notifyOrderStatus = async (order, status, userName) => {
     const title = statusLabels[status] || 'Order Update';
     const smsMsg = templates.orderStatusChange(userName, order._id, status);
 
-    return createNotification(
+       return createNotification(
         order.userId,
-        
+        'order',
         title,
+        smsMsg,
         order._id,
         'Order',
         smsMsg
