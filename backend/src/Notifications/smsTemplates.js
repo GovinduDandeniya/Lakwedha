@@ -38,7 +38,7 @@ const prescriptionRejected = (userName) =>
     `Hi ${userName}, your prescription could not be approved. Please visit a Lakwedha pharmacy or contact support for assistance. - Lakwedha`;
 module.exports = {
     appointmentConfirmation,
-    appointmentStatusChanges,
+    appointmentStatusChange,
     orderStatusChange,
     prescriptionApproved,
     prescriptionRejected,
