@@ -114,4 +114,13 @@ const notifyAppointment = async (appointment, status, patientName, doctorName) =
     };
     const title = typeLabels[status] || 'Appointment Update';
     const message = templates.appointmentStatusChange(patientName, status, appointment.slotTime);
-
+     return createNotification(
+        appointment.patientId,
+        'appointment',
+        title,
+        message,
+        appointment._id,
+        'Appointment',
+        message
+    );
+};
