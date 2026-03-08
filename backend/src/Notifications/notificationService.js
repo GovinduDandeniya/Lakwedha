@@ -82,3 +82,22 @@ const getUserNotifications = async (userId, page = 1, limit = 20) => {
 const getUnreadCount = async (userId) => {
     return Notification.countDocuments({ userId, isRead: false });
 };
+
+const markAsRead = async (notificationId, userId) => {
+    const notification = await Notification.findOneAndUpdate(
+        { _id: notificationId, userId },
+        { isRead: true },
+        { new: true }
+    );
+    if (!notification) {
+        const err = new Error('Notification not found or access denied');
+        err.statusCode = 404;
+        throw err;
+    }
+    return notification;
+    return result.modifiedCount;
+};
+const getNotificationHistory = async (userId, type = null) => {
+    const filter = { userId };
+    if (type) filter.type = type;
+    return Notification.find(filter).sort({ createdAt: -1 }).lean();
