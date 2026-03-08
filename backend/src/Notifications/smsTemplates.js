@@ -10,3 +10,11 @@ const appointmentStatusChange = (patientName, status, slotTime) => {
     const formatted = new Date(slotTime).toLocaleString('en-LK', {
         dateStyle: 'medium',
         timeStyle: 'short',
+        });
+    const verb = {
+       confirmed: 'confirmed',
+        cancelled: 'cancelled',
+        rescheduled: 'rescheduled',
+        completed: 'marked as completed',
+        'no-show': 'marked as no-show',
+    }[status] || status;
