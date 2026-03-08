@@ -29,3 +29,6 @@ const orderStatusChange = (userName, orderId, status) => {
         shipped: 'dispatched and on its way',
         completed: 'delivered successfully',
     };
+    const label = labels[status] || status;
+    return `Hi ${userName}, your order #${short} is ${label}. - Lakwedha`;
+};
