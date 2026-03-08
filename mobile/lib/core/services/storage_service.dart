@@ -35,6 +35,12 @@ class StorageService {
     return prefs.getString(_userNameKey);
   }
 
+  // As guest
+  static Future<void> setGuest(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_isGuestKey, value);
+  }
+
   // logout 
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
