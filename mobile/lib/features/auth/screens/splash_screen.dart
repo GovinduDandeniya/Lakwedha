@@ -32,7 +32,20 @@ class _SplashScreenState extends State<SplashScreen>
     _navigateAfterSplash();
   }
 
+  Future<void> _navigateAfterSplash() async {
+    await Future.delayed(const Duration(milliseconds: 2400));
+    if (!mounted) return;
+    final token = await StorageService.getToken();
+    final guest = await StorageService.isGuest();
+    if (!mounted) return;
+    if (token != null || guest) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      Navigator.pushReplacementNamed(context, '/sign-in');
+    }
+  }
 
-  
+
+
 }
 
