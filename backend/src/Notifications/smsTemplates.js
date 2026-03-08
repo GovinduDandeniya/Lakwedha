@@ -32,3 +32,5 @@ const orderStatusChange = (userName, orderId, status) => {
     const label = labels[status] || status;
     return `Hi ${userName}, your order #${short} is ${label}. - Lakwedha`;
 };
+const prescriptionRejected = (userName) =>
+    `Hi ${userName}, your prescription could not be approved. Please visit a Lakwedha pharmacy or contact support for assistance. - Lakwedha`;
