@@ -31,5 +31,8 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward();
     _navigateAfterSplash();
   }
+
+
+  
 }
 
