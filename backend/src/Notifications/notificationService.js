@@ -145,3 +145,15 @@ const notifyOrderStatus = async (order, status, userName) => {
         smsMsg
     );
 };
+module.exports = {
+    createNotification,
+    getUserNotifications,
+    getUnreadCount,
+    markAsRead,
+    markAllAsRead,
+    getNotificationHistory,
+    notifyAppointment,
+    notifyOrderStatus,
+    notifyPrescriptionReview,
+};
+
