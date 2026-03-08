@@ -41,5 +41,5 @@ module.exports = {
     appointmentStatusChange,
     orderStatusChange,
     prescriptionApproved,
-    prescriptionRejected,
+    ,
 };
