@@ -20,5 +20,6 @@ const appointmentStatusChange = (patientName, status, slotTime) => {
     }[status] || status;
     return `Hi ${patientName}, your appointment on ${formatted} has been ${verb}. - Lakwedha`;
 };
-const prescriptionApproved = (userName) =>
-    `Hi ${userName}, your prescription has been reviewed and approved by our pharmacy. Your order is now being processed. - Lakwedha`;
+const orderStatusChange = (userName, orderId, status) => {
+    const short = String(orderId).slice(-6).toUpperCase();
+    const labels = {
