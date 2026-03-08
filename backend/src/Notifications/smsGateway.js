@@ -35,3 +35,11 @@ const sendSMS = async (to, body) => {
             from: process.env.TWILIO_PHONE_NUMBER,
             to,
         });
+        
+    try {
+        const result = await attempt();
+        return { success: true, sid: result.sid };
+    } catch (err) {
+        console.error('[SMS] Twilio error:', err.message);
+        return { success: false, error: err.message };
+    }
