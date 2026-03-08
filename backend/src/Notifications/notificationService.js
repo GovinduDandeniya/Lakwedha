@@ -104,9 +104,14 @@ const getNotificationHistory = async (userId, type = null) => {
 };
 
 const notifyAppointment = async (appointment, status, patientName, doctorName) => {
-    const userId = appointment.patientId;
-    const title = `Appointment ${status}`;
-    const message = `Your appointment with Dr. ${doctorName} on ${appointment.date.toLocaleString()} has been ${status}.`;
-    const smsMessage = templates.appointmentStatus({ doctorName, date: appointment.date, status });
-    return createNotification(userId, 'appointment', title, message, appointment._id, 'Appointment', smsMessage);
-};
+    const typeLabels = {
+        confirmed: 'Appointment Confirmed',
+        cancelled: 'Appointment Cancelled',
+        rescheduled: 'Appointment Rescheduled',
+        pending: 'Appointment Booked',
+        completed: 'Appointment Completed',
+        'no-show': 'Appointment Missed',
+    };
+    const title = typeLabels[status] || 'Appointment Update';
+    const message = templates.appointmentStatusChange(patientName, status, appointment.slotTime);
+
