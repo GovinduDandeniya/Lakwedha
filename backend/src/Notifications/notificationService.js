@@ -12,5 +12,23 @@ const templates = require('./smsTemplates');
  @param {string} [smsMessage]             //Override SMS text (defaults to message)
  @returns {Promise<Notification>}
 */
-
-
+const createNotification = async (
+    userId,
+    type,
+    title,
+    message,
+    referenceId = null,
+    referenceModel = null,
+    smsStatus = null
+) => {
+    try {
+        //  Persist in-app notification
+        const notification = await Notification.create({
+            userId,
+            type,
+            title,
+            message,
+            referenceId,
+            referenceModel,
+            smsStatus: 'skipped',
+        });
