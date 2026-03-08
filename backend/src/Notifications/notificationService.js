@@ -19,10 +19,10 @@ const createNotification = async (
     message,
     referenceId = null,
     referenceModel = null,
-    smsStatus = null
+    smsMessage = null
 ) => {
     try {
-        //  Persist in-app notification
+        // 1. Persist in-app notification
         const notification = await Notification.create({
             userId,
             type,
@@ -32,3 +32,28 @@ const createNotification = async (
             referenceModel,
             smsStatus: 'skipped',
         });
+// 2. Attempt SMS 
+        setImmediate(async () => {
+            try {
+                const user = await User.findById(userId).select('phone name');
+                if (user && user.phone) {
+                    const smsBody = smsMessage || message;
+                    const result = await sendSMS(user.phone, smsBody);
+                    const smsStatus = result.skipped ? 'skipped' : result.success ? 'sent' : 'failed';
+                     Notification.findByIdAndUpdate(notification._id, {
+                        smsStatus,
+                        smsSid: result.sid,
+                    });
+                }
+            } catch (err) {
+                console.error('[NotificationService] SMS dispatch error:', err.message);
+            }
+        });
+
+        return notification;
+    } catch (err) {
+        // Never crash the calling controller over a notification error
+        console.error('[NotificationService] createNotification error:', err.message);
+        return null;
+    }
+};
