@@ -150,7 +150,7 @@ const notifyPrescriptionReview = async (prescription, status, userName) => {
     const smsMsg =
         status === 'approved'
             ? templates.prescriptionApproved(userName)
-           
+            : templates.prescriptionRejected(userName);
 
     return createNotification(
         prescription.userId,
