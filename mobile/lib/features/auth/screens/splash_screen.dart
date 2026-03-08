@@ -45,7 +45,86 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.primary,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ScaleTransition(
+              scale: _scaleAnim,
+              child: Container(
+                width: 130,
+                height: 130,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryDark,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.accent, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.health_and_safety_outlined,
+                  size: 60,
+                  color: AppColors.accentLight,
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+            FadeTransition(
+              opacity: _fadeAnim,
+              child: Text(
+                'RAVANA',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.accentLight,
+                  letterSpacing: 6,
+                ),
+              ),
+            ),
+            FadeTransition(
+              opacity: _fadeAnim,
+              child: Text(
+                '2.0',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textWhite.withOpacity(0.8),
+                  letterSpacing: 4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 60),
+            FadeTransition(
+              opacity: _fadeAnim,
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  color: AppColors.accentLight.withOpacity(0.7),
+                  strokeWidth: 2.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
 }
 
