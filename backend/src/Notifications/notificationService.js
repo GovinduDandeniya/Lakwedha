@@ -72,7 +72,9 @@ const getUserNotifications = async (userId, page = 1, limit = 20) => {
         notifications,
         pagination: {
             total,
-            page:Math.ceil(total / limit)
+            page,
+            limit,
+            pages: Math.ceil(total / limit)
         },
     };
 };
