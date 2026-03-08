@@ -15,3 +15,14 @@ if (SMS_ENABLED) {
         console.error('[SMS] Failed to initialise Twilio client:', err.message);
     }
 }
+/**
+ @param {string} to   - E.164 format phone number e.g. '+94711234567'
+ @param {string} body - SMS message text
+ @returns {Promise<{success: boolean, sid?: string, error?: string}>}
+*/
+const sendSMS = async (to, body) => {
+    if (!SMS_ENABLED || !twilioClient) {
+        console.warn('[SMS] SMS sending is disabled or Twilio client not available');
+        return { success: false, skipped: true };
+    }
+ 
