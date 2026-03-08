@@ -23,4 +23,16 @@ class StorageService {
     await prefs.remove(_tokenKey);
   }
 
+  // Save user display name
+  static Future<void> saveUserName(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userNameKey, name);
+  }
+
+  // Get saved user display name
+  static Future<String?> getUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userNameKey);
+  }
+
 }
