@@ -124,3 +124,23 @@ const notifyAppointment = async (appointment, status, patientName, doctorName) =
         message
     );
 };
+const notifyOrderStatus = async (order, status, userName) => {
+    const statusLabels = {
+        pending: 'Order Received',
+        approved: 'Order Approved',
+        processing: 'Order Processing',
+        shipped: 'Order Shipped',
+        completed: 'Order Delivered',
+    };
+    const title = statusLabels[status] || 'Order Update';
+    const smsMsg = templates.orderStatusChange(userName, order._id, status);
+
+    return createNotification(
+        order.userId,
+        
+        title,
+        order._id,
+        'Order',
+        smsMsg
+    );
+};
