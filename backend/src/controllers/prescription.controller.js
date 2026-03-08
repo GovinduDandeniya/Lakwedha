@@ -52,4 +52,38 @@ exports.createPrescription = async (req, res) => {
     }
 };
 
+/**
+ * Controller to get Prescriptions
+ */
+exports.getPrescriptions = async (req, res) => {
+    try {
+        const userId = req.user.id || req.user._id;
+        const userRole = (req.user.role || '').toUpperCase();
 
+        let query = {};
+
+        if (userRole === 'PATIENT') {
+            query.patientId = userId;
+        } else if (userRole === 'DOCTOR') {
+            const { patientId } = req.query;
+            if (patientId) {
+                query.patientId = patientId;
+            }
+            query.doctorId = userId;
+        } else {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+
+        const prescriptions = await Prescription.find(query)
+            .populate('doctorId', 'name email')
+            .populate('patientId', 'name email')
+            .sort({ issuedDate: -1 });
+
+        res.status(200).json({
+            message: 'Prescriptions retrieved successfully',
+            prescriptions
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch Prescriptions', error: error.message });
+    }
+};
