@@ -18,3 +18,5 @@ const appointmentStatusChange = (patientName, status, slotTime) => {
         completed: 'marked as completed',
         'no-show': 'marked as no-show',
     }[status] || status;
+    return `Hi ${patientName}, your appointment on ${formatted} has been ${verb}. - Lakwedha`;
+};
