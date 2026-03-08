@@ -31,5 +31,10 @@ app.use('/api/pharmacy', pharmacyRoutes);
 const orderRoutes = require('./routes/orderRoutes');
 app.use('/api/orders', orderRoutes);
 
+const prescriptionRoutes = require('./routes/prescription.routes');
+app.use("/api/prescriptions", prescriptionRoutes);
+
+const emrRoutes = require('./routes/emr.routes');
+app.use("/api/emr", emrRoutes);
 
 module.exports = app;
