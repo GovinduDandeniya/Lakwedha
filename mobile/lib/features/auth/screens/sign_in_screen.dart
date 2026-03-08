@@ -26,4 +26,35 @@ class _SignInScreenState extends State<SignInScreen> {
     _passwordController.dispose();
     super.dispose();
   }
+
+  Future<void> _signIn() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      final data = await AuthService.login(
+        credential: _credentialController.text.trim(),
+        password: _passwordController.text,
+      );
+      await StorageService.saveToken(data['token'] as String);
+      final userName = (data['name'] ?? data['user']?['name'] ?? '') as String;
+      await StorageService.saveUserName(userName);
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/home');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+
+
 }
