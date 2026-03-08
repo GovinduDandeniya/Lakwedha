@@ -48,6 +48,7 @@ const createNotification = async (
             } catch (err) {
                 console.error('[NotificationService] SMS dispatch error:', err.message);
             }
+    
         });
 
         return notification;
@@ -95,6 +96,10 @@ const markAsRead = async (notificationId, userId) => {
         throw err;
     }
     return notification;
+
+};
+const markAllAsRead = async (userId) => {
+    const result = await Notification.updateMany({ userId, isRead: false }, { isRead: true });
     return result.modifiedCount;
 };
 const getNotificationHistory = async (userId, type = null) => {
