@@ -15,12 +15,27 @@ exports.getNotifications = async (req, res, next) => {
         next(err);
     }
 };
-try {
-        const count = await notificationService.getUnreadCount(req.user.id);
-        res.json({ count });
+
+/**
+ * PUT /api/notifications/:id/read
+ */
+exports.markAsRead = async (req, res, next) => {
+    try {
+        const notification = await notificationService.markAsRead(req.params.id, req.user.id);
+        res.json({ message: 'Notification marked as read', notification });
     } catch (err) {
-        
-    } catch (error) {
-        
-    } (err) 
+        if (err.statusCode === 404) return res.status(404).json({ message: err.message });
         next(err);
+    }
+};
+/**
+ * PUT /api/notifications/read-all
+ */
+exports.markAllAsRead = async (req, res, next) => {
+    try {
+        const modifiedCount = await notificationService.markAllAsRead(req.user.id);
+        res.json({ message: `${modifiedCount} notification(s) marked as read`, modifiedCount });
+    } catch (err) {
+        next(err);
+    }
+};
