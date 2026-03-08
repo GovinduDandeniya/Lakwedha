@@ -40,7 +40,7 @@ const createNotification = async (
                     const smsBody = smsMessage || message;
                     const result = await sendSMS(user.phone, smsBody);
                     const smsStatus = result.skipped ? 'skipped' : result.success ? 'sent' : 'failed';
-                     Notification.findByIdAndUpdate(notification._id, {
+                    await Notification.findByIdAndUpdate(notification._id, {
                         smsStatus,
                         smsSid: result.sid,
                     });
@@ -56,4 +56,23 @@ const createNotification = async (
         console.error('[NotificationService] createNotification error:', err.message);
         return null;
     }
+};
+
+const getUserNotifications = async (userId, page = 1, limit = 20) => {
+    const skip = (page - 1) * limit;
+    const [notifications, total] = await Promise.all([
+        Notification.find({ userId })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+        Notification.countDocuments({ userId }),
+    ]);
+    return {
+        notifications,
+        pagination: {
+            total,
+            page:Math.ceil(total / limit)
+        },
+    };
 };
