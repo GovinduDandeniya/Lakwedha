@@ -145,6 +145,24 @@ const notifyOrderStatus = async (order, status, userName) => {
         smsMsg
     );
 };
+const notifyPrescriptionReview = async (prescription, status, userName) => {
+    const title = status === 'approved' ? 'Prescription Approved' : 'Prescription Update';
+    const smsMsg =
+        status === 'approved'
+            ? templates.prescriptionApproved(userName)
+           
+
+    return createNotification(
+        prescription.userId,
+        'prescription',
+        title,
+        smsMsg,
+        prescription._id,
+        'Prescription',
+        smsMsg
+    );
+};
+
 module.exports = {
     createNotification,
     getUserNotifications,
