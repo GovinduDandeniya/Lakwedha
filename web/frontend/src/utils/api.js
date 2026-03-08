@@ -11,6 +11,9 @@ api.interceptors.request.use(
       const token = localStorage.getItem('token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        // Dev bypass token for testing without a login page
+        config.headers.Authorization = `Bearer dummy-jwt-token-for-dev`;
       }
     }
     return config;
