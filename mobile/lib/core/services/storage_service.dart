@@ -41,6 +41,12 @@ class StorageService {
     await prefs.setBool(_isGuestKey, value);
   }
 
+  // Check if current session is guest
+  static Future<bool> isGuest() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_isGuestKey) ?? false;
+  }
+
   // logout 
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
