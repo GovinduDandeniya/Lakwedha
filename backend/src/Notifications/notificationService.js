@@ -101,3 +101,12 @@ const getNotificationHistory = async (userId, type = null) => {
     const filter = { userId };
     if (type) filter.type = type;
     return Notification.find(filter).sort({ createdAt: -1 }).lean();
+};
+
+const notifyAppointment = async (appointment, status, patientName, doctorName) => {
+    const userId = appointment.patientId;
+    const title = `Appointment ${status}`;
+    const message = `Your appointment with Dr. ${doctorName} on ${appointment.date.toLocaleString()} has been ${status}.`;
+    const smsMessage = templates.appointmentStatus({ doctorName, date: appointment.date, status });
+    return createNotification(userId, 'appointment', title, message, appointment._id, 'Appointment', smsMessage);
+};
