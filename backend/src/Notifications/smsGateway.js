@@ -21,8 +21,17 @@ if (SMS_ENABLED) {
  @returns {Promise<{success: boolean, sid?: string, error?: string}>}
 */
 const sendSMS = async (to, body) => {
-    if (!SMS_ENABLED || !twilioClient) {
-        console.warn('[SMS] SMS sending is disabled or Twilio client not available');
-        return { success: false, skipped: true };
+    if (!to) {
+        return { success: false, error: 'No phone number provided' };
     }
- 
+
+    if (!SMS_ENABLED || !twilioClient) {
+        console.log(`[SMS LOG] To: ${to} | Message: ${body}`);
+        return { success: true, sid: 'log-only', skipped: true };
+    }
+    const attempt = async () =>
+        twilioClient.messages.create({
+            body,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to,
+        });
