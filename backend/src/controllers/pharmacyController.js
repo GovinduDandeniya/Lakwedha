@@ -68,4 +68,35 @@ exports.reviewPrescription = async (req, res, next) => {
     }
 };
 
+// Update medicines
+exports.updatePrescriptionMedicines = async (req, res, next) => {
+    try {
+        const { error } = updateMedicinesSchema.validate(req.body);
+        if (error) return res.status(400).json({ message: error.details[0].message });
 
+        const { id } = req.params;
+        const { medicines } = req.body;
+
+        logger.info(`Updating medicines for prescription ${id}`);
+
+        const prescription = await Prescription.findById(id);
+        if (!prescription) {
+            return res.status(404).json({ message: 'Prescription not found' });
+        }
+
+        prescription.medications = medicines.map(m => ({
+            name: m.name,
+            dosage: m.dosage || m.qty || '',
+            duration: m.duration || '',
+            quantity: Number(m.qty) || 0,
+            price: Number(m.unitPrice) || 0
+        }));
+        await prescription.save();
+
+        logger.info(`Medicines updated for prescription ${id}`);
+        res.json({ message: 'Medicines updated successfully', prescription });
+    } catch (err) {
+        logger.error(`Error updating medicines: ${err.message}`);
+        next(err);
+    }
+};
