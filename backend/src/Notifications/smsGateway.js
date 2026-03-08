@@ -37,9 +37,20 @@ const sendSMS = async (to, body) => {
         });
         
     try {
-        const result = await attempt();
-        return { success: true, sid: result.sid };
-    } catch (err) {
-        console.error('[SMS] Twilio error:', err.message);
-        return { success: false, error: err.message };
+        const msg = await attempt();
+        console.log(`[SMS] Sent to ${to} | SID: ${msg.sid}`);
+        return { success: true, sid: msg.sid };
+    } catch (firstErr) {
+        console.warn(`[SMS] First attempt failed (${firstErr.message}). Retrying…`);
+        try {
+            const msg = await attempt();
+            console.log(`[SMS] Retry succeeded to ${to} | SID: ${msg.sid}`);
+            return { success: true, sid: msg.sid };
+        } catch (secondErr) {
+            console.error(`[SMS] Both attempts failed to ${to}: ${secondErr.message}`);
+            return { success: false, error: secondErr.message };
+        }
     }
+};
+
+module.exports = { sendSMS, SMS_ENABLED };
