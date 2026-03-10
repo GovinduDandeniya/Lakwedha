@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Avatar, Chip, Grid, Divider } from '@mui/material';
 import { Email, LocalHospital, Person, Star } from '@mui/icons-material';
+import { AYURVEDA_SPECIALIZATIONS } from '../../utils/constants';
 
 const InfoItem = ({ icon, label, value }) => (
     <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 2 }}>
@@ -29,7 +30,11 @@ const DoctorProfile = ({ user }) => {
                     <Typography variant="h5" fontWeight={800}>{user?.name || 'Doctor'}</Typography>
                     <Chip
                         icon={<Star sx={{ fontSize: '14px !important' }} />}
-                        label={user?.specialization || 'General Physician'}
+                        label={
+                            AYURVEDA_SPECIALIZATIONS.includes(user?.specialization)
+                                ? user.specialization
+                                : (user?.specialization || 'Kayachikitsa (General Ayurveda)')
+                        }
                         size="small"
                         sx={{ bgcolor: '#E8F5E9', color: '#2E7D32', fontWeight: 600, mt: 0.5 }}
                     />

@@ -12,7 +12,7 @@ const Color _primary = Color(0xFF2E7D32);
 const Color _bg = Color(0xFFF4FAF4);
 
 class DoctorSearchScreen extends StatefulWidget {
-  const DoctorSearchScreen({Key? key}) : super(key: key);
+  const DoctorSearchScreen({super.key});
 
   @override
   State<DoctorSearchScreen> createState() => _DoctorSearchScreenState();
@@ -33,11 +33,55 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
   DateTime? _selectedDate;
 
   final List<String> _specialties = [
-    'General',
-    'Kadum Bidum',
-    'Panchakarma',
-    'Sarpa Visha',
-    'Skin Diseases',
+    // General
+    'Kayachikitsa (General Ayurveda)',
+    // Surgery
+    'Shalya Tantra (Ayurveda Surgery)',
+    'Kshara Sutra (Para-Surgical)',
+    // ENT / Head
+    'Shalakya Tantra (ENT & Eye)',
+    'Netra Roga (Eye Diseases)',
+    'Karna Roga (Ear Diseases)',
+    'Nasa Roga (Nose Diseases)',
+    // Child & Women Health
+    'Kaumarbhritya / Bala Roga (Pediatrics)',
+    'Stri Roga (Gynecology)',
+    'Prasuti Tantra (Obstetrics)',
+    // Toxicology
+    'Agada Tantra (Toxicology)',
+    'Snake Bite Treatment',
+    // Mental Health
+    'Bhuta Vidya (Mental Health)',
+    // Rejuvenation & Wellness
+    'Rasayana Therapy (Rejuvenation)',
+    'Anti-Aging Ayurveda',
+    // Reproductive Health
+    'Vajikarana (Fertility & Sexual Health)',
+    // Practical Specialties
+    'Panchakarma (Detox Therapy)',
+    'Sandhi Roga (Joint Diseases)',
+    'Arthritis Treatment',
+    'Orthopedic Ayurveda',
+    'Fracture Treatment (Traditional Bone Setter)',
+    'Paralysis Treatment',
+    'Neurological Disorder Treatment',
+    // Skin, Hair & Beauty
+    'Twak Roga (Skin Diseases)',
+    'Ayurveda Dermatology',
+    'Hair Loss Treatment',
+    'Ayurveda Cosmetics',
+    // Lifestyle & Chronic Disease
+    'Diabetes Ayurveda',
+    'Obesity & Weight Loss',
+    'Digestive Disorder Treatment',
+    'Liver Disease Treatment',
+    'Asthma & Respiratory Treatment',
+    // Therapy Based
+    'Abhyanga Therapy',
+    'Shirodhara Therapy',
+    'Nasya Therapy',
+    'Vasti Therapy',
+    'Herbal Medicine',
   ];
 
   @override

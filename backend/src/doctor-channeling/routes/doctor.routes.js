@@ -3,6 +3,7 @@ const router = express.Router();
 const doctorController = require('../controllers/doctor.controller');
 
 // Public routes
+router.get('/specializations', doctorController.getSpecializations);
 router.get('/', doctorController.searchDoctors);
 router.get('/:doctorId', doctorController.getDoctorById);
 

@@ -6,7 +6,7 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../data/models/appointment_model.dart';
 
 class AppointmentHistoryScreen extends StatefulWidget {
-  const AppointmentHistoryScreen({Key? key}) : super(key: key);
+  const AppointmentHistoryScreen({super.key});
 
   @override
   State<AppointmentHistoryScreen> createState() => _AppointmentHistoryScreenState();
