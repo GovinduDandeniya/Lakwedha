@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'presentation/providers/booking_provider.dart';
 import 'presentation/providers/appointment_provider.dart';
-import 'presentation/screens/patient/doctor_search_screen.dart';
-import 'core/constants/app_constants.dart';
-import 'presentation/screens/patient/payment_success_screen.dart';
-import 'data/models/doctor_model.dart';
-import 'data/models/doctor_availability_model.dart';
+import 'presentation/screens/shell/main_shell.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +11,7 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -27,24 +24,26 @@ class MyApp extends StatelessWidget {
         title: 'Lakwedha - Patient App',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          primaryColor: AppConstants.primaryColor,
-          scaffoldBackgroundColor: Colors.white,
-          appBarTheme: const AppBarTheme(
+          primaryColor: const Color(0xFF2E7D32),
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E7D32)),
+          textTheme: GoogleFonts.poppinsTextTheme(),
+          scaffoldBackgroundColor: const Color(0xFFF0F4F8),
+          appBarTheme: AppBarTheme(
             elevation: 0,
             centerTitle: true,
+            titleTextStyle: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18, color: Colors.white),
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.primaryColor,
+              backgroundColor: const Color(0xFF2E7D32),
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 45),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
         ),
-        home: const DoctorSearchScreen(),
+        home: const MainShell(),
       ),
     );
   }

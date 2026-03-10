@@ -7,11 +7,11 @@ class TimeSlotGrid extends StatelessWidget {
   final Function(TimeSlot) onSlotSelected;
 
   const TimeSlotGrid({
-    Key? key,
+    super.key,
     required this.slots,
     this.selectedSlot,
     required this.onSlotSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Doctor = require('../models/doctor.model');
 const Availability = require('../models/availability.model');
 const ClinicLocation = require('../models/clinicLocation.model');
+const AYURVEDA_SPECIALIZATIONS = require('../constants/ayurvedaSpecializations');
 
 // ── Mock data (mirrors Flutter's _sampleDoctors in doctor_search_screen.dart) ─
 const MOCK_DOCTORS = [
@@ -68,6 +69,13 @@ function filterMock(q, specialty, hospital) {
 }
 
 // ── Controllers ───────────────────────────────────────────────────────────────
+
+/**
+ * GET /doctor-channeling/specializations
+ */
+exports.getSpecializations = (req, res) => {
+    res.status(200).json({ success: true, data: AYURVEDA_SPECIALIZATIONS });
+};
 
 /**
  * GET /doctor-channeling/doctors?q=&specialty=&hospital=&date=
