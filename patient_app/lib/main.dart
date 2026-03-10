@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'presentation/providers/booking_provider.dart';
 import 'presentation/providers/appointment_provider.dart';
-import 'presentation/screens/shell/main_shell.dart';
+import 'presentation/screens/splash/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const MainShell(),
+        home: const SplashScreen(),
       ),
     );
   }
