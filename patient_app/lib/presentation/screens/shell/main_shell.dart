@@ -3,6 +3,7 @@ import '../home/home_screen.dart';
 import '../patient/doctor_search_screen.dart';
 import '../patient/appointment_history_screen.dart';
 import '../profile/profile_screen.dart';
+import '../notifications/notifications_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -19,17 +20,17 @@ class _MainShellState extends State<MainShell> {
   late final List<Widget> _screens = [
     HomeScreen(onGoToProfile: () => setState(() => _currentIndex = 4)),
     const DoctorSearchScreen(),
-    const _PlaceholderScreen(icon: '🌿', label: 'Pharmacy',     desc: 'Coming Soon'),
+    const NotificationsScreen(),
     const AppointmentHistoryScreen(),
     const ProfileScreen(),
   ];
 
   static const _navItems = [
-    (Icons.home_rounded,            Icons.home_outlined,             'Home'),
-    (Icons.medical_services_rounded, Icons.medical_services_outlined, 'Doctors'),
-    (Icons.local_pharmacy_rounded,  Icons.local_pharmacy_outlined,   'Pharmacy'),
-    (Icons.calendar_month_rounded,  Icons.calendar_month_outlined,   'Schedule'),
-    (Icons.person_rounded,          Icons.person_outline_rounded,    'Profile'),
+    (Icons.home_rounded,             Icons.home_outlined,              'Home'),
+    (Icons.medical_services_rounded, Icons.medical_services_outlined,  'Doctors'),
+    (Icons.notifications_rounded,    Icons.notifications_none_rounded, 'Alerts'),
+    (Icons.calendar_month_rounded,   Icons.calendar_month_outlined,    'Schedule'),
+    (Icons.person_rounded,           Icons.person_outline_rounded,     'Profile'),
   ];
 
   @override
@@ -87,33 +88,6 @@ class _MainShellState extends State<MainShell> {
                 color: selected ? _primary : Colors.grey[500],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String icon;
-  final String label;
-  final String desc;
-
-  const _PlaceholderScreen({required this.icon, required this.label, required this.desc});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 56)),
-            const SizedBox(height: 16),
-            Text(label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF2E7D32))),
-            const SizedBox(height: 8),
-            Text(desc, style: const TextStyle(fontSize: 14, color: Colors.grey)),
           ],
         ),
       ),
