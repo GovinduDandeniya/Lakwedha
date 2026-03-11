@@ -221,26 +221,7 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
                     ],
                   ),
                 ],
-                if (isUpcoming && appointment.status == AppointmentStatus.confirmed) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            _showCancelDialog(context, appointment);
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                          ),
-                          child: const Text('Cancel Appointment'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                if (!isUpcoming && appointment.status == AppointmentStatus.completed) ...[
+                 if (!isUpcoming && appointment.status == AppointmentStatus.completed) ...[
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -266,66 +247,4 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
     );
   }
 
-  void _showCancelDialog(BuildContext context, Appointment appointment) {
-    final TextEditingController reasonController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel Appointment'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (appointment.paymentStatus == 'paid') ...[
-              const Text(
-                'Note: Cancelling a paid appointment will incur a 10% cancellation fee. The refund will be processed after deducting this fee.',
-                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 12),
-            ],
-            const Text('Are you sure you want to cancel this appointment?'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              decoration: const InputDecoration(
-                labelText: 'Reason for cancellation',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('No'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final provider = Provider.of<AppointmentProvider>(
-                context,
-                listen: false,
-              );
-              final success = await provider.cancelAppointment(
-                appointment.id,
-                reasonController.text,
-              );
-              if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Appointment cancelled successfully'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('Yes, Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
 }
