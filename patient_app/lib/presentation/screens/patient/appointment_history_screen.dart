@@ -275,6 +275,13 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (appointment.paymentStatus == 'paid') ...[
+              const Text(
+                'Note: Cancelling a paid appointment will incur a 10% cancellation fee. The refund will be processed after deducting this fee.',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 12),
+            ],
             const Text('Are you sure you want to cancel this appointment?'),
             const SizedBox(height: 16),
             TextField(
