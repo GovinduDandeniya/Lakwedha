@@ -9,9 +9,9 @@ import {
 import {
     CalendarToday, People, EventAvailable,
     CheckCircle, Schedule, LocalHospital,
-    AccessTime, NotificationsActive, Payment,
+    NotificationsActive, Payment,
     EventNote, ManageAccounts, TrendingUp, PersonAdd,
-    Cancel, Event, Today, Lock,
+    Cancel, Event, Today,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -28,12 +28,10 @@ const BG         = '#F0F4F8';
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS = {
-    upcoming:   { color: BLUE,     bg: '#E3F2FD', label: 'Upcoming'   },
-    confirmed:  { color: BLUE,     bg: '#E3F2FD', label: 'Upcoming'   },
-    pending:    { color: BLUE,     bg: '#E3F2FD', label: 'Upcoming'   },
-    checked_in: { color: ORANGE,   bg: '#FFF3E0', label: 'Checked In' },
-    completed:  { color: GREEN,    bg: '#E8F5E9', label: 'Completed'  },
-    cancelled:  { color: '#C62828',bg: '#FFEBEE', label: 'Cancelled'  },
+    upcoming:  { color: BLUE,     bg: '#E3F2FD', label: 'Upcoming'  },
+    confirmed: { color: BLUE,     bg: '#E3F2FD', label: 'Upcoming'  },
+    completed: { color: GREEN,    bg: '#E8F5E9', label: 'Completed' },
+    cancelled: { color: '#C62828',bg: '#FFEBEE', label: 'Cancelled' },
 };
 
 const StatusChip = ({ status }) => {
@@ -159,8 +157,8 @@ const DashboardPage = () => {
                 api.get('/dashboard/earnings'),
             ]);
             setStats(sRes.data);
-            setTodayApts(tRes.data.data || []);
-            setUpcoming(uRes.data.data || []);
+            setTodayApts((tRes.data.data || []).filter(a => a.status !== 'pending'));
+            setUpcoming((uRes.data.data || []).filter(a => a.status !== 'pending'));
             setNotifications(nRes.data.data || []);
             setEarnings(eRes.data.data || null);
         } catch (err) {
@@ -290,7 +288,7 @@ const DashboardPage = () => {
                             <Table size="small">
                                 <TableHead>
                                     <TableRow sx={{ bgcolor: '#F8FAF8' }}>
-                                        {['No.', 'Patient', 'Age', 'Time', 'Hospital', 'Status', 'Actions'].map(col => (
+                                        {['No.', 'Patient', 'Age', 'Hospital', 'Status', 'Actions'].map(col => (
                                             <TableCell key={col} sx={{ fontWeight: 700, fontSize: 12, color: '#555', py: 1.2 }}>
                                                 {col}
                                             </TableCell>
@@ -337,28 +335,12 @@ const DashboardPage = () => {
                                                     </TableCell>
                                                     <TableCell>
                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                            <AccessTime sx={{ fontSize: 13, color: '#888' }} />
-                                                            <Typography variant="body2" fontSize={12}>{apt.time}</Typography>
-                                                        </Box>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                                             <LocalHospital sx={{ fontSize: 13, color: '#888' }} />
                                                             <Typography variant="body2" fontSize={12}>{apt.hospital}</Typography>
                                                         </Box>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                                            <StatusChip status={apt.status} />
-                                                            {(apt.isPaid || apt.paymentStatus === 'paid') && (
-                                                                <Tooltip title="Payment received — cannot be cancelled">
-                                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                                                                        <Lock sx={{ fontSize: 13, color: GREEN }} />
-                                                                        <Typography sx={{ fontSize: 10, color: GREEN, fontWeight: 700 }}>Paid</Typography>
-                                                                    </Box>
-                                                                </Tooltip>
-                                                            )}
-                                                        </Box>
+                                                        <StatusChip status={apt.status} />
                                                     </TableCell>
                                                     <TableCell>
                                                         {apt.status !== 'completed' && apt.status !== 'cancelled' && (
