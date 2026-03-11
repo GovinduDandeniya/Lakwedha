@@ -127,6 +127,23 @@ exports.updateStatus = async (req, res) => {
         if (status === 'cancelled') {
             appointment.cancellationReason = reason;
 
+            // If already paid, deduct 10% as cancel fee
+            if (appointment.paymentStatus === 'paid') {
+                // Get doctor fee
+                const Doctor = require('../models/doctor.model');
+                const doctor = await Doctor.findById(appointment.doctorId);
+                let doctorFee = doctor && doctor.consultationFee ? doctor.consultationFee : 1500;
+                // You may want to include hospital and channeling charges if needed
+                const hospitalCharge = 500;
+                const channelingCharge = 300;
+                const totalAmount = doctorFee + hospitalCharge + channelingCharge;
+                const cancelFee = Math.round(totalAmount * 0.10);
+                // Here, you would trigger refund minus cancelFee (pseudo-code):
+                // await paymentService.refund(appointment, totalAmount - cancelFee);
+                appointment.cancellationFee = cancelFee;
+                appointment.paymentStatus = 'refunded';
+            }
+
             // Free up the slot
             await Availability.findOneAndUpdate(
                 { 'slots._id': appointment.slotId },

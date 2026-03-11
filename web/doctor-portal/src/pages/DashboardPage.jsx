@@ -7,11 +7,11 @@ import {
     ListItemIcon, Divider, Tooltip, CircularProgress,
 } from '@mui/material';
 import {
-    CalendarToday, People, MonetizationOn, EventAvailable,
-    CheckCircle, Visibility, Schedule, LocalHospital,
+    CalendarToday, People, EventAvailable,
+    CheckCircle, Schedule, LocalHospital,
     AccessTime, NotificationsActive, Payment,
     EventNote, ManageAccounts, TrendingUp, PersonAdd,
-    Cancel, Event, Today,
+    Cancel, Event, Today, Lock,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -19,8 +19,8 @@ import api from '../services/api';
 import AppointmentChart from '../components/dashboard/AppointmentChart';
 
 // ── Theme tokens ──────────────────────────────────────────────────────────────
-const GREEN  = '#2E7D32';
-const BLUE   = '#1565C0';
+const GREEN      = '#2E7D32';
+const BLUE       = '#1565C0';
 const LIGHT_BLUE = '#1976D2';
 const ORANGE     = '#E65100';
 const PURPLE     = '#6A1B9A';
@@ -28,24 +28,22 @@ const BG         = '#F0F4F8';
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS = {
-    completed:   { color: GREEN,  bg: '#E8F5E9', label: 'Completed' },
-    confirmed:   { color: BLUE,   bg: '#E3F2FD', label: 'Confirmed' },
-    pending:     { color: '#E65100', bg: '#FFF3E0', label: 'Pending' },
-    cancelled:   { color: '#C62828', bg: '#FFEBEE', label: 'Cancelled' },
+    upcoming:   { color: BLUE,     bg: '#E3F2FD', label: 'Upcoming'   },
+    confirmed:  { color: BLUE,     bg: '#E3F2FD', label: 'Upcoming'   },
+    pending:    { color: BLUE,     bg: '#E3F2FD', label: 'Upcoming'   },
+    checked_in: { color: ORANGE,   bg: '#FFF3E0', label: 'Checked In' },
+    completed:  { color: GREEN,    bg: '#E8F5E9', label: 'Completed'  },
+    cancelled:  { color: '#C62828',bg: '#FFEBEE', label: 'Cancelled'  },
 };
 
 const StatusChip = ({ status }) => {
-    const cfg = STATUS[status] || STATUS.pending;
+    const cfg = STATUS[status] || STATUS.upcoming;
     return (
-        <Chip
-            label={cfg.label}
-            size="small"
-            sx={{
-                bgcolor: cfg.bg, color: cfg.color,
-                fontWeight: 700, fontSize: 11, height: 22,
-                border: `1px solid ${cfg.color}22`,
-            }}
-        />
+        <Chip label={cfg.label} size="small" sx={{
+            bgcolor: cfg.bg, color: cfg.color,
+            fontWeight: 700, fontSize: 11, height: 22,
+            border: `1px solid ${cfg.color}22`,
+        }} />
     );
 };
 
@@ -82,7 +80,6 @@ const StatCard = ({ title, value, subtitle, icon, gradient }) => (
                 </Box>
             </Box>
         </CardContent>
-        {/* Decorative circle */}
         <Box sx={{
             position: 'absolute', right: -20, bottom: -20,
             width: 100, height: 100, borderRadius: '50%',
@@ -91,6 +88,40 @@ const StatCard = ({ title, value, subtitle, icon, gradient }) => (
     </Card>
 );
 
+// ── Today's summary info strip ────────────────────────────────────────────────
+const TodaySummary = ({ todayApts }) => {
+    const hospitals = [...new Set(todayApts.map(a => a.hospital).filter(Boolean))];
+
+    const items = [
+        { label: "Today's Hospitals",  value: hospitals.length || '—', icon: <LocalHospital />, gradient: 'linear-gradient(135deg,#1565C0,#1976D2)' },
+        { label: 'Total Appointments', value: todayApts.length,        icon: <CalendarToday />, gradient: 'linear-gradient(135deg,#1B5E20,#2E7D32)'  },
+    ];
+
+    return (
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+            {items.map(({ label, value, icon, gradient }) => (
+                <Grid item xs={6} md={3} key={label}>
+                    <Paper elevation={0} sx={{
+                        p: 2, borderRadius: 3, background: gradient,
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                    }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
+                            {React.cloneElement(icon, { sx: { fontSize: 16, color: 'rgba(255,255,255,0.85)' } })}
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>
+                                {label}
+                            </Typography>
+                        </Box>
+                        <Typography variant="h5" sx={{ color: '#fff', fontWeight: 800, lineHeight: 1.1 }}
+                            noWrap title={String(value)}>
+                            {value}
+                        </Typography>
+                    </Paper>
+                </Grid>
+            ))}
+        </Grid>
+    );
+};
+
 // ── Notification type icons ───────────────────────────────────────────────────
 const NOTIF_ICON = {
     booking:      <Event fontSize="small" sx={{ color: LIGHT_BLUE }} />,
@@ -98,17 +129,25 @@ const NOTIF_ICON = {
     payment:      <Payment fontSize="small" sx={{ color: GREEN }} />,
 };
 
+// ── Patient display name helper ───────────────────────────────────────────────
+const patientDisplayName = (apt) => {
+    if (apt.patientTitle && apt.patientFirstName && apt.patientLastName) {
+        return `${apt.patientTitle} ${apt.patientFirstName} ${apt.patientLastName}`;
+    }
+    return apt.patientDisplayName || apt.patientName || '—';
+};
+
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 const DashboardPage = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
 
-    const [stats, setStats] = useState(null);
-    const [todayApts, setTodayApts] = useState([]);
-    const [upcoming, setUpcoming] = useState([]);
+    const [stats, setStats]               = useState(null);
+    const [todayApts, setTodayApts]       = useState([]);
+    const [upcoming, setUpcoming]         = useState([]);
     const [notifications, setNotifications] = useState([]);
-    const [earnings, setEarnings] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [earnings, setEarnings]         = useState(null);
+    const [loading, setLoading]           = useState(true);
 
     const fetchAll = useCallback(async () => {
         try {
@@ -195,9 +234,12 @@ const DashboardPage = () => {
                 </Box>
             </Paper>
 
-            {/* ── 2. Stat Cards ───────────────────────────────────────────── */}
+            {/* ── 2. Today's Summary Strip ─────────────────────────────────── */}
+            <TodaySummary todayApts={todayApts} />
+
+            {/* ── 3. Stat Cards ───────────────────────────────────────────── */}
             <Grid container spacing={2.5} sx={{ mb: 3 }}>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} md={4}>
                     <StatCard
                         title="Today's Appointments"
                         value={stats?.todayAppointments ?? 0}
@@ -206,7 +248,7 @@ const DashboardPage = () => {
                         gradient="linear-gradient(135deg, #1565C0, #1976D2)"
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} md={4}>
                     <StatCard
                         title="Upcoming Appointments"
                         value={stats?.upcomingAppointments ?? 0}
@@ -215,27 +257,18 @@ const DashboardPage = () => {
                         gradient="linear-gradient(135deg, #1B5E20, #2E7D32)"
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} md={4}>
                     <StatCard
-                        title="Total Patients"
+                        title="Total Patients Seen"
                         value={stats?.totalPatients ?? 0}
                         subtitle="All time"
                         icon={<People />}
                         gradient="linear-gradient(135deg, #E65100, #F57C00)"
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <StatCard
-                        title="Today's Earnings"
-                        value={`LKR ${(stats?.earningsToday ?? 0).toLocaleString()}`}
-                        subtitle={`Month: LKR ${(stats?.earningsMonth ?? 0).toLocaleString()}`}
-                        icon={<MonetizationOn />}
-                        gradient="linear-gradient(135deg, #4A148C, #6A1B9A)"
-                    />
-                </Grid>
             </Grid>
 
-            {/* ── 3. Today's Appointments Table + Notifications ────────────── */}
+            {/* ── 4. Today's Appointments Table + Notifications ────────────── */}
             <Grid container spacing={2.5} sx={{ mb: 3 }}>
                 {/* Today's Appointments Table */}
                 <Grid item xs={12} md={8}>
@@ -257,7 +290,7 @@ const DashboardPage = () => {
                             <Table size="small">
                                 <TableHead>
                                     <TableRow sx={{ bgcolor: '#F8FAF8' }}>
-                                        {['#', 'Patient Name', 'Time', 'Hospital', 'Status', 'Actions'].map(col => (
+                                        {['No.', 'Patient', 'Age', 'Time', 'Hospital', 'Status', 'Actions'].map(col => (
                                             <TableCell key={col} sx={{ fontWeight: 700, fontSize: 12, color: '#555', py: 1.2 }}>
                                                 {col}
                                             </TableCell>
@@ -267,42 +300,67 @@ const DashboardPage = () => {
                                 <TableBody>
                                     {todayApts.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} align="center" sx={{ py: 4, color: '#999' }}>
+                                            <TableCell colSpan={7} align="center" sx={{ py: 4, color: '#999' }}>
                                                 No appointments today
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        todayApts.map((apt) => (
-                                            <TableRow key={apt.id} hover sx={{ '&:last-child td': { border: 0 } }}>
-                                                <TableCell sx={{ fontSize: 12, color: '#888', py: 1.5 }}>{apt.appointmentNumber}</TableCell>
-                                                <TableCell sx={{ fontWeight: 600, fontSize: 13 }}>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                        <Avatar sx={{ width: 28, height: 28, fontSize: 11, bgcolor: '#E8F5E9', color: GREEN }}>
-                                                            {apt.patientName.charAt(0)}
-                                                        </Avatar>
-                                                        {apt.patientName}
-                                                    </Box>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <AccessTime sx={{ fontSize: 13, color: '#888' }} />
-                                                        <Typography variant="body2" fontSize={12}>{apt.time}</Typography>
-                                                    </Box>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <LocalHospital sx={{ fontSize: 13, color: '#888' }} />
-                                                        <Typography variant="body2" fontSize={12}>{apt.hospital}</Typography>
-                                                    </Box>
-                                                </TableCell>
-                                                <TableCell><StatusChip status={apt.status} /></TableCell>
-                                                <TableCell>
-                                                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                                        <Tooltip title="View Details">
-                                                            <IconButton size="small" sx={{ color: LIGHT_BLUE }}>
-                                                                <Visibility fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
+                                        [...todayApts]
+                                            .sort((a, b) => {
+                                                // Primary: hospital A→Z
+                                                const hCmp = (a.hospital || '').localeCompare(b.hospital || '');
+                                                if (hCmp !== 0) return hCmp;
+                                                // Secondary: appointment number ascending (1 → last)
+                                                return (parseInt(a.appointmentNumber) || 0) - (parseInt(b.appointmentNumber) || 0);
+                                            })
+                                            .map((apt) => {
+                                            const name = patientDisplayName(apt);
+                                            return (
+                                                <TableRow key={apt.id} hover sx={{ '&:last-child td': { border: 0 } }}>
+                                                    <TableCell sx={{ fontSize: 12, fontWeight: 700, color: GREEN, py: 1.5 }}>
+                                                        No {apt.appointmentNumber}
+                                                    </TableCell>
+                                                    <TableCell sx={{ fontWeight: 600, fontSize: 13 }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <Avatar sx={{ width: 28, height: 28, fontSize: 11, bgcolor: '#E8F5E9', color: GREEN }}>
+                                                                {name.charAt(0)}
+                                                            </Avatar>
+                                                            {name}
+                                                        </Box>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {apt.patientAge != null && (
+                                                            <Chip label={`Age ${apt.patientAge}`} size="small"
+                                                                sx={{ bgcolor: '#F0F4F8', color: '#444', fontSize: 11, height: 20, fontWeight: 600 }}
+                                                            />
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                            <AccessTime sx={{ fontSize: 13, color: '#888' }} />
+                                                            <Typography variant="body2" fontSize={12}>{apt.time}</Typography>
+                                                        </Box>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                            <LocalHospital sx={{ fontSize: 13, color: '#888' }} />
+                                                            <Typography variant="body2" fontSize={12}>{apt.hospital}</Typography>
+                                                        </Box>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                                            <StatusChip status={apt.status} />
+                                                            {(apt.isPaid || apt.paymentStatus === 'paid') && (
+                                                                <Tooltip title="Payment received — cannot be cancelled">
+                                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                                                                        <Lock sx={{ fontSize: 13, color: GREEN }} />
+                                                                        <Typography sx={{ fontSize: 10, color: GREEN, fontWeight: 700 }}>Paid</Typography>
+                                                                    </Box>
+                                                                </Tooltip>
+                                                            )}
+                                                        </Box>
+                                                    </TableCell>
+                                                    <TableCell>
                                                         {apt.status !== 'completed' && apt.status !== 'cancelled' && (
                                                             <Tooltip title="Mark as Completed">
                                                                 <IconButton
@@ -314,10 +372,10 @@ const DashboardPage = () => {
                                                                 </IconButton>
                                                             </Tooltip>
                                                         )}
-                                                    </Box>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
                                     )}
                                 </TableBody>
                             </Table>
@@ -365,7 +423,7 @@ const DashboardPage = () => {
                 </Grid>
             </Grid>
 
-            {/* ── 4. Upcoming Schedule + Earnings + Quick Actions ───────────── */}
+            {/* ── 5. Upcoming Schedule + Earnings + Quick Actions ───────────── */}
             <Grid container spacing={2.5}>
                 {/* Upcoming Schedule */}
                 <Grid item xs={12} md={4}>
@@ -375,34 +433,37 @@ const DashboardPage = () => {
                             <Typography variant="h6" fontWeight={700}>Upcoming Schedule</Typography>
                         </Box>
                         <List disablePadding>
-                            {upcoming.map((u, idx) => (
-                                <React.Fragment key={u.id}>
-                                    <ListItem alignItems="flex-start" sx={{ py: 1.5, px: 2 }}>
-                                        <ListItemAvatar>
-                                            <Avatar sx={{ width: 36, height: 36, bgcolor: '#E3F2FD', color: LIGHT_BLUE, fontSize: 12, fontWeight: 700 }}>
-                                                {u.date.slice(0, 2)}
-                                            </Avatar>
-                                        </ListItemAvatar>
-                                        <ListItemText
-                                            primary={
-                                                <Typography variant="body2" fontWeight={600} fontSize={13}>{u.patientName}</Typography>
-                                            }
-                                            secondary={
-                                                <Box>
-                                                    <Typography variant="caption" color="text.secondary" display="block">
-                                                        {u.date} · {u.time}
-                                                    </Typography>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                                                        <LocalHospital sx={{ fontSize: 11, color: '#888' }} />
-                                                        <Typography variant="caption" color="text.secondary">{u.hospital}</Typography>
+                            {upcoming.map((u, idx) => {
+                                const name = patientDisplayName(u);
+                                return (
+                                    <React.Fragment key={u.id}>
+                                        <ListItem alignItems="flex-start" sx={{ py: 1.5, px: 2 }}>
+                                            <ListItemAvatar>
+                                                <Avatar sx={{ width: 36, height: 36, bgcolor: '#E3F2FD', color: LIGHT_BLUE, fontSize: 12, fontWeight: 700 }}>
+                                                    {u.date?.slice(0, 2)}
+                                                </Avatar>
+                                            </ListItemAvatar>
+                                            <ListItemText
+                                                primary={
+                                                    <Typography variant="body2" fontWeight={600} fontSize={13}>{name}</Typography>
+                                                }
+                                                secondary={
+                                                    <Box>
+                                                        <Typography variant="caption" color="text.secondary" display="block">
+                                                            {u.date} · {u.time}
+                                                        </Typography>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                                                            <LocalHospital sx={{ fontSize: 11, color: '#888' }} />
+                                                            <Typography variant="caption" color="text.secondary">{u.hospital}</Typography>
+                                                        </Box>
                                                     </Box>
-                                                </Box>
-                                            }
-                                        />
-                                    </ListItem>
-                                    {idx < upcoming.length - 1 && <Divider />}
-                                </React.Fragment>
-                            ))}
+                                                }
+                                            />
+                                        </ListItem>
+                                        {idx < upcoming.length - 1 && <Divider />}
+                                    </React.Fragment>
+                                );
+                            })}
                         </List>
                     </Paper>
                 </Grid>
@@ -411,14 +472,14 @@ const DashboardPage = () => {
                 <Grid item xs={12} md={4}>
                     <Paper elevation={0} sx={{ borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #E8EDF2' }}>
                         <Box sx={{ px: 3, py: 2, display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid #F0F4F8' }}>
-                            <MonetizationOn sx={{ color: PURPLE, fontSize: 20 }} />
+                            <Payment sx={{ color: PURPLE, fontSize: 20 }} />
                             <Typography variant="h6" fontWeight={700}>Earnings Overview</Typography>
                         </Box>
                         <Box sx={{ p: 3 }}>
                             {[
-                                { label: 'Doctor Fee', value: earnings?.doctorFee, color: GREEN },
-                                { label: 'Channeling Fee', value: earnings?.channelingFee, color: LIGHT_BLUE },
-                                { label: 'Total (Today)', value: earnings?.totalToday, color: PURPLE },
+                                { label: 'Doctor Fee',      value: earnings?.doctorFee,      color: GREEN       },
+                                { label: 'Channeling Fee',  value: earnings?.channelingFee,  color: LIGHT_BLUE  },
+                                { label: 'Total (Today)',   value: earnings?.totalToday,     color: PURPLE      },
                             ].map(({ label, value, color }) => (
                                 <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -459,38 +520,10 @@ const DashboardPage = () => {
                         </Box>
                         <Box sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                             {[
-                                {
-                                    label: 'View Appointments',
-                                    desc: 'See all scheduled appointments',
-                                    icon: <EventNote />,
-                                    color: LIGHT_BLUE,
-                                    bg: '#E3F2FD',
-                                    path: '/appointments',
-                                },
-                                {
-                                    label: 'Update Schedule',
-                                    desc: 'Manage your availability',
-                                    icon: <Schedule />,
-                                    color: GREEN,
-                                    bg: '#E8F5E9',
-                                    path: '/availability',
-                                },
-                                {
-                                    label: 'Manage Profile',
-                                    desc: 'Update your profile info',
-                                    icon: <ManageAccounts />,
-                                    color: PURPLE,
-                                    bg: '#F3E5F5',
-                                    path: '/profile',
-                                },
-                                {
-                                    label: 'My Patients',
-                                    desc: 'View patient history',
-                                    icon: <PersonAdd />,
-                                    color: ORANGE,
-                                    bg: '#FFF3E0',
-                                    path: '/patients',
-                                },
+                                { label: 'View Appointments', desc: 'See all scheduled appointments', icon: <EventNote />,      color: LIGHT_BLUE, bg: '#E3F2FD', path: '/appointments' },
+                                { label: 'Update Schedule',   desc: 'Manage your availability',       icon: <Schedule />,       color: GREEN,      bg: '#E8F5E9', path: '/availability' },
+                                { label: 'Manage Profile',    desc: 'Update your profile info',       icon: <ManageAccounts />, color: PURPLE,     bg: '#F3E5F5', path: '/profile'       },
+                                { label: 'My Patients',       desc: 'View patient history',           icon: <PersonAdd />,      color: ORANGE,     bg: '#FFF3E0', path: '/patients'      },
                             ].map(({ label, desc, icon, color, bg, path }) => (
                                 <Button
                                     key={label}

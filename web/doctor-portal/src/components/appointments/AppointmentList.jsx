@@ -2,10 +2,10 @@ import React from 'react';
 import { Box, Typography, Divider } from '@mui/material';
 import AppointmentCard from './AppointmentCard';
 
-const COLS = ['Appt. #', 'Patient Name', 'Time', 'Hospital', 'Status', 'Actions'];
-const WIDTHS = [100, null, 100, null, 100, 80];
+const COLS  = ['No.',  'Patient',  'Age',  'Time', 'Hospital', 'Status', 'Actions'];
+const SIZES = [70,     null,       64,     90,     null,       100,      56];
 
-const AppointmentList = ({ appointments, onView, onMarkComplete }) => {
+const AppointmentList = ({ appointments, onMarkComplete }) => {
     if (!appointments || appointments.length === 0) {
         return (
             <Box sx={{ textAlign: 'center', py: 8 }}>
@@ -16,6 +16,7 @@ const AppointmentList = ({ appointments, onView, onMarkComplete }) => {
 
     return (
         <Box>
+            {/* Column headers — desktop only */}
             <Box sx={{
                 display: { xs: 'none', md: 'flex' },
                 alignItems: 'center', px: 2, py: 1,
@@ -24,16 +25,18 @@ const AppointmentList = ({ appointments, onView, onMarkComplete }) => {
                 {COLS.map((col, i) => (
                     <Typography key={col} sx={{
                         fontSize: 12, fontWeight: 700, color: '#666',
-                        width: WIDTHS[i] || undefined,
-                        flex: WIDTHS[i] ? undefined : 1,
+                        width: SIZES[i] || undefined,
+                        flex: SIZES[i] ? undefined : 1,
+                        display: col === 'Age' ? { xs: 'none', sm: 'block' } : undefined,
                     }}>
                         {col}
                     </Typography>
                 ))}
             </Box>
+
             {appointments.map((apt, idx) => (
                 <React.Fragment key={apt.id}>
-                    <AppointmentCard appointment={apt} onView={onView} onMarkComplete={onMarkComplete} />
+                    <AppointmentCard appointment={apt} onMarkComplete={onMarkComplete} />
                     {idx < appointments.length - 1 && <Divider />}
                 </React.Fragment>
             ))}
