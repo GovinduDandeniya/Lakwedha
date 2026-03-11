@@ -189,4 +189,32 @@ class ApiService {
     }
     throw Exception('Failed to get queue status');
   }
+
+  // ===================== PATIENT NOTIFICATIONS =====================
+  Future<List<Map<String, dynamic>>> getPatientNotifications() async {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/patient-notifications'),
+      headers: await _getHeaders(),
+    );
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final List list = (data['data'] ?? []) as List;
+      return list.cast<Map<String, dynamic>>();
+    }
+    throw Exception('Failed to load notifications');
+  }
+
+  Future<void> markNotificationRead(int id) async {
+    await http.patch(
+      Uri.parse('${AppConstants.baseUrl}/patient-notifications/$id/read'),
+      headers: await _getHeaders(),
+    );
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    await http.patch(
+      Uri.parse('${AppConstants.baseUrl}/patient-notifications/read-all'),
+      headers: await _getHeaders(),
+    );
+  }
 }
