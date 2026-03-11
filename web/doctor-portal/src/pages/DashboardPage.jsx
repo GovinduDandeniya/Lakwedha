@@ -5,13 +5,15 @@ import {
     TableContainer, TableHead, TableRow, IconButton,
     List, ListItem, ListItemText, ListItemAvatar,
     ListItemIcon, Divider, Tooltip, CircularProgress,
+    Dialog, DialogTitle, DialogContent, DialogActions,
+    TextField, Alert, Snackbar,
 } from '@mui/material';
 import {
     CalendarToday, People, EventAvailable,
     CheckCircle, Schedule, LocalHospital,
     NotificationsActive, Payment,
     EventNote, ManageAccounts, TrendingUp, PersonAdd,
-    Cancel, Event, Today,
+    Cancel, Event, Today, Warning,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -86,36 +88,90 @@ const StatCard = ({ title, value, subtitle, icon, gradient }) => (
     </Card>
 );
 
-// ── Today's summary info strip ────────────────────────────────────────────────
-const TodaySummary = ({ todayApts }) => {
-    const hospitals = [...new Set(todayApts.map(a => a.hospital).filter(Boolean))];
+// ── Colour palette for hospital cards ─────────────────────────────────────────
+const HOSP_GRADIENTS = [
+    'linear-gradient(135deg,#1565C0,#1976D2)',
+    'linear-gradient(135deg,#6A1B9A,#7B1FA2)',
+    'linear-gradient(135deg,#E65100,#F57C00)',
+    'linear-gradient(135deg,#00695C,#00796B)',
+];
 
-    const items = [
-        { label: "Today's Hospitals",  value: hospitals.length || '—', icon: <LocalHospital />, gradient: 'linear-gradient(135deg,#1565C0,#1976D2)' },
-        { label: 'Total Appointments', value: todayApts.length,        icon: <CalendarToday />, gradient: 'linear-gradient(135deg,#1B5E20,#2E7D32)'  },
-    ];
+// ── Today's summary info strip ────────────────────────────────────────────────
+const TodaySummary = ({ todayApts, sessionHospitals }) => {
+    // Use session-info hospitals if available; otherwise fall back to unique hospital names
+    const hospitals = (sessionHospitals && sessionHospitals.length > 0)
+        ? sessionHospitals
+        : [...new Set(todayApts.map(a => a.hospital).filter(Boolean))].map(name => ({
+            name, earliestTime: null,
+            appointmentCount: todayApts.filter(a => a.hospital === name).length,
+        }));
+
+    const totalCols = hospitals.length + 1;
+    const mdSize = Math.max(2, Math.floor(12 / totalCols));
 
     return (
         <Grid container spacing={2} sx={{ mb: 3 }}>
-            {items.map(({ label, value, icon, gradient }) => (
-                <Grid item xs={6} md={3} key={label}>
+            {hospitals.map((h, idx) => (
+                <Grid item xs={12} sm={6} md={mdSize} key={h.name}>
                     <Paper elevation={0} sx={{
-                        p: 2, borderRadius: 3, background: gradient,
+                        p: 2, borderRadius: 3,
+                        background: HOSP_GRADIENTS[idx % HOSP_GRADIENTS.length],
                         boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
                     }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
-                            {React.cloneElement(icon, { sx: { fontSize: 16, color: 'rgba(255,255,255,0.85)' } })}
-                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>
-                                {label}
+                        {/* Hospital name row */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                            <LocalHospital sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', flexShrink: 0 }} />
+                            <Typography variant="caption"
+                                sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 700, lineHeight: 1.25 }}
+                                noWrap title={h.name}>
+                                {h.name}
                             </Typography>
                         </Box>
-                        <Typography variant="h5" sx={{ color: '#fff', fontWeight: 800, lineHeight: 1.1 }}
-                            noWrap title={String(value)}>
-                            {value}
-                        </Typography>
+
+                        {/* Session start time */}
+                        {h.earliestTime ? (
+                            <>
+                                <Typography variant="caption"
+                                    sx={{ color: 'rgba(255,255,255,0.65)', fontSize: 10, display: 'block', mb: 0.2 }}>
+                                    Session starts
+                                </Typography>
+                                <Typography variant="h6" sx={{ color: '#fff', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.5px' }}>
+                                    {h.earliestTime}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)', display: 'block', mt: 0.5 }}>
+                                    {h.appointmentCount} appointment{h.appointmentCount !== 1 ? 's' : ''}
+                                </Typography>
+                            </>
+                        ) : (
+                            <Typography variant="h5" sx={{ color: '#fff', fontWeight: 800, lineHeight: 1.1 }}>
+                                {h.appointmentCount || '—'}
+                            </Typography>
+                        )}
                     </Paper>
                 </Grid>
             ))}
+
+            {/* Total appointments card */}
+            <Grid item xs={12} sm={6} md={mdSize}>
+                <Paper elevation={0} sx={{
+                    p: 2, borderRadius: 3,
+                    background: 'linear-gradient(135deg,#1B5E20,#2E7D32)',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                        <CalendarToday sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>
+                            Total Appointments
+                        </Typography>
+                    </Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)', fontSize: 10, display: 'block', mb: 0.2 }}>
+                        Today
+                    </Typography>
+                    <Typography variant="h5" sx={{ color: '#fff', fontWeight: 800, lineHeight: 1.1 }}>
+                        {todayApts.length}
+                    </Typography>
+                </Paper>
+            </Grid>
         </Grid>
     );
 };
@@ -146,21 +202,36 @@ const DashboardPage = () => {
     const [notifications, setNotifications] = useState([]);
     const [earnings, setEarnings]         = useState(null);
     const [loading, setLoading]           = useState(true);
+    const [todaySessionInfo, setTodaySessionInfo] = useState(null);
+
+    // Cancel session dialog
+    const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+    const [cancelStep, setCancelStep]             = useState(1); // 1 = select, 2 = confirm
+    const [cancelDate, setCancelDate]             = useState(new Date().toISOString().slice(0, 10));
+    const [cancelHospital, setCancelHospital]     = useState('ALL');
+    const [cancelReason, setCancelReason]         = useState('');
+    const [cancelLoading, setCancelLoading]       = useState(false);
+    const [sessionInfo, setSessionInfo]           = useState(null);
+    const [sessionInfoLoading, setSessionInfoLoading] = useState(false);
+    const [snackbar, setSnackbar]                 = useState({ open: false, message: '', severity: 'success' });
 
     const fetchAll = useCallback(async () => {
+        const todayStr = new Date().toISOString().slice(0, 10);
         try {
-            const [sRes, tRes, uRes, nRes, eRes] = await Promise.all([
+            const [sRes, tRes, uRes, nRes, eRes, siRes] = await Promise.all([
                 api.get('/dashboard/stats'),
                 api.get('/dashboard/today-appointments'),
                 api.get('/dashboard/upcoming'),
                 api.get('/dashboard/notifications'),
                 api.get('/dashboard/earnings'),
+                api.get(`/dashboard/session-info?date=${todayStr}`),
             ]);
             setStats(sRes.data);
             setTodayApts((tRes.data.data || []).filter(a => a.status !== 'pending'));
             setUpcoming((uRes.data.data || []).filter(a => a.status !== 'pending'));
             setNotifications(nRes.data.data || []);
             setEarnings(eRes.data.data || null);
+            setTodaySessionInfo(siRes.data || null);
         } catch (err) {
             console.error('Dashboard fetch error:', err);
         } finally {
@@ -176,6 +247,77 @@ const DashboardPage = () => {
             setTodayApts(prev => prev.map(a => a.id === id ? { ...a, status: 'completed' } : a));
         } catch (err) {
             console.error('Mark complete error:', err);
+        }
+    };
+
+    const fetchSessionInfo = useCallback(async (date) => {
+        setSessionInfoLoading(true);
+        setSessionInfo(null);
+        try {
+            const res = await api.get(`/dashboard/session-info?date=${date}`);
+            setSessionInfo(res.data);
+        } catch {
+            setSessionInfo({ hospitals: [] });
+        } finally {
+            setSessionInfoLoading(false);
+        }
+    }, []);
+
+    const openCancelDialog = () => {
+        const d = new Date().toISOString().slice(0, 10);
+        setCancelDate(d);
+        setCancelHospital('ALL');
+        setCancelReason('');
+        setCancelStep(1);
+        setCancelDialogOpen(true);
+        fetchSessionInfo(d);
+    };
+
+    const handleCancelDateChange = (newDate) => {
+        setCancelDate(newDate);
+        setCancelHospital('ALL');
+        setCancelStep(1);
+        fetchSessionInfo(newDate);
+    };
+
+    // Compute which hospital option is selected and whether it can be cancelled
+    const hospitalsInfo = sessionInfo?.hospitals || [];
+    const selectedHospitalInfo = cancelHospital === 'ALL'
+        ? { canCancel: hospitalsInfo.some(h => h.canCancel), appointmentCount: hospitalsInfo.filter(h => h.canCancel).reduce((s, h) => s + h.appointmentCount, 0) }
+        : hospitalsInfo.find(h => h.name === cancelHospital);
+    const canProceed = !sessionInfoLoading && (selectedHospitalInfo?.canCancel ?? false) && (selectedHospitalInfo?.appointmentCount ?? 0) > 0;
+
+    const formatDeadline = (minutes) => {
+        if (minutes === null) return null;
+        const abs = Math.abs(Math.round(minutes));
+        const h = Math.floor(abs / 60), m = abs % 60;
+        const time = h > 0 ? `${h}h ${m}m` : `${m}m`;
+        return minutes > 0 ? `Deadline in ${time}` : `Missed by ${time}`;
+    };
+
+    const handleCancelSession = async () => {
+        setCancelLoading(true);
+        try {
+            const res = await api.post('/dashboard/cancel-session', {
+                date: cancelDate,
+                hospital: cancelHospital,
+                reason: cancelReason.trim() || undefined,
+            });
+            const count = res.data.affectedCount ?? 0;
+            const hosp = res.data.hospital === 'ALL' ? 'All hospitals' : res.data.hospital;
+            setSnackbar({
+                open: true,
+                message: `${hosp} session cancelled. ${count} patient(s) notified in the app.`,
+                severity: 'success',
+            });
+            setCancelDialogOpen(false);
+            fetchAll();
+        } catch (err) {
+            const msg = err.response?.data?.error || 'Failed to cancel session. Please try again.';
+            setSnackbar({ open: true, message: msg, severity: 'error' });
+            setCancelStep(1);
+        } finally {
+            setCancelLoading(false);
         }
     };
 
@@ -221,19 +363,40 @@ const DashboardPage = () => {
                             </Box>
                         </Box>
                     </Box>
-                    <Box sx={{ textAlign: 'right', display: { xs: 'none', md: 'block' } }}>
-                        <Typography variant="h3" sx={{ color: 'rgba(255,255,255,0.15)', fontWeight: 900, lineHeight: 1 }}>
-                            {stats?.todayAppointments ?? 0}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                            appointments today
-                        </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                        <Box sx={{ textAlign: 'right', display: { xs: 'none', md: 'block' } }}>
+                            <Typography variant="h3" sx={{ color: 'rgba(255,255,255,0.15)', fontWeight: 900, lineHeight: 1 }}>
+                                {stats?.todayAppointments ?? 0}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                                appointments today
+                            </Typography>
+                        </Box>
+                        <Button
+                            variant="contained"
+                            startIcon={<Cancel />}
+                            onClick={openCancelDialog}
+                            sx={{
+                                bgcolor: 'rgba(198,40,40,0.85)',
+                                color: '#fff',
+                                fontWeight: 700,
+                                textTransform: 'none',
+                                fontSize: 13,
+                                borderRadius: 2,
+                                px: 2,
+                                py: 0.8,
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                                '&:hover': { bgcolor: '#C62828' },
+                            }}
+                        >
+                            Cancel Session
+                        </Button>
                     </Box>
                 </Box>
             </Paper>
 
             {/* ── 2. Today's Summary Strip ─────────────────────────────────── */}
-            <TodaySummary todayApts={todayApts} />
+            <TodaySummary todayApts={todayApts} sessionHospitals={todaySessionInfo?.hospitals} />
 
             {/* ── 3. Stat Cards ───────────────────────────────────────────── */}
             <Grid container spacing={2.5} sx={{ mb: 3 }}>
@@ -404,6 +567,245 @@ const DashboardPage = () => {
                     </Paper>
                 </Grid>
             </Grid>
+
+            {/* ── Cancel Session Dialog ────────────────────────────────────── */}
+            <Dialog open={cancelDialogOpen} onClose={() => !cancelLoading && setCancelDialogOpen(false)}
+                maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+
+                {/* ── STEP 1: Select date, hospital, reason ── */}
+                {cancelStep === 1 && (<>
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
+                        <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#FFEBEE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Cancel sx={{ color: '#C62828', fontSize: 20 }} />
+                        </Box>
+                        <Box>
+                            <Typography variant="h6" fontWeight={800}>Cancel Session</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Must cancel at least <strong>10 hours</strong> before session start
+                            </Typography>
+                        </Box>
+                    </DialogTitle>
+                    <DialogContent sx={{ pt: 1 }}>
+
+                        {/* Date picker */}
+                        <TextField
+                            label="Session Date"
+                            type="date"
+                            fullWidth
+                            value={cancelDate}
+                            onChange={e => handleCancelDateChange(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ mb: 2.5 }}
+                            size="small"
+                        />
+
+                        {/* Hospital selector */}
+                        <Typography variant="body2" fontWeight={700} sx={{ mb: 1, color: '#555' }}>
+                            Select Hospital to Cancel
+                        </Typography>
+
+                        {sessionInfoLoading ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                <CircularProgress size={24} sx={{ color: GREEN }} />
+                            </Box>
+                        ) : hospitalsInfo.length === 0 ? (
+                            <Alert severity="info" sx={{ borderRadius: 2, mb: 2, fontSize: 13 }}>
+                                No active sessions found for this date.
+                            </Alert>
+                        ) : (
+                            <Box sx={{ mb: 2.5 }}>
+                                {/* All Hospitals option */}
+                                {hospitalsInfo.length > 1 && (() => {
+                                    const allCount = hospitalsInfo.filter(h => h.canCancel).reduce((s, h) => s + h.appointmentCount, 0);
+                                    const allCanCancel = hospitalsInfo.some(h => h.canCancel);
+                                    const isSelected = cancelHospital === 'ALL';
+                                    return (
+                                        <Paper
+                                            onClick={() => allCanCancel && setCancelHospital('ALL')}
+                                            elevation={0}
+                                            sx={{
+                                                p: 1.5, mb: 1, borderRadius: 2,
+                                                cursor: allCanCancel ? 'pointer' : 'not-allowed',
+                                                border: isSelected ? '2px solid #C62828' : '2px solid #E8EDF2',
+                                                bgcolor: isSelected ? '#FFF3F3' : (allCanCancel ? '#FAFAFA' : '#F5F5F5'),
+                                                opacity: allCanCancel ? 1 : 0.55,
+                                                display: 'flex', alignItems: 'center', gap: 1.5,
+                                                transition: 'all 0.15s',
+                                            }}
+                                        >
+                                            <Box sx={{
+                                                width: 20, height: 20, borderRadius: '50%',
+                                                border: `2px solid ${isSelected ? '#C62828' : '#ccc'}`,
+                                                bgcolor: isSelected ? '#C62828' : 'transparent',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                            }}>
+                                                {isSelected && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#fff' }} />}
+                                            </Box>
+                                            <Box sx={{ flex: 1 }}>
+                                                <Typography variant="body2" fontWeight={700}>All Hospitals</Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {allCanCancel ? `${allCount} cancellable appointment(s)` : 'Some sessions past deadline'}
+                                                </Typography>
+                                            </Box>
+                                        </Paper>
+                                    );
+                                })()}
+
+                                {/* Individual hospital options */}
+                                {hospitalsInfo.map(h => {
+                                    const isSelected = cancelHospital === h.name;
+                                    const deadline = formatDeadline(h.minutesUntilDeadline);
+                                    return (
+                                        <Paper
+                                            key={h.name}
+                                            onClick={() => h.canCancel && setCancelHospital(h.name)}
+                                            elevation={0}
+                                            sx={{
+                                                p: 1.5, mb: 1, borderRadius: 2,
+                                                cursor: h.canCancel ? 'pointer' : 'not-allowed',
+                                                border: isSelected ? '2px solid #C62828' : '2px solid #E8EDF2',
+                                                bgcolor: isSelected ? '#FFF3F3' : (h.canCancel ? '#FAFAFA' : '#F5F5F5'),
+                                                opacity: h.canCancel ? 1 : 0.55,
+                                                display: 'flex', alignItems: 'center', gap: 1.5,
+                                                transition: 'all 0.15s',
+                                            }}
+                                        >
+                                            <Box sx={{
+                                                width: 20, height: 20, borderRadius: '50%',
+                                                border: `2px solid ${isSelected ? '#C62828' : '#ccc'}`,
+                                                bgcolor: isSelected ? '#C62828' : 'transparent',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                            }}>
+                                                {isSelected && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#fff' }} />}
+                                            </Box>
+                                            <Box sx={{ flex: 1 }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <Typography variant="body2" fontWeight={700}>{h.name}</Typography>
+                                                    {!h.canCancel && (
+                                                        <Chip label="Too late" size="small"
+                                                            sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: '#FFEBEE', color: '#C62828' }} />
+                                                    )}
+                                                </Box>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {h.appointmentCount} appointment(s) · Session starts {h.earliestTime}
+                                                    {deadline && ` · ${deadline}`}
+                                                </Typography>
+                                            </Box>
+                                        </Paper>
+                                    );
+                                })}
+                            </Box>
+                        )}
+
+                        {/* Reason */}
+                        <TextField
+                            label="Reason for Cancellation (optional)"
+                            fullWidth multiline rows={2}
+                            value={cancelReason}
+                            onChange={e => setCancelReason(e.target.value)}
+                            placeholder="e.g. Medical emergency, personal commitment…"
+                            size="small"
+                        />
+                    </DialogContent>
+                    <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                        <Button onClick={() => setCancelDialogOpen(false)}
+                            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
+                            Close
+                        </Button>
+                        <Button
+                            variant="contained"
+                            disabled={!canProceed}
+                            onClick={() => setCancelStep(2)}
+                            sx={{ bgcolor: '#C62828', '&:hover': { bgcolor: '#B71C1C' }, textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                        >
+                            Review Cancellation →
+                        </Button>
+                    </DialogActions>
+                </>)}
+
+                {/* ── STEP 2: Final confirmation ── */}
+                {cancelStep === 2 && (<>
+                    <DialogTitle sx={{ pb: 0 }} />
+                    <DialogContent>
+                        <Box sx={{ textAlign: 'center', py: 1 }}>
+                            <Box sx={{
+                                width: 64, height: 64, borderRadius: '50%', bgcolor: '#FFEBEE',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2,
+                            }}>
+                                <Warning sx={{ color: '#C62828', fontSize: 34 }} />
+                            </Box>
+                            <Typography variant="h6" fontWeight={800} gutterBottom>
+                                Confirm Cancellation
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                You are about to cancel the session at
+                            </Typography>
+
+                            {/* Summary box */}
+                            <Paper elevation={0} sx={{ bgcolor: '#FFF3F3', border: '1.5px solid #FFCDD2', borderRadius: 2, p: 2, mb: 2, textAlign: 'left' }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                    <Typography variant="body2" color="text.secondary">Hospital</Typography>
+                                    <Typography variant="body2" fontWeight={700}>
+                                        {cancelHospital === 'ALL' ? 'All Hospitals' : cancelHospital}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                    <Typography variant="body2" color="text.secondary">Date</Typography>
+                                    <Typography variant="body2" fontWeight={700}>
+                                        {new Date(cancelDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: cancelReason ? 0.5 : 0 }}>
+                                    <Typography variant="body2" color="text.secondary">Patients affected</Typography>
+                                    <Typography variant="body2" fontWeight={700} sx={{ color: '#C62828' }}>
+                                        {selectedHospitalInfo?.appointmentCount ?? '—'} patient(s)
+                                    </Typography>
+                                </Box>
+                                {cancelReason && (
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <Typography variant="body2" color="text.secondary">Reason</Typography>
+                                        <Typography variant="body2" fontWeight={600} sx={{ maxWidth: '60%', textAlign: 'right' }}>
+                                            {cancelReason}
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </Paper>
+
+                            <Alert severity="error" sx={{ borderRadius: 2, fontSize: 12, textAlign: 'left', mb: 1 }}>
+                                All <strong>{selectedHospitalInfo?.appointmentCount ?? ''} patients</strong> will immediately receive an in-app notification. <strong>This cannot be undone.</strong>
+                            </Alert>
+                        </Box>
+                    </DialogContent>
+                    <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                        <Button onClick={() => setCancelStep(1)} disabled={cancelLoading}
+                            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
+                            ← Go Back
+                        </Button>
+                        <Button
+                            variant="contained"
+                            onClick={handleCancelSession}
+                            disabled={cancelLoading}
+                            startIcon={cancelLoading ? <CircularProgress size={16} color="inherit" /> : <Warning />}
+                            sx={{ bgcolor: '#C62828', '&:hover': { bgcolor: '#B71C1C' }, textTransform: 'none', fontWeight: 700, borderRadius: 2, px: 3 }}
+                        >
+                            {cancelLoading ? 'Cancelling…' : 'Yes, Cancel Session'}
+                        </Button>
+                    </DialogActions>
+                </>)}
+            </Dialog>
+
+            {/* ── Snackbar ──────────────────────────────────────────────────── */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={5000}
+                onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert severity={snackbar.severity} onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+                    sx={{ borderRadius: 2, fontWeight: 600 }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
 
             {/* ── 5. Upcoming Schedule + Earnings + Quick Actions ───────────── */}
             <Grid container spacing={2.5}>
