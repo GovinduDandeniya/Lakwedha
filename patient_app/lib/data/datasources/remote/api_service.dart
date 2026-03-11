@@ -47,6 +47,25 @@ class ApiService {
     throw Exception(data['error'] ?? 'Login failed');
   }
 
+  // ===================== AUTH - CHANGE PASSWORD =====================
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/change-password'),
+      headers: await _getHeaders(),
+      body: json.encode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      }),
+    );
+    if (response.statusCode != 200) {
+      final data = json.decode(response.body);
+      throw Exception(data['error'] ?? 'Failed to change password');
+    }
+  }
+
   // ===================== DOCTOR =====================
   Future<List<Doctor>> searchDoctors({
     String? specialty,
