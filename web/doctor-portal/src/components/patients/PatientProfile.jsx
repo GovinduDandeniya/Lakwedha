@@ -3,7 +3,7 @@ import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button,
     Box, Typography, Avatar, Chip, Grid, Divider, Tab, Tabs, CircularProgress,
 } from '@mui/material';
-import { Person, Phone, Email, Bloodtype, LocalHospital, History } from '@mui/icons-material';
+import { Person, History, CalendarToday } from '@mui/icons-material';
 import PatientHistory from './PatientHistory';
 import api from '../../services/api';
 
@@ -16,6 +16,17 @@ const InfoItem = ({ icon, label, value }) => (
         <Typography variant="body2" fontWeight={600}>{value || '—'}</Typography>
     </Grid>
 );
+
+/**
+ * Builds a display name from patient data.
+ * Prefers separate title/firstName/lastName; falls back to name.
+ */
+const buildDisplayName = (patient) => {
+    if (patient.title && patient.firstName && patient.lastName) {
+        return `${patient.title} ${patient.firstName} ${patient.lastName}`;
+    }
+    return patient.name || '—';
+};
 
 const PatientProfile = ({ patient, open, onClose }) => {
     const [tab, setTab] = useState(0);
@@ -33,7 +44,8 @@ const PatientProfile = ({ patient, open, onClose }) => {
     }, [open, patient, tab]);
 
     if (!patient) return null;
-    const genderColor = patient.gender === 'Male' ? '#1565C0' : '#C2185B';
+
+    const displayName = buildDisplayName(patient);
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth
@@ -42,20 +54,16 @@ const PatientProfile = ({ patient, open, onClose }) => {
             <DialogTitle sx={{ pb: 0 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pb: 2 }}>
                     <Avatar sx={{ width: 56, height: 56, bgcolor: '#E8F5E9', color: '#2E7D32', fontSize: 22, fontWeight: 700 }}>
-                        {patient.name?.charAt(0)}
+                        {displayName.charAt(0)}
                     </Avatar>
                     <Box>
-                        <Typography variant="h6" fontWeight={700}>{patient.name}</Typography>
+                        <Typography variant="h6" fontWeight={700}>{displayName}</Typography>
                         <Box sx={{ display: 'flex', gap: 0.75, mt: 0.3, flexWrap: 'wrap' }}>
-                            <Chip label={patient.gender} size="small"
-                                sx={{ bgcolor: `${genderColor}11`, color: genderColor, fontWeight: 600, fontSize: 11, height: 20 }}
-                            />
-                            <Chip label={`Age ${patient.age}`} size="small"
-                                sx={{ bgcolor: '#F5F5F5', color: '#555', fontSize: 11, height: 20 }}
-                            />
-                            <Chip label={patient.bloodGroup} size="small"
-                                sx={{ bgcolor: '#FFEBEE', color: '#C62828', fontWeight: 700, fontSize: 11, height: 20 }}
-                            />
+                            {patient.age != null && (
+                                <Chip label={`Age ${patient.age}`} size="small"
+                                    sx={{ bgcolor: '#F5F5F5', color: '#555', fontSize: 11, height: 20 }}
+                                />
+                            )}
                         </Box>
                     </Box>
                 </Box>
@@ -75,12 +83,10 @@ const PatientProfile = ({ patient, open, onClose }) => {
             <DialogContent sx={{ pt: 2.5 }}>
                 {tab === 0 && (
                     <Grid container spacing={2}>
-                        <InfoItem icon={<Phone />}         label="Phone"        value={patient.phone} />
-                        <InfoItem icon={<Email />}         label="Email"        value={patient.email} />
-                        <InfoItem icon={<Bloodtype />}     label="Blood Group"  value={patient.bloodGroup} />
-                        <InfoItem icon={<LocalHospital />} label="Condition"    value={patient.condition} />
-                        <InfoItem icon={<History />}       label="Total Visits" value={String(patient.totalVisits)} />
-                        <InfoItem icon={<Person />}        label="Last Visit"   value={patient.lastVisit} />
+                        <InfoItem icon={<Person />}        label="Full Name"     value={displayName} />
+                        <InfoItem icon={<CalendarToday />} label="Age"           value={patient.age != null ? String(patient.age) : undefined} />
+                        <InfoItem icon={<History />}       label="Total Visits"  value={patient.totalVisits != null ? String(patient.totalVisits) : undefined} />
+                        <InfoItem icon={<CalendarToday />} label="Last Visit"    value={patient.lastVisit} />
                     </Grid>
                 )}
                 {tab === 1 && (
