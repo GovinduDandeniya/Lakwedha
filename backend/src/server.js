@@ -153,6 +153,11 @@ const mockNotifications = [
   { id: 5, type: 'payment', message: 'Payment confirmed for APT-001 - LKR 1,500', time: '5 hours ago', read: true },
 ];
 
+// ── Patient in-app notifications (persisted in memory) ────────────────────────
+// Each entry: { id, patientId, patientName, type, title, message, date, read, createdAt }
+let patientNotifications = [];
+let patientNotifIdCounter = 1;
+
 const mockEarnings = {
   doctorFee: 12500,
   channelingFee: 2500,
@@ -195,6 +200,195 @@ app.patch("/api/v1/dashboard/appointments/:id/complete", (req, res) => {
   const apt = mockTodayAppointments.find(a => a.id === parseInt(req.params.id));
   if (apt) apt.status = 'completed';
   res.json({ success: true, message: 'Appointment marked as completed' });
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function parseTimeToMinutes(timeStr) {
+  if (!timeStr) return 0;
+  const match = timeStr.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!match) return 0;
+  let hours = parseInt(match[1]);
+  const minutes = parseInt(match[2]);
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+const CANCEL_LEAD_MINUTES = 10 * 60; // 10 hours
+
+// Session info: hospitals for a date with 10-hour-rule status
+app.get("/api/v1/dashboard/session-info", (req, res) => {
+  const { date } = req.query;
+  const targetDate = date || new Date().toISOString().slice(0, 10);
+  const todayStr   = new Date().toISOString().slice(0, 10);
+
+  // Use today's list for today, full list for other dates
+  const sourceApts = targetDate === todayStr
+    ? mockTodayAppointments.filter(a => a.status !== 'cancelled' && a.status !== 'completed')
+    : mockAllAppointments.filter(a => a.date === targetDate && a.status !== 'cancelled' && a.status !== 'completed');
+
+  if (sourceApts.length === 0) {
+    return res.json({ success: true, date: targetDate, hospitals: [] });
+  }
+
+  const hospitalMap = {};
+  sourceApts.forEach(a => {
+    if (!hospitalMap[a.hospital]) hospitalMap[a.hospital] = [];
+    hospitalMap[a.hospital].push(a);
+  });
+
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const isFutureDate = targetDate > todayStr;
+
+  const hospitals = Object.entries(hospitalMap).map(([name, apts]) => {
+    const times = apts.map(a => parseTimeToMinutes(a.time)).filter(t => t > 0);
+    const earliestMinutes = times.length > 0 ? Math.min(...times) : 0;
+    const earliestApt = apts.find(a => parseTimeToMinutes(a.time) === earliestMinutes);
+    const minutesUntilSession = isFutureDate ? Infinity : earliestMinutes - nowMinutes;
+    const canCancel = isFutureDate || minutesUntilSession > CANCEL_LEAD_MINUTES;
+    return {
+      name,
+      earliestTime: earliestApt?.time || null,
+      appointmentCount: apts.length,
+      canCancel,
+      minutesUntilDeadline: isFutureDate ? null : minutesUntilSession - CANCEL_LEAD_MINUTES,
+    };
+  });
+
+  res.json({ success: true, date: targetDate, hospitals });
+});
+
+// Cancel a session (specific hospital or all) — notifies affected patients
+app.post("/api/v1/dashboard/cancel-session", (req, res) => {
+  const { date, reason, hospital } = req.body;
+  const targetDate = date || new Date().toISOString().slice(0, 10);
+  const todayStr   = new Date().toISOString().slice(0, 10);
+
+  // Gather all active appointments for the date
+  const allActive = targetDate === todayStr
+    ? mockTodayAppointments.filter(a => a.status !== 'cancelled' && a.status !== 'completed')
+    : mockAllAppointments.filter(a => a.date === targetDate && a.status !== 'cancelled' && a.status !== 'completed');
+
+  // Filter to selected hospital (or all)
+  const toCancel = (hospital && hospital !== 'ALL')
+    ? allActive.filter(a => a.hospital === hospital)
+    : allActive;
+
+  if (toCancel.length === 0) {
+    return res.status(400).json({ success: false, error: 'No active appointments found for the selected date/hospital.' });
+  }
+
+  // Validate 10-hour rule per hospital (only for today)
+  if (targetDate === todayStr) {
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const byHospital = {};
+    toCancel.forEach(a => {
+      if (!byHospital[a.hospital]) byHospital[a.hospital] = [];
+      byHospital[a.hospital].push(a);
+    });
+    for (const [hName, hApts] of Object.entries(byHospital)) {
+      const times = hApts.map(a => parseTimeToMinutes(a.time)).filter(t => t > 0);
+      if (times.length === 0) continue;
+      const earliest = Math.min(...times);
+      if (earliest - nowMinutes <= CANCEL_LEAD_MINUTES) {
+        const startTime = hApts.find(a => parseTimeToMinutes(a.time) === earliest)?.time;
+        return res.status(400).json({
+          success: false,
+          error: `Cannot cancel ${hName} — less than 10 hours until session starts (${startTime}).`,
+        });
+      }
+    }
+  }
+
+  // Mark cancelled in mock lists
+  toCancel.forEach(a => {
+    const inAll   = mockAllAppointments.find(x => x.id === a.id);
+    const inToday = mockTodayAppointments.find(x => x.id === a.id);
+    if (inAll)   inAll.status   = 'cancelled';
+    if (inToday) inToday.status = 'cancelled';
+  });
+
+  // Build notification message
+  const now = new Date();
+  const formattedDate = new Date(targetDate).toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+  const hospitalLabel = (hospital && hospital !== 'ALL') ? ` at ${hospital}` : '';
+  const notifMessage = reason
+    ? `Your appointment${hospitalLabel} on ${formattedDate} has been cancelled by the doctor. Reason: ${reason}. We apologise for the inconvenience.`
+    : `Your appointment${hospitalLabel} on ${formattedDate} has been cancelled by the doctor. We apologise for the inconvenience.`;
+
+  const created = toCancel.map(a => {
+    const notif = {
+      id: patientNotifIdCounter++,
+      patientId: a.patientId || String(a.id),
+      patientName: a.patientName || a.patientDisplayName || '—',
+      appointmentId: a.id,
+      appointmentNumber: a.appointmentNumber,
+      type: 'session_cancelled',
+      title: 'Session Cancelled',
+      message: notifMessage,
+      date: targetDate,
+      reason: reason || null,
+      read: false,
+      createdAt: now.toISOString(),
+    };
+    patientNotifications.push(notif);
+    return notif;
+  });
+
+  // Doctor-side notification
+  mockNotifications.unshift({
+    id: mockNotifications.length + 100,
+    type: 'cancellation',
+    message: `Session${hospitalLabel} on ${formattedDate} cancelled — ${created.length} patient(s) notified.`,
+    time: 'Just now',
+    read: false,
+  });
+
+  res.json({
+    success: true,
+    message: `Session cancelled. ${created.length} patient(s) notified.`,
+    affectedCount: created.length,
+    date: targetDate,
+    hospital: hospital || 'ALL',
+  });
+});
+
+// Patient: get their notifications (poll-based; patient identified by query param or token)
+app.get("/api/v1/patient-notifications", (req, res) => {
+  // Accept patientId from query string for simplicity (in production use JWT)
+  const { patientId } = req.query;
+  let data = patientId
+    ? patientNotifications.filter(n => n.patientId === patientId)
+    : patientNotifications;                       // dev: return all if no filter
+
+  // Sort newest first
+  data = [...data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  res.json({
+    success: true,
+    data,
+    unreadCount: data.filter(n => !n.read).length,
+  });
+});
+
+// Patient: mark notification as read
+app.patch("/api/v1/patient-notifications/:id/read", (req, res) => {
+  const notif = patientNotifications.find(n => n.id === parseInt(req.params.id));
+  if (notif) notif.read = true;
+  res.json({ success: true });
+});
+
+// Patient: mark all notifications as read
+app.patch("/api/v1/patient-notifications/read-all", (req, res) => {
+  const { patientId } = req.body;
+  patientNotifications.forEach(n => {
+    if (!patientId || n.patientId === patientId) n.read = true;
+  });
+  res.json({ success: true });
 });
 
 // ── Doctor channeling routes ──────────────────────────────────────────────────
