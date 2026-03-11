@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../home/home_screen.dart';
 import '../patient/doctor_search_screen.dart';
 import '../patient/appointment_history_screen.dart';
+import '../profile/profile_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -15,12 +16,12 @@ class _MainShellState extends State<MainShell> {
 
   static const Color _primary = Color(0xFF2E7D32);
 
-  static final List<Widget> _screens = [
-    const HomeScreen(),
+  late final List<Widget> _screens = [
+    HomeScreen(onGoToProfile: () => setState(() => _currentIndex = 4)),
     const DoctorSearchScreen(),
     const _PlaceholderScreen(icon: '🌿', label: 'Pharmacy',     desc: 'Coming Soon'),
     const AppointmentHistoryScreen(),
-    const _PlaceholderScreen(icon: '👤', label: 'Profile',      desc: 'Coming Soon'),
+    const ProfileScreen(),
   ];
 
   static const _navItems = [

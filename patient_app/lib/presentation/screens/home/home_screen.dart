@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../patient/doctor_search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback? onGoToProfile;
+  const HomeScreen({super.key, this.onGoToProfile});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -75,6 +79,13 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Header ────────────────────────────────────────────────────────────────────
 
   Widget _buildHeader() {
+    final auth      = Provider.of<AuthProvider>(context);
+    final user      = auth.user ?? {};
+    final firstName = user['firstName'] ?? user['name']?.toString().split(' ').first ?? 'User';
+    final lastName  = user['lastName']  ?? '';
+    final imagePath = auth.profileImagePath;
+    final initials  = '${firstName.isNotEmpty ? firstName[0] : ''}${lastName.isNotEmpty ? lastName[0] : ''}'.toUpperCase();
+
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -133,7 +144,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Spacer(),
                     _topBarBtn(Icons.notifications_outlined, badge: true),
                     const SizedBox(width: 8),
-                    _topBarBtn(Icons.person_outline_rounded),
+                    GestureDetector(
+                      onTap: widget.onGoToProfile,
+                      child: _topBarBtn(Icons.person_outline_rounded),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -151,34 +165,38 @@ class _HomeScreenState extends State<HomeScreen> {
                               fontSize: 13.5, fontWeight: FontWeight.w500,
                             )),
                           const SizedBox(height: 2),
-                          const Text('Welcome, User',
-                            style: TextStyle(color: Colors.white, fontSize: 24,
+                          Text('Welcome, $firstName',
+                            style: const TextStyle(color: Colors.white, fontSize: 24,
                               fontWeight: FontWeight.w800, height: 1.1)),
                           const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text('Ayurveda Patient Portal',
-                              style: TextStyle(color: Colors.white, fontSize: 11.5,
-                                fontWeight: FontWeight.w600, letterSpacing: 0.3)),
-                          ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 16),
                     // Avatar
-                    Container(
-                      width: 58, height: 58,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.person_rounded, color: Colors.white, size: 30),
+                    GestureDetector(
+                      onTap: widget.onGoToProfile,
+                      child: Container(
+                        width: 58, height: 58,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
+                        ),
+                        child: ClipOval(
+                          child: imagePath != null && imagePath.isNotEmpty
+                            ? Image.file(File(imagePath), fit: BoxFit.cover)
+                            : Container(
+                                color: Colors.white.withValues(alpha: 0.20),
+                                child: Center(
+                                  child: initials.isNotEmpty
+                                    ? Text(initials, style: const TextStyle(
+                                        color: Colors.white, fontSize: 22,
+                                        fontWeight: FontWeight.w800))
+                                    : const Icon(Icons.person_rounded,
+                                        color: Colors.white, size: 30),
+                                ),
+                              ),
+                        ),
                       ),
                     ),
                   ],
