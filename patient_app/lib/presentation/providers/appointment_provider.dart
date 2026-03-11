@@ -32,30 +32,6 @@ class AppointmentProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> cancelAppointment(String appointmentId, String reason) async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      await _apiService.updateAppointmentStatus(
-        appointmentId,
-        'cancelled',
-        reason: reason,
-      );
-
-      // Refresh list
-      await loadAppointments();
-
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
-      return false;
-    }
-  }
 
   Future<Map<String, dynamic>?> getQueueStatus(String slotId) async {
     try {

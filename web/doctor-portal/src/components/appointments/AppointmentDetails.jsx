@@ -3,15 +3,13 @@ import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button,
     Box, Typography, Chip, Grid, Divider, Avatar,
 } from '@mui/material';
-import { AccessTime, LocalHospital, EventNote, CalendarToday, Person } from '@mui/icons-material';
+import { LocalHospital, EventNote, CalendarToday, Person } from '@mui/icons-material';
 
 const STATUS_CONFIG = {
-    upcoming:   { color: '#1565C0', bg: '#E3F2FD', label: 'Upcoming'   },
-    confirmed:  { color: '#1565C0', bg: '#E3F2FD', label: 'Upcoming'   },
-    pending:    { color: '#1565C0', bg: '#E3F2FD', label: 'Upcoming'   },
-    checked_in: { color: '#E65100', bg: '#FFF3E0', label: 'Checked In' },
-    completed:  { color: '#2E7D32', bg: '#E8F5E9', label: 'Completed'  },
-    cancelled:  { color: '#C62828', bg: '#FFEBEE', label: 'Cancelled'  },
+    upcoming:  { color: '#1565C0', bg: '#E3F2FD', label: 'Upcoming'  },
+    confirmed: { color: '#1565C0', bg: '#E3F2FD', label: 'Upcoming'  },
+    completed: { color: '#2E7D32', bg: '#E8F5E9', label: 'Completed' },
+    cancelled: { color: '#C62828', bg: '#FFEBEE', label: 'Cancelled' },
 };
 
 const InfoRow = ({ icon, label, value }) => (
@@ -68,7 +66,6 @@ const AppointmentDetails = ({ appointment, open, onClose }) => {
                 <Grid container spacing={2.5}>
                     <InfoRow icon={<EventNote />}     label="Appointment No." value={appointment.appointmentNumber ? `No ${appointment.appointmentNumber}` : undefined} />
                     <InfoRow icon={<CalendarToday />} label="Date"            value={appointment.date || 'Today'} />
-                    <InfoRow icon={<AccessTime />}    label="Session Time"    value={appointment.time} />
                     <InfoRow icon={<LocalHospital />} label="Hospital"        value={appointment.hospital} />
                     <InfoRow icon={<Person />}        label="Patient"         value={displayName} />
                 </Grid>

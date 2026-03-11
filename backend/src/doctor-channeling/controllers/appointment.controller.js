@@ -112,9 +112,18 @@ exports.updateStatus = async (req, res) => {
             });
         }
 
-        // Check authorization (doctor or patient)
-        if (req.user.id !== appointment.doctorId.toString() && 
-        req.user.id !== appointment.patientId.toString()) {
+        // Only admins can cancel appointments
+        if (status === 'cancelled' && req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                error: 'Only admins can cancel appointments'
+            });
+        }
+
+        // Check authorization (doctor or patient for non-cancel status updates)
+        if (status !== 'cancelled' &&
+            req.user.id !== appointment.doctorId.toString() &&
+            req.user.id !== appointment.patientId.toString()) {
             return res.status(403).json({
                 success: false,
                 error: 'Unauthorized'

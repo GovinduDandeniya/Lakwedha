@@ -117,41 +117,27 @@ const SummaryBanner = ({ appointments }) => {
 };
 
 // ── Hospital session header ───────────────────────────────────────────────────
-const SessionHeader = ({ hospital, appointments }) => {
-    const numbers = appointments
-        .map(a => parseInt(a.appointmentNumber))
-        .filter(n => !isNaN(n))
-        .sort((a, b) => a - b);
-    const first = numbers.length ? numbers[0] : null;
-    const last  = numbers.length ? numbers[numbers.length - 1] : null;
-    const range = first != null ? `No ${first}  →  No ${last}` : '';
-
-    return (
-        <Box sx={{
-            px: 2.5, py: 1.25,
-            background: 'linear-gradient(90deg,#E8F5E9,#F0F4F8)',
-            borderBottom: '1px solid #D7EBD8',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            flexWrap: 'wrap', gap: 1,
-        }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <LocalHospital sx={{ fontSize: 16, color: GREEN }} />
-                <Typography fontWeight={700} fontSize={13} color={GREEN}>
-                    {hospital}
-                </Typography>
-                {range && (
-                    <Chip label={range} size="small" sx={{
-                        bgcolor: '#E8F5E9', color: GREEN, fontWeight: 700, fontSize: 11, height: 22,
-                        border: '1px solid #A5D6A7', letterSpacing: 0.3,
-                    }} />
-                )}
-            </Box>
-            <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                {appointments.length} patient{appointments.length !== 1 ? 's' : ''}
+const SessionHeader = ({ hospital, appointments }) => (
+    <Box sx={{
+        px: 2.5, py: 1.25,
+        background: 'linear-gradient(90deg,#E8F5E9,#F0F4F8)',
+        borderBottom: '1px solid #D7EBD8',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexWrap: 'wrap', gap: 1,
+    }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <LocalHospital sx={{ fontSize: 16, color: GREEN }} />
+            <Typography fontWeight={700} fontSize={13} color={GREEN}>
+                {hospital}
             </Typography>
+            <Chip
+                label={`${appointments.length} Appointment${appointments.length !== 1 ? 's' : ''}`}
+                size="small"
+                sx={{ bgcolor: '#E8F5E9', color: GREEN, fontWeight: 700, fontSize: 11, height: 22, border: '1px solid #A5D6A7' }}
+            />
         </Box>
-    );
-};
+    </Box>
+);
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 const AppointmentsPage = () => {
@@ -165,7 +151,7 @@ const AppointmentsPage = () => {
         setLoading(true);
         try {
             const res = await api.get('/appointments');
-            setAppointments(res.data.data || []);
+            setAppointments((res.data.data || []).filter(a => a.status !== 'pending'));
         } catch {
             setAppointments([]);
         } finally {
@@ -185,13 +171,17 @@ const AppointmentsPage = () => {
         } catch { /* ignore */ }
     };
 
+    // EMR handlers — implementation owned by the EMR module developer
+    const handleViewRecords   = (appointment) => { /* TODO: open EMR view for appointment.patientId */ };
+    const handleUploadRecords = (appointment) => { /* TODO: open EMR upload for appointment.patientId */ };
+
     // Filtered appointments (search + status)
     const filtered = useMemo(() => {
         let data = appointments;
 
         if (statusFilter !== 'all') {
             if (statusFilter === 'upcoming') {
-                data = data.filter(a => ['upcoming', 'confirmed', 'pending'].includes(a.status));
+                data = data.filter(a => ['upcoming', 'confirmed'].includes(a.status));
             } else {
                 data = data.filter(a => a.status === statusFilter);
             }
@@ -216,13 +206,12 @@ const AppointmentsPage = () => {
     const grouped = useMemo(() => groupAppointments(filtered), [filtered]);
 
     // Status tab counts
-    const upcomingCount = appointments.filter(a => ['upcoming','confirmed','pending'].includes(a.status)).length;
+    const upcomingCount = appointments.filter(a => ['upcoming','confirmed'].includes(a.status)).length;
     const TABS = [
-        { label: 'All',        value: 'all',        count: appointments.length },
-        { label: 'Upcoming',   value: 'upcoming',   count: upcomingCount },
-        { label: 'Checked In', value: 'checked_in', count: appointments.filter(a => a.status === 'checked_in').length },
-        { label: 'Completed',  value: 'completed',  count: appointments.filter(a => a.status === 'completed').length },
-        { label: 'Cancelled',  value: 'cancelled',  count: appointments.filter(a => a.status === 'cancelled').length },
+        { label: 'All',       value: 'all',       count: appointments.length },
+        { label: 'Upcoming',  value: 'upcoming',  count: upcomingCount },
+        { label: 'Completed', value: 'completed', count: appointments.filter(a => a.status === 'completed').length },
+        { label: 'Cancelled', value: 'cancelled', count: appointments.filter(a => a.status === 'cancelled').length },
     ];
 
     return (
@@ -419,6 +408,8 @@ const AppointmentsPage = () => {
                                         <AppointmentList
                                             appointments={apts}
                                             onMarkComplete={handleMarkComplete}
+                                            onViewRecords={handleViewRecords}
+                                            onUploadRecords={handleUploadRecords}
                                         />
                                         {(hi < visibleHospitals.length - 1 || di < grouped.length - 1) && (
                                             <Divider sx={{ borderColor: '#E8EDF2' }} />
