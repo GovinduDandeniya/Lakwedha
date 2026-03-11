@@ -123,5 +123,36 @@ export const getMockResponse = (url = '', method = 'get') => {
     if (path === '/patients' && m === 'get') return { data: MOCK_PATIENTS };
     if (/^\/patients\/[^/]+\/history$/.test(path) && m === 'get') return { data: MOCK_PATIENT_HISTORY };
 
+    // Session info mock
+    if (path.startsWith('/dashboard/session-info') && m === 'get') {
+        const dateParam = url.match(/date=([^&]+)/)?.[1] || today;
+        const apts = MOCK_APPOINTMENTS.filter(
+            a => a.date === dateParam && a.status !== 'cancelled' && a.status !== 'completed'
+        );
+        const HOSPITAL_TIMES = { 'Nawaloka Hospital': '09:00 AM', 'Lanka Hospital': '02:00 PM' };
+        const hospitalMap = {};
+        apts.forEach(a => { hospitalMap[a.hospital] = (hospitalMap[a.hospital] || 0) + 1; });
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const isFuture = dateParam > today;
+        const hospitals = Object.entries(hospitalMap).map(([name, count]) => {
+            const tStr = HOSPITAL_TIMES[name] || '09:00 AM';
+            const [tp, per] = tStr.split(' ');
+            let [h, mn] = tp.split(':').map(Number);
+            if (per === 'PM' && h !== 12) h += 12;
+            if (per === 'AM' && h === 12) h = 0;
+            const sessionMinutes = h * 60 + mn;
+            const minutesUntilSession = isFuture ? Infinity : sessionMinutes - nowMinutes;
+            const canCancel = isFuture || minutesUntilSession > 600;
+            return { name, earliestTime: tStr, appointmentCount: count, canCancel, minutesUntilDeadline: isFuture ? null : minutesUntilSession - 600 };
+        });
+        return { success: true, date: dateParam, hospitals };
+    }
+
+    // Cancel session mock
+    if (path === '/dashboard/cancel-session' && m === 'post') {
+        return { success: true, message: 'Session cancelled (mock). Patients notified.', affectedCount: 5, hospital: 'ALL' };
+    }
+
     return null;
 };
