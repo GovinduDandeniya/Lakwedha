@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
@@ -7,199 +8,204 @@ const cors = require("cors");
 
 const doctorChannelingRouter = require("./doctor-channeling/index");
 const doctorController = require("./doctor-channeling/controllers/doctor.controller");
+const Appointment = require("./doctor-channeling/models/appointment.model");
+const Patient = require("./models/patient.model");
+const Doctor = require("./doctor-channeling/models/doctor.model");
+const ChannelingSession = require("./doctor-channeling/models/channelingSession.model");
 
 const app = express();
 
 app.use(cors());
 app.use(bodyParser.json());
 
-// ── MongoDB (optional — controllers fall back to mock data if not connected) ──
+// ── MongoDB ───────────────────────────────────────────────────────────────────
 const MONGODB_URI = process.env.MONGODB_URI;
-if (MONGODB_URI) {
-  mongoose.connect(MONGODB_URI)
-    .then(() => console.log("MongoDB connected"))
-    .catch(err => console.error("MongoDB connection error:", err));
-} else {
-  console.log("No MONGODB_URI set — running with mock data");
+if (!MONGODB_URI) {
+  console.error("ERROR: MONGODB_URI environment variable is not set.");
+  process.exit(1);
 }
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => { console.error("MongoDB connection error:", err); process.exit(1); });
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 const SECRET_KEY = process.env.JWT_SECRET || "mysecretkey123";
 
-const doctors = [
-  {
-    id: 1,
-    name: "Dr. Sandaru",
-    email: "sandaru@lakwedha.com",
-    password: bcrypt.hashSync("1234", 8),
-    role: "doctor",
-    specialization: "General Physician"
+// Inline JWT auth middleware used by channeling-session routes
+function requireAuth(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header) return res.status(401).json({ success: false, error: 'No token provided' });
+  try {
+    req.user = jwt.verify(header.split(' ')[1], SECRET_KEY);
+    next();
+  } catch {
+    res.status(401).json({ success: false, error: 'Invalid or expired token' });
   }
-];
+}
 
-// Legacy login (username-based)
-app.post("/login", (req, res) => {
+// Legacy login (username-based) — looks up doctor by name in DB
+app.post("/login", async (req, res) => {
   const { username, password } = req.body;
-  const user = doctors.find(u => u.name.toLowerCase().includes(username?.toLowerCase()));
-  if (!user) return res.status(404).send("User not found");
-  if (!bcrypt.compareSync(password, user.password)) return res.status(401).send("Invalid password");
-  const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: "1h" });
-  res.send({ message: "Login successful", token });
+  try {
+    const user = await Doctor.findOne({ name: { $regex: username, $options: 'i' }, email: { $exists: true } });
+    if (!user) return res.status(404).send("User not found");
+    if (!bcrypt.compareSync(password, user.password)) return res.status(401).send("Invalid password");
+    const token = jwt.sign({ id: user._id, email: user.email, role: "doctor" }, SECRET_KEY, { expiresIn: "1h" });
+    res.send({ message: "Login successful", token });
+  } catch (err) {
+    res.status(500).send("Server error");
+  }
 });
 
 // Doctor portal login (email-based)
-app.post("/api/v1/auth/login", (req, res) => {
-  const { email, password, role } = req.body;
-  const user = doctors.find(u => u.email === email && u.role === (role || "doctor"));
-  if (!user) return res.status(401).json({ message: "Invalid email or password" });
-  if (!bcrypt.compareSync(password, user.password)) return res.status(401).json({ message: "Invalid email or password" });
-  const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: "8h" });
-  res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, specialization: user.specialization } });
+app.post("/api/v1/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const user = await Doctor.findOne({ email });
+    if (!user || !user.password) return res.status(401).json({ message: "Invalid email or password" });
+    if (!bcrypt.compareSync(password, user.password)) return res.status(401).json({ message: "Invalid email or password" });
+    const token = jwt.sign({ id: user._id, email: user.email, role: "doctor" }, SECRET_KEY, { expiresIn: "8h" });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: "doctor", specialization: user.specialization } });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 // Token verification
-app.get("/api/v1/auth/verify", (req, res) => {
+app.get("/api/v1/auth/verify", async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.json({ valid: false });
   try {
     const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, SECRET_KEY);
-    const user = doctors.find(u => u.id === decoded.id);
+    const user = await Doctor.findById(decoded.id);
     if (!user) return res.json({ valid: false });
-    res.json({ valid: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, specialization: user.specialization } });
+    res.json({ valid: true, user: { id: user._id, name: user.name, email: user.email, role: "doctor", specialization: user.specialization } });
   } catch {
     res.json({ valid: false });
   }
 });
 
-// ── Patients & full appointments mock data ────────────────────────────────────
-const mockPatients = [
-  { id: 1, name: 'Kasun Perera',         age: 34, gender: 'Male',   phone: '+94771234567', email: 'kasun@email.com',    lastVisit: '2026-03-08', totalVisits: 5,  bloodGroup: 'O+',  condition: 'Hypertension' },
-  { id: 2, name: 'Malini Silva',          age: 28, gender: 'Female', phone: '+94772345678', email: 'malini@email.com',   lastVisit: '2026-03-08', totalVisits: 3,  bloodGroup: 'A+',  condition: 'Diabetes' },
-  { id: 3, name: 'Ravi Fernando',         age: 45, gender: 'Male',   phone: '+94773456789', email: 'ravi@email.com',     lastVisit: '2026-03-08', totalVisits: 8,  bloodGroup: 'B+',  condition: 'Back Pain' },
-  { id: 4, name: 'Sunethra Jayawardena',  age: 52, gender: 'Female', phone: '+94774567890', email: 'sunethra@email.com', lastVisit: '2026-03-08', totalVisits: 12, bloodGroup: 'AB+', condition: 'Arthritis' },
-  { id: 5, name: 'Priya Wickramasinghe',  age: 31, gender: 'Female', phone: '+94775678901', email: 'priya@email.com',    lastVisit: '2026-03-08', totalVisits: 2,  bloodGroup: 'O-',  condition: 'Migraine' },
-  { id: 6, name: 'Nimal Bandara',         age: 67, gender: 'Male',   phone: '+94776789012', email: 'nimal@email.com',    lastVisit: '2026-02-25', totalVisits: 15, bloodGroup: 'B-',  condition: 'Heart Disease' },
-  { id: 7, name: 'Chamari Rajapaksa',     age: 39, gender: 'Female', phone: '+94777890123', email: 'chamari@email.com',  lastVisit: '2026-02-20', totalVisits: 4,  bloodGroup: 'A-',  condition: 'Thyroid' },
-  { id: 8, name: 'Rohan Seneviratne',     age: 55, gender: 'Male',   phone: '+94778901234', email: 'rohan@email.com',    lastVisit: '2026-02-15', totalVisits: 7,  bloodGroup: 'O+',  condition: 'Diabetes' },
-];
-
-const mockAllAppointments = [
-  { id: 1,  appointmentNumber: 'APT-001', patientName: 'Kasun Perera',        time: '09:00 AM', date: '2026-03-08', hospital: 'Nawaloka Hospital', status: 'completed' },
-  { id: 2,  appointmentNumber: 'APT-002', patientName: 'Malini Silva',         time: '10:30 AM', date: '2026-03-08', hospital: 'Nawaloka Hospital', status: 'completed' },
-  { id: 3,  appointmentNumber: 'APT-003', patientName: 'Ravi Fernando',        time: '11:00 AM', date: '2026-03-08', hospital: 'Lanka Hospital',    status: 'pending' },
-  { id: 4,  appointmentNumber: 'APT-004', patientName: 'Sunethra Jayawardena', time: '02:00 PM', date: '2026-03-08', hospital: 'Lanka Hospital',    status: 'pending' },
-  { id: 5,  appointmentNumber: 'APT-005', patientName: 'Priya Wickramasinghe', time: '03:30 PM', date: '2026-03-08', hospital: 'Nawaloka Hospital', status: 'cancelled' },
-  { id: 6,  appointmentNumber: 'APT-006', patientName: 'Nimal Bandara',        time: '09:00 AM', date: '2026-03-09', hospital: 'Nawaloka Hospital', status: 'confirmed' },
-  { id: 7,  appointmentNumber: 'APT-007', patientName: 'Chamari Rajapaksa',    time: '11:30 AM', date: '2026-03-09', hospital: 'Lanka Hospital',    status: 'confirmed' },
-  { id: 8,  appointmentNumber: 'APT-008', patientName: 'Rohan Seneviratne',    time: '10:00 AM', date: '2026-03-10', hospital: 'Nawaloka Hospital', status: 'pending' },
-  { id: 9,  appointmentNumber: 'APT-009', patientName: 'Kasun Perera',         time: '02:00 PM', date: '2026-03-05', hospital: 'Lanka Hospital',    status: 'completed' },
-  { id: 10, appointmentNumber: 'APT-010', patientName: 'Malini Silva',         time: '11:00 AM', date: '2026-03-04', hospital: 'Asiri Hospital',    status: 'completed' },
-  { id: 11, appointmentNumber: 'APT-011', patientName: 'Ravi Fernando',        time: '09:30 AM', date: '2026-03-03', hospital: 'Nawaloka Hospital', status: 'cancelled' },
-  { id: 12, appointmentNumber: 'APT-012', patientName: 'Nimal Bandara',        time: '03:00 PM', date: '2026-03-02', hospital: 'Asiri Hospital',    status: 'completed' },
-];
-
-app.get("/api/v1/appointments", (req, res) => {
-  const { status } = req.query;
-  let data = mockAllAppointments;
-  if (status && status !== 'all') data = data.filter(a => a.status === status);
-  res.json({ success: true, data, total: data.length });
+// ── Appointments ──────────────────────────────────────────────────────────────
+app.get("/api/v1/appointments", async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = {};
+    if (status && status !== 'all') filter.status = status;
+    const appointments = await Appointment.find(filter)
+      .populate('patientId', 'name age gender')
+      .sort({ slotTime: -1 });
+    res.json({ success: true, data: appointments, total: appointments.length });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-app.patch("/api/v1/appointments/:id/complete", (req, res) => {
-  const apt = mockAllAppointments.find(a => a.id === parseInt(req.params.id));
-  if (apt) apt.status = 'completed';
-  res.json({ success: true, message: 'Appointment marked as completed' });
+app.patch("/api/v1/appointments/:id/complete", async (req, res) => {
+  try {
+    await Appointment.findByIdAndUpdate(req.params.id, { status: 'completed', updatedAt: new Date() });
+    res.json({ success: true, message: 'Appointment marked as completed' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-app.get("/api/v1/patients", (req, res) => {
-  const { search } = req.query;
-  let data = mockPatients;
-  if (search) data = data.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.condition.toLowerCase().includes(search.toLowerCase())
-  );
-  res.json({ success: true, data, total: data.length });
+// ── Patients ──────────────────────────────────────────────────────────────────
+app.get("/api/v1/patients", async (req, res) => {
+  try {
+    const { search } = req.query;
+    const filter = {};
+    if (search) filter.name = { $regex: search, $options: 'i' };
+    const patients = await Patient.find(filter, { password: 0 });
+    res.json({ success: true, data: patients, total: patients.length });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-app.get("/api/v1/patients/:id/history", (req, res) => {
-  const patient = mockPatients.find(p => p.id === parseInt(req.params.id));
-  if (!patient) return res.status(404).json({ success: false });
-  const history = mockAllAppointments.filter(a => a.patientName === patient.name);
-  res.json({ success: true, data: history });
+app.get("/api/v1/patients/:id/history", async (req, res) => {
+  try {
+    const appointments = await Appointment.find({ patientId: req.params.id }).sort({ slotTime: -1 });
+    res.json({ success: true, data: appointments });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-// ── Dashboard mock data ───────────────────────────────────────────────────────
-const mockTodayAppointments = [
-  { id: 1, appointmentNumber: 'APT-001', patientName: 'Kasun Perera', time: '09:00 AM', hospital: 'Nawaloka Hospital', status: 'completed' },
-  { id: 2, appointmentNumber: 'APT-002', patientName: 'Malini Silva', time: '10:30 AM', hospital: 'Nawaloka Hospital', status: 'completed' },
-  { id: 3, appointmentNumber: 'APT-003', patientName: 'Ravi Fernando', time: '11:00 AM', hospital: 'Lanka Hospital', status: 'pending' },
-  { id: 4, appointmentNumber: 'APT-004', patientName: 'Sunethra Jayawardena', time: '02:00 PM', hospital: 'Lanka Hospital', status: 'pending' },
-  { id: 5, appointmentNumber: 'APT-005', patientName: 'Priya Wickramasinghe', time: '03:30 PM', hospital: 'Nawaloka Hospital', status: 'cancelled' },
-];
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+app.get("/api/v1/dashboard/stats", async (req, res) => {
+  try {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
 
-const mockUpcoming = [
-  { id: 1, date: 'Tomorrow', time: '09:00 AM', hospital: 'Nawaloka Hospital', patientName: 'Nimal Bandara' },
-  { id: 2, date: 'Tomorrow', time: '11:30 AM', hospital: 'Lanka Hospital', patientName: 'Chamari Rajapaksa' },
-  { id: 3, date: 'Mar 10', time: '10:00 AM', hospital: 'Nawaloka Hospital', patientName: 'Rohan Seneviratne' },
-  { id: 4, date: 'Mar 11', time: '02:30 PM', hospital: 'Asiri Hospital', patientName: 'Dilani Mendis' },
-];
+    const [todayApts, totalPatients] = await Promise.all([
+      Appointment.find({ slotTime: { $gte: today, $lt: tomorrow } }),
+      Patient.countDocuments(),
+    ]);
 
-const mockNotifications = [
-  { id: 1, type: 'booking', message: 'New appointment booked by Kasun Perera', time: '10 min ago', read: false },
-  { id: 2, type: 'cancellation', message: 'Appointment cancelled by Priya Wickramasinghe', time: '1 hour ago', read: false },
-  { id: 3, type: 'payment', message: 'Payment confirmed for APT-002 - LKR 1,500', time: '2 hours ago', read: true },
-  { id: 4, type: 'booking', message: 'New appointment booked by Nimal Bandara', time: '3 hours ago', read: true },
-  { id: 5, type: 'payment', message: 'Payment confirmed for APT-001 - LKR 1,500', time: '5 hours ago', read: true },
-];
+    const upcoming = await Appointment.countDocuments({
+      slotTime: { $gte: tomorrow },
+      status: { $in: ['pending', 'confirmed'] },
+    });
 
-// ── Patient in-app notifications (persisted in memory) ────────────────────────
-// Each entry: { id, patientId, patientName, type, title, message, date, read, createdAt }
-let patientNotifications = [];
-let patientNotifIdCounter = 1;
-
-const mockEarnings = {
-  doctorFee: 12500,
-  channelingFee: 2500,
-  totalToday: 15000,
-  totalMonth: 187500,
-  weeklyTrend: [22000, 18500, 25000, 19500, 28000, 15000, 22500],
-  weekDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-};
-
-// ── Dashboard API endpoints ───────────────────────────────────────────────────
-app.get("/api/v1/dashboard/stats", (req, res) => {
-  res.json({
-    todayAppointments: mockTodayAppointments.length,
-    upcomingAppointments: mockUpcoming.length,
-    totalPatients: 248,
-    earningsToday: mockEarnings.totalToday,
-    earningsMonth: mockEarnings.totalMonth,
-    completedToday: mockTodayAppointments.filter(a => a.status === 'completed').length,
-    pendingToday: mockTodayAppointments.filter(a => a.status === 'pending').length,
-  });
+    res.json({
+      todayAppointments: todayApts.length,
+      completedToday: todayApts.filter(a => a.status === 'completed').length,
+      pendingToday: todayApts.filter(a => a.status === 'pending').length,
+      upcomingAppointments: upcoming,
+      totalPatients,
+      earningsToday: 0,
+      earningsMonth: 0,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-app.get("/api/v1/dashboard/today-appointments", (req, res) => {
-  res.json({ success: true, data: mockTodayAppointments });
+app.get("/api/v1/dashboard/today-appointments", async (req, res) => {
+  try {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    const appointments = await Appointment.find({ slotTime: { $gte: today, $lt: tomorrow } })
+      .populate('patientId', 'name age gender')
+      .sort({ slotTime: 1 });
+    res.json({ success: true, data: appointments });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-app.get("/api/v1/dashboard/upcoming", (req, res) => {
-  res.json({ success: true, data: mockUpcoming });
+app.patch("/api/v1/dashboard/appointments/:id/complete", async (req, res) => {
+  try {
+    await Appointment.findByIdAndUpdate(req.params.id, { status: 'completed', updatedAt: new Date() });
+    res.json({ success: true, message: 'Appointment marked as completed' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-app.get("/api/v1/dashboard/notifications", (req, res) => {
-  res.json({ success: true, data: mockNotifications, unreadCount: mockNotifications.filter(n => !n.read).length });
+app.get("/api/v1/dashboard/upcoming", async (_, res) => {
+  try {
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(0, 0, 0, 0);
+    const weekLater = new Date(tomorrow); weekLater.setDate(weekLater.getDate() + 7);
+    const appointments = await Appointment.find({
+      slotTime: { $gte: tomorrow, $lt: weekLater },
+      status: { $in: ['pending', 'confirmed'] },
+    }).populate('patientId', 'name age gender').sort({ slotTime: 1 }).limit(20);
+    res.json({ success: true, data: appointments });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-app.get("/api/v1/dashboard/earnings", (req, res) => {
-  res.json({ success: true, data: mockEarnings });
+app.get("/api/v1/dashboard/notifications", (_, res) => {
+  // Notifications are generated from session-cancel events; see patientNotifications below.
+  res.json({ success: true, data: [], unreadCount: 0 });
 });
 
-app.patch("/api/v1/dashboard/appointments/:id/complete", (req, res) => {
-  const apt = mockTodayAppointments.find(a => a.id === parseInt(req.params.id));
-  if (apt) apt.status = 'completed';
-  res.json({ success: true, message: 'Appointment marked as completed' });
+app.get("/api/v1/dashboard/earnings", (_, res) => {
+  // Earnings calculation is not yet implemented.
+  res.json({ success: true, data: { doctorFee: 0, channelingFee: 0, totalToday: 0, totalMonth: 0, weeklyTrend: [0, 0, 0, 0, 0, 0, 0], weekDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] } });
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -217,162 +223,160 @@ function parseTimeToMinutes(timeStr) {
 const CANCEL_LEAD_MINUTES = 10 * 60; // 10 hours
 
 // Session info: hospitals for a date with 10-hour-rule status
-app.get("/api/v1/dashboard/session-info", (req, res) => {
-  const { date } = req.query;
-  const targetDate = date || new Date().toISOString().slice(0, 10);
-  const todayStr   = new Date().toISOString().slice(0, 10);
+app.get("/api/v1/dashboard/session-info", async (req, res) => {
+  try {
+    const { date } = req.query;
+    const targetDate = date || new Date().toISOString().slice(0, 10);
+    const start = new Date(targetDate); start.setHours(0, 0, 0, 0);
+    const end = new Date(targetDate); end.setHours(23, 59, 59, 999);
 
-  // Use today's list for today, full list for other dates
-  const sourceApts = targetDate === todayStr
-    ? mockTodayAppointments.filter(a => a.status !== 'cancelled' && a.status !== 'completed')
-    : mockAllAppointments.filter(a => a.date === targetDate && a.status !== 'cancelled' && a.status !== 'completed');
+    const activeApts = await Appointment.find({
+      slotTime: { $gte: start, $lte: end },
+      status: { $nin: ['cancelled', 'completed'] },
+    }).populate('slotId');
 
-  if (sourceApts.length === 0) {
-    return res.json({ success: true, date: targetDate, hospitals: [] });
-  }
+    if (activeApts.length === 0) {
+      return res.json({ success: true, date: targetDate, hospitals: [] });
+    }
 
-  const hospitalMap = {};
-  sourceApts.forEach(a => {
-    if (!hospitalMap[a.hospital]) hospitalMap[a.hospital] = [];
-    hospitalMap[a.hospital].push(a);
-  });
-
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const isFutureDate = targetDate > todayStr;
-
-  const hospitals = Object.entries(hospitalMap).map(([name, apts]) => {
-    const times = apts.map(a => parseTimeToMinutes(a.time)).filter(t => t > 0);
-    const earliestMinutes = times.length > 0 ? Math.min(...times) : 0;
-    const earliestApt = apts.find(a => parseTimeToMinutes(a.time) === earliestMinutes);
-    const minutesUntilSession = isFutureDate ? Infinity : earliestMinutes - nowMinutes;
-    const canCancel = isFutureDate || minutesUntilSession > CANCEL_LEAD_MINUTES;
-    return {
-      name,
-      earliestTime: earliestApt?.time || null,
-      appointmentCount: apts.length,
-      canCancel,
-      minutesUntilDeadline: isFutureDate ? null : minutesUntilSession - CANCEL_LEAD_MINUTES,
-    };
-  });
-
-  res.json({ success: true, date: targetDate, hospitals });
-});
-
-// Cancel a session (specific hospital or all) — notifies affected patients
-app.post("/api/v1/dashboard/cancel-session", (req, res) => {
-  const { date, reason, hospital } = req.body;
-  const targetDate = date || new Date().toISOString().slice(0, 10);
-  const todayStr   = new Date().toISOString().slice(0, 10);
-
-  // Gather all active appointments for the date
-  const allActive = targetDate === todayStr
-    ? mockTodayAppointments.filter(a => a.status !== 'cancelled' && a.status !== 'completed')
-    : mockAllAppointments.filter(a => a.date === targetDate && a.status !== 'cancelled' && a.status !== 'completed');
-
-  // Filter to selected hospital (or all)
-  const toCancel = (hospital && hospital !== 'ALL')
-    ? allActive.filter(a => a.hospital === hospital)
-    : allActive;
-
-  if (toCancel.length === 0) {
-    return res.status(400).json({ success: false, error: 'No active appointments found for the selected date/hospital.' });
-  }
-
-  // Validate 10-hour rule per hospital (only for today)
-  if (targetDate === todayStr) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const isFutureDate = targetDate > todayStr;
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const byHospital = {};
-    toCancel.forEach(a => {
-      if (!byHospital[a.hospital]) byHospital[a.hospital] = [];
-      byHospital[a.hospital].push(a);
+
+    // Group by hospitalName (stored on appointment or populate from slot)
+    const hospitalMap = {};
+    activeApts.forEach(a => {
+      const h = a.hospitalName || 'Unknown Hospital';
+      if (!hospitalMap[h]) hospitalMap[h] = [];
+      hospitalMap[h].push(a);
     });
-    for (const [hName, hApts] of Object.entries(byHospital)) {
-      const times = hApts.map(a => parseTimeToMinutes(a.time)).filter(t => t > 0);
-      if (times.length === 0) continue;
-      const earliest = Math.min(...times);
-      if (earliest - nowMinutes <= CANCEL_LEAD_MINUTES) {
-        const startTime = hApts.find(a => parseTimeToMinutes(a.time) === earliest)?.time;
-        return res.status(400).json({
-          success: false,
-          error: `Cannot cancel ${hName} — less than 10 hours until session starts (${startTime}).`,
-        });
-      }
-    }
+
+    const hospitals = Object.entries(hospitalMap).map(([name, apts]) => {
+      const times = apts.map(a => {
+        const t = new Date(a.slotTime);
+        return t.getHours() * 60 + t.getMinutes();
+      });
+      const earliestMinutes = Math.min(...times);
+      const minutesUntilSession = isFutureDate ? Infinity : earliestMinutes - nowMinutes;
+      const canCancel = isFutureDate || minutesUntilSession > CANCEL_LEAD_MINUTES;
+      return {
+        name,
+        earliestTime: apts[0] ? new Date(apts[0].slotTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : null,
+        appointmentCount: apts.length,
+        canCancel,
+        minutesUntilDeadline: isFutureDate ? null : minutesUntilSession - CANCEL_LEAD_MINUTES,
+      };
+    });
+
+    res.json({ success: true, date: targetDate, hospitals });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-
-  // Mark cancelled in mock lists
-  toCancel.forEach(a => {
-    const inAll   = mockAllAppointments.find(x => x.id === a.id);
-    const inToday = mockTodayAppointments.find(x => x.id === a.id);
-    if (inAll)   inAll.status   = 'cancelled';
-    if (inToday) inToday.status = 'cancelled';
-  });
-
-  // Build notification message
-  const now = new Date();
-  const formattedDate = new Date(targetDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  });
-  const hospitalLabel = (hospital && hospital !== 'ALL') ? ` at ${hospital}` : '';
-  const notifMessage = reason
-    ? `Your appointment${hospitalLabel} on ${formattedDate} has been cancelled by the doctor. Reason: ${reason}. We apologise for the inconvenience.`
-    : `Your appointment${hospitalLabel} on ${formattedDate} has been cancelled by the doctor. We apologise for the inconvenience.`;
-
-  const created = toCancel.map(a => {
-    const notif = {
-      id: patientNotifIdCounter++,
-      patientId: a.patientId || String(a.id),
-      patientName: a.patientName || a.patientDisplayName || '—',
-      appointmentId: a.id,
-      appointmentNumber: a.appointmentNumber,
-      type: 'session_cancelled',
-      title: 'Session Cancelled',
-      message: notifMessage,
-      date: targetDate,
-      reason: reason || null,
-      read: false,
-      createdAt: now.toISOString(),
-    };
-    patientNotifications.push(notif);
-    return notif;
-  });
-
-  // Doctor-side notification
-  mockNotifications.unshift({
-    id: mockNotifications.length + 100,
-    type: 'cancellation',
-    message: `Session${hospitalLabel} on ${formattedDate} cancelled — ${created.length} patient(s) notified.`,
-    time: 'Just now',
-    read: false,
-  });
-
-  res.json({
-    success: true,
-    message: `Session cancelled. ${created.length} patient(s) notified.`,
-    affectedCount: created.length,
-    date: targetDate,
-    hospital: hospital || 'ALL',
-  });
 });
 
-// Patient: get their notifications (poll-based; patient identified by query param or token)
+// ── Patient notifications (in-memory, populated by cancel-session) ────────────
+let patientNotifications = [];
+let patientNotifIdCounter = 1;
+
+// Cancel a session — updates DB and notifies affected patients
+app.post("/api/v1/dashboard/cancel-session", async (req, res) => {
+  try {
+    const { date, reason, hospital } = req.body;
+    const targetDate = date || new Date().toISOString().slice(0, 10);
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const start = new Date(targetDate); start.setHours(0, 0, 0, 0);
+    const end = new Date(targetDate); end.setHours(23, 59, 59, 999);
+
+    const filter = {
+      slotTime: { $gte: start, $lte: end },
+      status: { $nin: ['cancelled', 'completed'] },
+    };
+    if (hospital && hospital !== 'ALL') filter.hospitalName = hospital;
+
+    const toCancel = await Appointment.find(filter).populate('patientId', 'name');
+
+    if (toCancel.length === 0) {
+      return res.status(400).json({ success: false, error: 'No active appointments found for the selected date/hospital.' });
+    }
+
+    // Validate 10-hour rule for today
+    if (targetDate === todayStr) {
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const byHospital = {};
+      toCancel.forEach(a => {
+        const h = a.hospitalName || 'Unknown Hospital';
+        if (!byHospital[h]) byHospital[h] = [];
+        byHospital[h].push(a);
+      });
+      for (const [hName, hApts] of Object.entries(byHospital)) {
+        const times = hApts.map(a => { const t = new Date(a.slotTime); return t.getHours() * 60 + t.getMinutes(); });
+        const earliest = Math.min(...times);
+        if (earliest - nowMinutes <= CANCEL_LEAD_MINUTES) {
+          const startTimeStr = new Date(hApts.find(a => { const t = new Date(a.slotTime); return t.getHours() * 60 + t.getMinutes() === earliest; })?.slotTime)
+            .toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          return res.status(400).json({
+            success: false,
+            error: `Cannot cancel ${hName} — less than 10 hours until session starts (${startTimeStr}).`,
+          });
+        }
+      }
+    }
+
+    // Mark cancelled in DB
+    const ids = toCancel.map(a => a._id);
+    await Appointment.updateMany({ _id: { $in: ids } }, { status: 'cancelled', cancellationReason: reason || null, updatedAt: new Date() });
+
+    // Build patient notifications
+    const now = new Date();
+    const formattedDate = new Date(targetDate).toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+    const hospitalLabel = (hospital && hospital !== 'ALL') ? ` at ${hospital}` : '';
+    const notifMessage = reason
+      ? `Your appointment${hospitalLabel} on ${formattedDate} has been cancelled by the doctor. Reason: ${reason}. We apologise for the inconvenience.`
+      : `Your appointment${hospitalLabel} on ${formattedDate} has been cancelled by the doctor. We apologise for the inconvenience.`;
+
+    const created = toCancel.map(a => {
+      const notif = {
+        id: patientNotifIdCounter++,
+        patientId: a.patientId?._id?.toString() || a.patientId?.toString(),
+        patientName: a.patientId?.name || '—',
+        appointmentId: a._id,
+        type: 'session_cancelled',
+        title: 'Session Cancelled',
+        message: notifMessage,
+        date: targetDate,
+        reason: reason || null,
+        read: false,
+        createdAt: now.toISOString(),
+      };
+      patientNotifications.push(notif);
+      return notif;
+    });
+
+    res.json({
+      success: true,
+      message: `Session cancelled. ${created.length} patient(s) notified.`,
+      affectedCount: created.length,
+      date: targetDate,
+      hospital: hospital || 'ALL',
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Patient: get their notifications
 app.get("/api/v1/patient-notifications", (req, res) => {
-  // Accept patientId from query string for simplicity (in production use JWT)
   const { patientId } = req.query;
   let data = patientId
     ? patientNotifications.filter(n => n.patientId === patientId)
-    : patientNotifications;                       // dev: return all if no filter
-
-  // Sort newest first
+    : patientNotifications;
   data = [...data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  res.json({
-    success: true,
-    data,
-    unreadCount: data.filter(n => !n.read).length,
-  });
+  res.json({ success: true, data, unreadCount: data.filter(n => !n.read).length });
 });
 
 // Patient: mark notification as read
@@ -389,6 +393,157 @@ app.patch("/api/v1/patient-notifications/read-all", (req, res) => {
     if (!patientId || n.patientId === patientId) n.read = true;
   });
   res.json({ success: true });
+});
+
+// ── Channeling Sessions (Availability Management) ────────────────────────────
+
+// Release a new channeling session
+app.post('/api/v1/channeling-sessions', requireAuth, async (req, res) => {
+  try {
+    const { hospitalName, date, startTime, totalAppointments, note } = req.body;
+
+    if (!hospitalName || !date || !startTime || !totalAppointments) {
+      return res.status(400).json({ success: false, error: 'hospitalName, date, startTime, and totalAppointments are required' });
+    }
+    if (Number(totalAppointments) < 1) {
+      return res.status(400).json({ success: false, error: 'totalAppointments must be at least 1' });
+    }
+
+    const sessionDate = new Date(date);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (sessionDate < today) {
+      return res.status(400).json({ success: false, error: 'Cannot release sessions for past dates' });
+    }
+
+    const existing = await ChannelingSession.findOne({
+      doctorId: req.user.id,
+      hospitalName: { $regex: `^${hospitalName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+      date: sessionDate,
+      startTime,
+    });
+    if (existing) {
+      return res.status(409).json({ success: false, error: 'A session already exists for this hospital, date, and time' });
+    }
+
+    const session = new ChannelingSession({
+      doctorId: req.user.id,
+      hospitalName,
+      date: sessionDate,
+      startTime,
+      totalAppointments: parseInt(totalAppointments),
+      note: note || '',
+    });
+    await session.save();
+
+    res.status(201).json({ success: true, data: session, message: 'Appointments released successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get all sessions for the authenticated doctor
+app.get('/api/v1/channeling-sessions', requireAuth, async (req, res) => {
+  try {
+    const { fromDate, toDate, status, hospital } = req.query;
+    const filter = { doctorId: req.user.id };
+
+    if (fromDate || toDate) {
+      filter.date = {};
+      if (fromDate) filter.date.$gte = new Date(fromDate);
+      if (toDate) { const d = new Date(toDate); d.setHours(23, 59, 59, 999); filter.date.$lte = d; }
+    }
+    if (status && status !== 'all') filter.status = status;
+    if (hospital) filter.hospitalName = { $regex: hospital, $options: 'i' };
+
+    const sessions = await ChannelingSession.find(filter).sort({ date: 1, startTime: 1 });
+    res.json({ success: true, data: sessions });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Edit a session
+app.patch('/api/v1/channeling-sessions/:id', requireAuth, async (req, res) => {
+  try {
+    const session = await ChannelingSession.findOne({ _id: req.params.id, doctorId: req.user.id });
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+    if (['cancelled', 'completed'].includes(session.status)) {
+      return res.status(400).json({ success: false, error: `Cannot edit a ${session.status} session` });
+    }
+
+    const { hospitalName, startTime, totalAppointments, note } = req.body;
+    if (hospitalName) session.hospitalName = hospitalName;
+    if (startTime) session.startTime = startTime;
+    if (totalAppointments !== undefined) {
+      if (parseInt(totalAppointments) < session.bookedCount) {
+        return res.status(400).json({ success: false, error: `Cannot reduce appointments below booked count (${session.bookedCount})` });
+      }
+      session.totalAppointments = parseInt(totalAppointments);
+    }
+    if (note !== undefined) session.note = note;
+
+    // Auto-sync status
+    if (session.bookedCount >= session.totalAppointments && session.status === 'open') session.status = 'full';
+    else if (session.bookedCount < session.totalAppointments && session.status === 'full') session.status = 'open';
+
+    session.updatedAt = new Date();
+    await session.save();
+
+    res.json({ success: true, data: session, message: 'Session updated successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Cancel a session
+app.patch('/api/v1/channeling-sessions/:id/cancel', requireAuth, async (req, res) => {
+  try {
+    const session = await ChannelingSession.findOne({ _id: req.params.id, doctorId: req.user.id });
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+    if (session.status === 'cancelled') return res.status(400).json({ success: false, error: 'Session is already cancelled' });
+
+    session.status = 'cancelled';
+    session.updatedAt = new Date();
+    await session.save();
+
+    res.json({ success: true, data: session, message: 'Session cancelled successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Close booking for a session
+app.patch('/api/v1/channeling-sessions/:id/close', requireAuth, async (req, res) => {
+  try {
+    const session = await ChannelingSession.findOne({ _id: req.params.id, doctorId: req.user.id });
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+    if (['cancelled', 'completed', 'closed'].includes(session.status)) {
+      return res.status(400).json({ success: false, error: `Session is already ${session.status}` });
+    }
+
+    session.status = 'closed';
+    session.updatedAt = new Date();
+    await session.save();
+
+    res.json({ success: true, data: session, message: 'Booking closed successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Public: get open sessions for a specific doctor (for patient app)
+app.get('/api/v1/channeling-sessions/public/:doctorId', async (req, res) => {
+  try {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const sessions = await ChannelingSession.find({
+      doctorId: req.params.doctorId,
+      date: { $gte: today },
+      status: { $in: ['open', 'full'] },
+    }).sort({ date: 1, startTime: 1 });
+    res.json({ success: true, data: sessions });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ── Doctor channeling routes ──────────────────────────────────────────────────
