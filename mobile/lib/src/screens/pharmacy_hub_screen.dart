@@ -57,7 +57,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Prescription $status successfully!'),
-            backgroundColor: status == 'approved' ? AppTheme.herbal : Colors.red,
+            backgroundColor: status == 'approved' ? AppTheme.primaryColor : Colors.red,
           )
         );
       }
@@ -136,7 +136,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.herbal),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
             onPressed: () {
               final medicines = [
                 {
@@ -168,7 +168,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
               const Text('Review Prescription', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
               ListTile(
-                leading: const Icon(Icons.check_circle, color: AppTheme.herbal),
+                leading: const Icon(Icons.check_circle, color: AppTheme.primaryColor),
                 title: const Text('Approve'),
                 onTap: () {
                   Navigator.pop(context);
@@ -195,7 +195,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
     final prescriptionsAsync = ref.watch(prescriptionsProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.sand,
+      backgroundColor: AppTheme.backgroundColor,
       body: CustomScrollView(
         controller: _scrollController,
         physics: const BouncingScrollPhysics(),
@@ -205,7 +205,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
             expandedHeight: 220,
             pinned: true,
             stretch: true,
-            backgroundColor: AppTheme.earth,
+            backgroundColor: AppTheme.secondaryColor,
             leading: IconButton(
               onPressed: () {
                 HapticFeedback.lightImpact();
@@ -227,9 +227,9 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          AppTheme.earth,
+                          AppTheme.secondaryColor,
                           Color(0xFF4E342E),
-                          AppTheme.herbalDeep,
+                          AppTheme.primaryColor,
                         ],
                       ),
                     ),
@@ -244,7 +244,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            AppTheme.turmeric.withOpacity(0.15),
+                            AppTheme.accentColor.withOpacity(0.15),
                             Colors.transparent,
                           ],
                         ),
@@ -262,21 +262,21 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppTheme.turmeric.withOpacity(0.2),
+                            color: AppTheme.accentColor.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                                color: AppTheme.turmeric.withOpacity(0.4)),
+                                color: AppTheme.accentColor.withOpacity(0.4)),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.circle,
-                                  color: AppTheme.turmeric, size: 8),
+                                  color: AppTheme.accentColor, size: 8),
                               SizedBox(width: 6),
                               Text(
                                 'LIVE DASHBOARD',
                                 style: TextStyle(
-                                  color: AppTheme.turmeric,
+                                  color: AppTheme.accentColor,
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.5,
@@ -314,7 +314,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                   const Text(
                     "TODAY'S OVERVIEW",
                     style: TextStyle(
-                      color: AppTheme.earthLight,
+                      color: AppTheme.secondaryColor,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.5,
@@ -345,13 +345,13 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                   const Text(
                     'All Prescriptions',
                     style: TextStyle(
-                      color: AppTheme.earth,
+                      color: AppTheme.secondaryColor,
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.refresh, color: AppTheme.herbal),
+                    icon: const Icon(Icons.refresh, color: AppTheme.primaryColor),
                     onPressed: () => ref.invalidate(prescriptionsProvider),
                   )
                 ],
@@ -371,16 +371,16 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                       padding: const EdgeInsets.all(40.0),
                       child: Column(
                         children: [
-                          Icon(Icons.check_circle_outline, size: 60, color: AppTheme.earth.withOpacity(0.3)),
+                          Icon(Icons.check_circle_outline, size: 60, color: AppTheme.secondaryColor.withOpacity(0.3)),
                           const SizedBox(height: 16),
                           Text(
                             'All caught up!',
-                            style: TextStyle(color: AppTheme.earth.withOpacity(0.5), fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: AppTheme.secondaryColor.withOpacity(0.5), fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'No prescriptions found.',
-                            style: TextStyle(color: AppTheme.earth.withOpacity(0.4)),
+                            style: TextStyle(color: AppTheme.secondaryColor.withOpacity(0.4)),
                           )
                         ],
                       ),
@@ -418,16 +418,16 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
     final status = request['pharmacyStatus'] as String? ?? 'pending';
 
     Color statusColor;
-    if (status == 'approved') statusColor = AppTheme.herbal;
+    if (status == 'approved') statusColor = AppTheme.primaryColor;
     else if (status == 'rejected') statusColor = Colors.red;
-    else statusColor = AppTheme.turmeric;
+    else statusColor = AppTheme.accentColor;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.clay),
+        border: Border.all(color: AppTheme.backgroundColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -458,7 +458,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                     Text(
                       request['patientName'] ?? 'Guest',
                       style: const TextStyle(
-                        color: AppTheme.earth,
+                        color: AppTheme.secondaryColor,
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
                       ),
@@ -467,7 +467,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                     Text(
                       'ID: ${request['_id'].toString().substring(0, 8)} • $timeStr',
                       style: TextStyle(
-                        color: AppTheme.earth.withOpacity(0.5),
+                        color: AppTheme.secondaryColor.withOpacity(0.5),
                         fontSize: 12,
                       ),
                     ),
@@ -516,7 +516,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                   child: ElevatedButton(
                     onPressed: () => _showApproveModal(request['_id']),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.herbal,
+                      backgroundColor: AppTheme.primaryColor,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
@@ -537,14 +537,14 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
         'label': 'Inbox',
         'value': '$pending',
         'icon': Icons.mail_outline_rounded,
-        'color': AppTheme.herbal,
+        'color': AppTheme.primaryColor,
         'bg': const Color(0xFFE8F5E9),
       },
       {
         'label': 'Active/Approved',
         'value': '$approved',
         'icon': Icons.pending_actions_rounded,
-        'color': AppTheme.earth,
+        'color': AppTheme.secondaryColor,
         'bg': const Color(0xFFEFEBE9),
       },
     ];
@@ -577,8 +577,8 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
 
   Widget _buildShimmerStats() {
     return Shimmer.fromColors(
-      baseColor: AppTheme.clay.withOpacity(0.5),
-      highlightColor: AppTheme.sand,
+      baseColor: AppTheme.backgroundColor.withOpacity(0.5),
+      highlightColor: AppTheme.backgroundColor,
       child: GridView.count(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -601,8 +601,8 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
 
   Widget _buildShimmerList() {
     return Shimmer.fromColors(
-      baseColor: AppTheme.clay.withOpacity(0.5),
-      highlightColor: AppTheme.sand,
+      baseColor: AppTheme.backgroundColor.withOpacity(0.5),
+      highlightColor: AppTheme.backgroundColor,
       child: Column(
         children: List.generate(
           3,
@@ -642,7 +642,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.clay, width: 1),
+        border: Border.all(color: AppTheme.backgroundColor, width: 1),
         boxShadow: [
           BoxShadow(
             color: accentColor.withOpacity(0.08),
@@ -675,7 +675,7 @@ class _StatCard extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: AppTheme.earth.withOpacity(0.5),
+              color: AppTheme.secondaryColor.withOpacity(0.5),
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
