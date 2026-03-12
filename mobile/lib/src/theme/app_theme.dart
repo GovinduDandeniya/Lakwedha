@@ -1,36 +1,27 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Herbal Greens
-  static const Color herbal = Color(0xFF2E7D32); // Green 800
-  static const Color herbalDeep = Color(0xFF1B5E20); // Green 900
-
-  // Earth Tones
-  static const Color earth = Color(0xFF5D4037); // Brown 700
-  static const Color earthLight = Color(0xFF8D6E63); // Brown 400
-
-  // Turmeric Yellows
-  static const Color turmeric = Color(0xFFF9A825); // Yellow 800
-  static const Color turmericDeep = Color(0xFFF57F17); // Yellow 900
-
-  // Neutrals (Sand & Clay)
-  static const Color sand = Color(0xFFF5F5DC); // Beige
-  static const Color clay = Color(0xFFBCAAA4); // Brown 200
+  // New Palette
+  static const Color primaryColor = Color(0xFF0D5C3E);
+  static const Color secondaryColor = Color(0xFFD4AF37);
+  static const Color accentColor = Color(0xFF28A745);
+  static const Color emergencyColor = Color(0xFFDC3545);
+  static const Color backgroundColor = Color(0xFFF8F9FA);
 
   // Standard Colors
   static const Color white = Colors.white;
   static const Color black = Colors.black;
-  static const Color background = Color(0xFFFAFAFA);
-  static const Color error = Color(0xFFD32F2F);
+  static const Color background = backgroundColor;
+  static const Color error = emergencyColor;
 
   // Overall Theme Data
   static ThemeData get themeData {
     return ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: herbal),
+      colorScheme: ColorScheme.fromSeed(seedColor: primaryColor),
       useMaterial3: true,
-      scaffoldBackgroundColor: background,
+      scaffoldBackgroundColor: backgroundColor,
       appBarTheme: const AppBarTheme(
-        backgroundColor: herbal,
+        backgroundColor: primaryColor,
         foregroundColor: white,
         elevation: 0,
       ),
