@@ -247,7 +247,6 @@ exports.handlePayhereNotification = asyncHandler(async (req, res) => {
         }
 
         await order.save();
-        console.log('[PayHere Webhook] Order', order_id, 'updated. Payment status:', order.paymentStatus);
     } catch (err) {
         console.error('[PayHere Webhook] Error processing notification:', err.message);
     }

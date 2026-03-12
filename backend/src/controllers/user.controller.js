@@ -22,7 +22,7 @@ exports.register = async (req, res, next) => {
             role: role || 'user',
         });
 
-        console.log(`New user registered: ${email}`);
+
 
         res.status(201).json({
             message: 'User registered successfully',
@@ -39,13 +39,11 @@ exports.login = async (req, res, next) => {
 
         const user = await User.findOne({ email }).select('+password');
         if (!user) {
-            console.log(`Failed login attempt: ${email}`);
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
         const match = await bcrypt.compare(password, user.password);
         if (!match) {
-            console.log(`Incorrect password for: ${email}`);
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
@@ -53,7 +51,7 @@ exports.login = async (req, res, next) => {
             expiresIn: '1d',
         });
 
-        console.log(`User logged in: ${email}`);
+
 
         res.json({
             token,
