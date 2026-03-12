@@ -130,7 +130,7 @@ export default function PharmacyDashboard() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-earth">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-secondary">
         <Loader2 className="animate-spin mb-4" size={48} />
         <p className="font-medium italic text-lg animate-pulse">Synchronizing Prescription Data...</p>
       </div>
@@ -161,7 +161,7 @@ export default function PharmacyDashboard() {
     <div className="space-y-6 relative">
       {/* Demo Mode Badge */}
       {isDemoMode && (
-        <div className="absolute -top-4 -right-4 bg-turmeric text-earth px-4 py-1 rounded-bl-xl font-bold text-xs shadow-lg animate-pulse z-10 flex items-center gap-2">
+        <div className="absolute -top-4 -right-4 bg-accent text-secondary px-4 py-1 rounded-bl-xl font-bold text-xs shadow-lg animate-pulse z-10 flex items-center gap-2">
           <AlertCircle size={14} />
           ⚠️ DEMO MODE ACTIVE
         </div>
@@ -169,12 +169,12 @@ export default function PharmacyDashboard() {
 
       <header className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold text-earth">Pharmacy Dashboard</h1>
-          <p className="text-earth/60">Manage your dispensary and patient requests.</p>
+          <h1 className="text-3xl font-bold text-secondary">Pharmacy Dashboard</h1>
+          <p className="text-secondary/60">Manage your dispensary and patient requests.</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="bg-herbal/10 text-herbal px-4 py-2 rounded-full text-sm font-bold border border-herbal/20 flex items-center gap-2">
-            <span className="w-2 h-2 bg-herbal rounded-full animate-pulse" />
+          <div className="bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-bold border border-primary/20 flex items-center gap-2">
+            <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
             Live System
           </div>
         </div>
@@ -183,26 +183,26 @@ export default function PharmacyDashboard() {
       {/* Stats Bar */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Inbox', value: prescriptions.length, icon: FileText, color: 'text-turmeric', bg: 'bg-turmeric/10' },
-          { label: 'Active Orders', value: '12', icon: Package, color: 'text-herbal', bg: 'bg-herbal/10' },
-          { label: 'Daily Revenue', value: 'LKR 42K', icon: DollarSign, color: 'text-earth', bg: 'bg-earth/10' },
+          { label: 'Inbox', value: prescriptions.length, icon: FileText, color: 'text-accent', bg: 'bg-accent/10' },
+          { label: 'Active Orders', value: '12', icon: Package, color: 'text-primary', bg: 'bg-primary/10' },
+          { label: 'Daily Revenue', value: 'LKR 42K', icon: DollarSign, color: 'text-secondary', bg: 'bg-secondary/10' },
           { label: 'Alerts', value: '2', icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-[32px] border border-clay shadow-sm hover:shadow-md transition-all">
+          <div key={i} className="bg-white p-6 rounded-[32px] border border-background shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-4">
               <div className={`${stat.bg} ${stat.color} p-3 rounded-2xl`}>
                 <stat.icon size={24} />
               </div>
-              <span className="text-[10px] font-black text-earth/20 uppercase tracking-widest">MTD</span>
+              <span className="text-[10px] font-black text-secondary/20 uppercase tracking-widest">MTD</span>
             </div>
-            <div className="text-2xl font-black text-earth">{stat.value}</div>
-            <div className="text-xs font-bold text-earth/40 uppercase tracking-tighter mt-1">{stat.label}</div>
+            <div className="text-2xl font-black text-secondary">{stat.value}</div>
+            <div className="text-xs font-bold text-secondary/40 uppercase tracking-tighter mt-1">{stat.label}</div>
           </div>
         ))}
       </div>
 
       {/* Advanced Filter Bar */}
-      <div className="bg-white p-6 rounded-[32px] border border-clay shadow-sm space-y-6">
+      <div className="bg-white p-6 rounded-[32px] border border-background shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="relative flex-1 w-full">
             <input
@@ -210,16 +210,16 @@ export default function PharmacyDashboard() {
               placeholder="Search patient name or ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-sand rounded-2xl border border-clay/50 outline-none focus:ring-2 focus:ring-earth/10 transition-all font-medium"
+              className="w-full pl-12 pr-4 py-3 bg-background rounded-2xl border border-background/50 outline-none focus:ring-2 focus:ring-secondary/10 transition-all font-medium"
             />
-            <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-earth/30" size={20} />
+            <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary/30" size={20} />
           </div>
 
           <div className="flex gap-4 w-full md:w-auto">
              <select
                value={dateFilter}
                onChange={(e) => setDateFilter(e.target.value)}
-               className="bg-sand px-4 py-3 rounded-2xl border border-clay/50 font-bold text-earth text-sm outline-none"
+               className="bg-background px-4 py-3 rounded-2xl border border-background/50 font-bold text-secondary text-sm outline-none"
              >
                 <option value="all">📅 All Dates</option>
                 <option value="today">Today</option>
@@ -230,7 +230,7 @@ export default function PharmacyDashboard() {
              <select
                value={sortBy}
                onChange={(e) => setSortBy(e.target.value)}
-               className="bg-sand px-4 py-3 rounded-2xl border border-clay/50 font-bold text-earth text-sm outline-none"
+               className="bg-background px-4 py-3 rounded-2xl border border-background/50 font-bold text-secondary text-sm outline-none"
              >
                 <option value="newest">🕒 Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -249,8 +249,8 @@ export default function PharmacyDashboard() {
                className={clsx(
                  "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all border",
                  selectedLetter === letter
-                  ? "bg-earth text-white border-earth shadow-lg shadow-earth/20"
-                  : "bg-sand text-earth/60 border-clay/30 hover:bg-earth/5 hover:text-earth"
+                  ? "bg-secondary text-white border-secondary shadow-lg shadow-secondary/20"
+                  : "bg-background text-secondary/60 border-background/30 hover:bg-secondary/5 hover:text-secondary"
                )}
              >
                {letter}
@@ -260,24 +260,24 @@ export default function PharmacyDashboard() {
       </div>
 
       <div className="pt-4 flex items-center gap-4">
-         <h2 className="text-xl font-bold text-earth">Incoming Requests ({processedPrescriptions.length})</h2>
-         <div className="h-px flex-1 bg-clay/30" />
+         <h2 className="text-xl font-bold text-secondary">Incoming Requests ({processedPrescriptions.length})</h2>
+         <div className="h-px flex-1 bg-background/30" />
       </div>
 
       {processedPrescriptions.length === 0 ? (
-        <div className="bg-white border-2 border-dashed border-clay p-20 rounded-3xl text-center space-y-6 shadow-sm">
-          <div className="bg-sand w-24 h-24 rounded-full flex items-center justify-center mx-auto text-clay">
+        <div className="bg-white border-2 border-dashed border-background p-20 rounded-3xl text-center space-y-6 shadow-sm">
+          <div className="bg-background w-24 h-24 rounded-full flex items-center justify-center mx-auto text-background">
             <AlertCircle size={48} />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-earth">No Results Found.</h2>
-            <p className="text-earth/60 max-w-sm mx-auto text-lg italic">
+            <h2 className="text-2xl font-bold text-secondary">No Results Found.</h2>
+            <p className="text-secondary/60 max-w-sm mx-auto text-lg italic">
               Try adjusting your filters or clearing your search term.
             </p>
           </div>
           <button
             onClick={() => { setSearchTerm(''); setSelectedLetter('All'); setDateFilter('all'); }}
-            className="px-8 py-3 bg-earth text-white rounded-xl font-bold transition-all shadow-lg mx-auto"
+            className="px-8 py-3 bg-secondary text-white rounded-xl font-bold transition-all shadow-lg mx-auto"
           >
             Clear All Filters
           </button>
@@ -287,31 +287,31 @@ export default function PharmacyDashboard() {
           {processedPrescriptions.map((prescription) => (
             <div
               key={prescription._id}
-              className="bg-white rounded-3xl border border-clay shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group border-b-4 border-b-turmeric/20"
+              className="bg-white rounded-3xl border border-background shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group border-b-4 border-b-accent/20"
             >
               {/* Card Header */}
-              <div className="bg-turmeric/10 p-4 border-b border-clay flex justify-between items-start">
+              <div className="bg-accent/10 p-4 border-b border-background flex justify-between items-start">
                 <div className="flex items-center gap-3">
-                  <div className="bg-earth text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg">
+                  <div className="bg-secondary text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg">
                     {prescription.patientName?.charAt(0) || 'P'}
                   </div>
                   <div>
-                    <h3 className="font-bold text-earth leading-tight">
+                    <h3 className="font-bold text-secondary leading-tight">
                       {prescription.patientName || 'Anonymous Patient'}
                     </h3>
-                    <div className="flex items-center gap-1 text-xs text-earth/60">
+                    <div className="flex items-center gap-1 text-xs text-secondary/60">
                       <Calendar size={12} />
                       {new Date(prescription.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
-                <span className="bg-herbal/10 text-herbal px-2 py-1 rounded text-[10px] uppercase font-bold tracking-wider">
+                <span className="bg-primary/10 text-primary px-2 py-1 rounded text-[10px] uppercase font-bold tracking-wider">
                   New
                 </span>
               </div>
 
               {/* Card Body - Image Placeholder */}
-              <div className="aspect-video bg-sand relative overflow-hidden">
+              <div className="aspect-video bg-background relative overflow-hidden">
                 {prescription.imageUrl ? (
                   <img
                     src={prescription.imageUrl}
@@ -319,15 +319,15 @@ export default function PharmacyDashboard() {
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-clay p-4">
+                  <div className="w-full h-full flex flex-col items-center justify-center text-background p-4">
                     <FileText size={48} strokeWidth={1} />
                     <span className="text-xs mt-2 uppercase tracking-widest font-bold">Image Missing</span>
                   </div>
                 )}
-                <div className="absolute inset-0 bg-earth/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="absolute inset-0 bg-secondary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <button
                     onClick={() => handleOpenReview(prescription)}
-                    className="bg-white text-earth p-3 rounded-full shadow-lg hover:scale-110 transition-transform"
+                    className="bg-white text-secondary p-3 rounded-full shadow-lg hover:scale-110 transition-transform"
                   >
                     <ExternalLink size={24} />
                   </button>
@@ -338,7 +338,7 @@ export default function PharmacyDashboard() {
               <div className="p-4 bg-white mt-auto">
                 <button
                   onClick={() => handleOpenReview(prescription)}
-                  className="w-full py-2.5 bg-earth text-white rounded-lg font-bold hover:bg-earth/95 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="w-full py-2.5 bg-secondary text-white rounded-lg font-bold hover:bg-secondary/95 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                   Review & Process
                 </button>
