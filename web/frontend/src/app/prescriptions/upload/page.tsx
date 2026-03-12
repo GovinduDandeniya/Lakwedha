@@ -76,6 +76,7 @@ export default function UploadPrescription() {
 
   if (success) {
     return (
+<<<<<<< HEAD
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="bg-white p-12 rounded-[40px] shadow-2xl border border-background text-center space-y-6 max-w-lg w-full animate-in zoom-in duration-300">
           <div className="w-24 h-24 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto">
@@ -90,6 +91,22 @@ export default function UploadPrescription() {
               <div className="h-full bg-primary animate-[progress_3s_ease-in-out]" />
             </div>
             <p className="text-[10px] uppercase font-bold text-secondary/40 mt-3 tracking-widest">Redirecting to Homepage...</p>
+=======
+      <div className="min-h-screen bg-sand flex items-center justify-center p-6">
+        <div className="bg-white p-12 rounded-[40px] shadow-2xl border border-clay text-center space-y-6 max-w-lg w-full animate-in zoom-in duration-300">
+          <div className="w-24 h-24 bg-herbal/10 text-herbal rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle2 size={48} />
+          </div>
+          <h1 className="text-3xl font-black text-earth">Submission Successful!</h1>
+          <p className="text-earth/60 text-lg">
+            Your prescription has been sent to our pharmacists. We'll notify you as soon as it's priced.
+          </p>
+          <div className="pt-4">
+            <div className="h-1 w-full bg-sand rounded-full overflow-hidden">
+              <div className="h-full bg-herbal animate-[progress_3s_ease-in-out]" />
+            </div>
+            <p className="text-[10px] uppercase font-bold text-earth/40 mt-3 tracking-widest">Redirecting to Homepage...</p>
+>>>>>>> origin/pharmacy
           </div>
         </div>
       </div>
@@ -97,30 +114,50 @@ export default function UploadPrescription() {
   }
 
   return (
+<<<<<<< HEAD
     <div className="min-h-screen bg-background p-6 md:p-12">
+=======
+    <div className="min-h-screen bg-sand p-6 md:p-12">
+>>>>>>> origin/pharmacy
       <div className="max-w-4xl mx-auto space-y-12">
         {/* Header */}
         <div className="flex items-center justify-between">
           <button
             onClick={() => router.back()}
+<<<<<<< HEAD
             className="flex items-center gap-2 text-secondary/60 hover:text-secondary font-bold transition-all"
+=======
+            className="flex items-center gap-2 text-earth/60 hover:text-earth font-bold transition-all"
+>>>>>>> origin/pharmacy
           >
             <ArrowLeft size={20} />
             Back to Home
           </button>
           <div className="flex items-center gap-2">
+<<<<<<< HEAD
             <ShieldCheck className="text-primary" size={20} />
             <span className="text-xs font-black text-secondary/40 uppercase tracking-widest">Secure HIPAA-Compliant Portal</span>
+=======
+            <ShieldCheck className="text-herbal" size={20} />
+            <span className="text-xs font-black text-earth/40 uppercase tracking-widest">Secure HIPAA-Compliant Portal</span>
+>>>>>>> origin/pharmacy
           </div>
         </div>
 
         <div className="grid md:grid-cols-5 gap-12 items-start">
           {/* Instructions */}
           <div className="md:col-span-2 space-y-8">
+<<<<<<< HEAD
             <h1 className="text-5xl font-black text-secondary leading-tight">
               Order Your <span className="text-primary italic">Medicines</span>
             </h1>
             <p className="text-lg text-secondary/60 leading-relaxed">
+=======
+            <h1 className="text-5xl font-black text-earth leading-tight">
+              Order Your <span className="text-herbal italic">Medicines</span>
+            </h1>
+            <p className="text-lg text-earth/60 leading-relaxed">
+>>>>>>> origin/pharmacy
               Upload a clear photo of your prescription. Our certified Ayurvedic pharmacists will review it and send you a price quote within minutes.
             </p>
 
@@ -130,9 +167,15 @@ export default function UploadPrescription() {
                 "Keep the paper flat and use good lighting",
                 "Handwritten or digital prescriptions accepted"
               ].map((tip, idx) => (
+<<<<<<< HEAD
                 <div key={idx} className="flex items-start gap-3 bg-white/50 p-4 rounded-2xl border border-background/50">
                    <Info className="text-accent mt-1" size={18} />
                    <p className="text-sm font-medium text-secondary/80">{tip}</p>
+=======
+                <div key={idx} className="flex items-start gap-3 bg-white/50 p-4 rounded-2xl border border-clay/50">
+                   <Info className="text-turmeric mt-1" size={18} />
+                   <p className="text-sm font-medium text-earth/80">{tip}</p>
+>>>>>>> origin/pharmacy
                 </div>
               ))}
             </div>
@@ -140,7 +183,11 @@ export default function UploadPrescription() {
 
           {/* Upload Form */}
           <div className="md:col-span-3">
+<<<<<<< HEAD
              <form onSubmit={handleSubmit} className="bg-white p-8 md:p-12 rounded-[40px] shadow-2xl border border-background space-y-8">
+=======
+             <form onSubmit={handleSubmit} className="bg-white p-8 md:p-12 rounded-[40px] shadow-2xl border border-clay space-y-8">
+>>>>>>> origin/pharmacy
                 {error && (
                   <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center gap-3 text-red-800 text-sm font-bold">
                     <X size={18} className="text-red-500" />
@@ -150,7 +197,11 @@ export default function UploadPrescription() {
 
                 <div className="relative">
                   {!preview ? (
+<<<<<<< HEAD
                     <label className="group relative cursor-pointer block border-4 border-dashed border-background hover:border-secondary/20 rounded-[32px] p-20 transition-all bg-background/20 hover:bg-background/40">
+=======
+                    <label className="group relative cursor-pointer block border-4 border-dashed border-clay hover:border-earth/20 rounded-[32px] p-20 transition-all bg-sand/20 hover:bg-sand/40">
+>>>>>>> origin/pharmacy
                       <input
                         type="file"
                         className="hidden"
@@ -158,19 +209,34 @@ export default function UploadPrescription() {
                         onChange={handleFileChange}
                       />
                       <div className="flex flex-col items-center text-center space-y-4">
+<<<<<<< HEAD
                         <div className="bg-white w-16 h-16 rounded-2xl flex items-center justify-center text-background group-hover:text-secondary transition-colors shadow-lg shadow-secondary/5">
                           <Upload size={32} />
                         </div>
                         <div>
                           <p className="text-xl font-black text-secondary">Drop image here</p>
                           <p className="text-secondary/40 font-bold uppercase text-[10px] tracking-widest mt-1 italic">or click to browse library</p>
+=======
+                        <div className="bg-white w-16 h-16 rounded-2xl flex items-center justify-center text-clay group-hover:text-earth transition-colors shadow-lg shadow-earth/5">
+                          <Upload size={32} />
+                        </div>
+                        <div>
+                          <p className="text-xl font-black text-earth">Drop image here</p>
+                          <p className="text-earth/40 font-bold uppercase text-[10px] tracking-widest mt-1 italic">or click to browse library</p>
+>>>>>>> origin/pharmacy
                         </div>
                       </div>
                     </label>
                   ) : (
+<<<<<<< HEAD
                     <div className="relative rounded-[32px] overflow-hidden border border-background shadow-2xl">
                       <img src={preview} alt="Preview" className="w-full aspect-video object-cover" />
                       <div className="absolute inset-0 bg-secondary/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+=======
+                    <div className="relative rounded-[32px] overflow-hidden border border-clay shadow-2xl">
+                      <img src={preview} alt="Preview" className="w-full aspect-video object-cover" />
+                      <div className="absolute inset-0 bg-earth/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+>>>>>>> origin/pharmacy
                         <button
                           type="button"
                           onClick={removeFile}
@@ -184,6 +250,7 @@ export default function UploadPrescription() {
                   )}
                 </div>
 
+<<<<<<< HEAD
                 <div className="flex items-center gap-4 bg-background/50 p-5 rounded-3xl border border-background">
                   <div className="bg-white p-3 rounded-2xl text-secondary/40">
                     <FileText size={24} />
@@ -191,13 +258,26 @@ export default function UploadPrescription() {
                   <div className="flex-1 overflow-hidden">
                     <p className="font-bold text-secondary truncate">{file ? file.name : "No file selected"}</p>
                     <p className="text-[10px] text-secondary/40 uppercase font-black tracking-widest">{file ? `${(file.size / 1024).toFixed(0)} KB` : "Waiting for upload..."}</p>
+=======
+                <div className="flex items-center gap-4 bg-sand/50 p-5 rounded-3xl border border-clay">
+                  <div className="bg-white p-3 rounded-2xl text-earth/40">
+                    <FileText size={24} />
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <p className="font-bold text-earth truncate">{file ? file.name : "No file selected"}</p>
+                    <p className="text-[10px] text-earth/40 uppercase font-black tracking-widest">{file ? `${(file.size / 1024).toFixed(0)} KB` : "Waiting for upload..."}</p>
+>>>>>>> origin/pharmacy
                   </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={!file || loading}
+<<<<<<< HEAD
                   className="w-full py-6 bg-secondary text-white rounded-3xl font-black text-xl flex items-center justify-center gap-3 hover:bg-secondary/95 shadow-2xl shadow-secondary/20 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed group"
+=======
+                  className="w-full py-6 bg-earth text-white rounded-3xl font-black text-xl flex items-center justify-center gap-3 hover:bg-earth/95 shadow-2xl shadow-earth/20 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed group"
+>>>>>>> origin/pharmacy
                 >
                   {loading ? (
                     <>
