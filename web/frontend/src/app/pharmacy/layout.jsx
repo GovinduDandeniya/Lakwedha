@@ -22,12 +22,21 @@ export default function PharmacyLayout({ children }) {
   ];
 
   return (
+<<<<<<< HEAD
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <aside className="w-64 bg-secondary text-white flex flex-col fixed inset-y-0 left-0 z-40 transition-transform shadow-xl">
         {/* Brand */}
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
           <Leaf className="text-accent" size={28} />
+=======
+    <div className="flex min-h-screen bg-sand">
+      {/* Sidebar */}
+      <aside className="w-64 bg-earth text-white flex flex-col fixed inset-y-0 left-0 z-40 transition-transform shadow-xl">
+        {/* Brand */}
+        <div className="p-6 flex items-center gap-3 border-b border-white/10">
+          <Leaf className="text-turmeric" size={28} />
+>>>>>>> origin/pharmacy
           <span className="font-bold text-xl tracking-tight">Ayurveda Hub</span>
         </div>
 
@@ -42,12 +51,20 @@ export default function PharmacyLayout({ children }) {
                 className={clsx(
                   "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group",
                   isActive
+<<<<<<< HEAD
                     ? "bg-accent text-secondary font-bold shadow-lg"
+=======
+                    ? "bg-turmeric text-earth font-bold shadow-lg"
+>>>>>>> origin/pharmacy
                     : "hover:bg-white/10 text-white/80 hover:text-white"
                 )}
               >
                 <item.icon size={20} className={clsx(
+<<<<<<< HEAD
                   isActive ? "text-secondary" : "text-accent group-hover:scale-110 transition-transform"
+=======
+                  isActive ? "text-earth" : "text-turmeric group-hover:scale-110 transition-transform"
+>>>>>>> origin/pharmacy
                 )} />
                 <span>{item.name}</span>
               </Link>

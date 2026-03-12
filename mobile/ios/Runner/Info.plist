@@ -45,6 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+<<<<<<< HEAD
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -54,5 +55,7 @@
 	<string>Camera is needed to photograph your prescription</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo library access is needed to upload your prescription</string>
+=======
+>>>>>>> origin/pharmacy
 </dict>
 </plist>
