@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../providers/booking_provider.dart';
 import '../../../data/datasources/remote/api_service.dart';
 import '../../../data/models/doctor_model.dart';
-import '../../../data/models/doctor_availability_model.dart';
 import '../../widgets/doctor_card.dart';
 import 'booking_screen.dart';
 import 'doctor_availability_screen.dart';
@@ -98,32 +97,8 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
     super.dispose();
   }
 
-  static final List<String> _doctorNameOptions =
-      _sampleDoctors.map((d) => d.name).toList();
-  static final List<String> _hospitalOptions =
-      _sampleDoctors.map((d) => d.clinicName).toSet().toList();
-
-  static final List<Doctor> _sampleDoctors = [
-    Doctor(id: 'd1', name: 'Dr. Kumari Jayawardena', specialization: 'General', qualification: 'BAMS, MD (Ayurveda)', experience: 12, rating: 4.8, reviewCount: 134, profileImage: null, clinicName: 'Nawaloka Hospital', clinicAddress: '23 Galle Rd, Colombo 02', distance: 1.2, consultationFee: 1500, isVerified: true),
-    Doctor(id: 'd2', name: 'Dr. Suresh Perera', specialization: 'Panchakarma', qualification: 'BAMS, PG Dip (Panchakarma)', experience: 9, rating: 4.6, reviewCount: 89, profileImage: null, clinicName: 'Asiri Hospital', clinicAddress: '181 Kirula Rd, Colombo 05', distance: 2.8, consultationFee: 2000, isVerified: true),
-    Doctor(id: 'd3', name: 'Dr. Malini Fernando', specialization: 'Skin Diseases', qualification: 'BAMS, MSc (Dermatology)', experience: 7, rating: 4.7, reviewCount: 112, profileImage: null, clinicName: 'Lanka Hospitals', clinicAddress: 'Narahenpita, Colombo 05', distance: 3.5, consultationFee: 1800, isVerified: true),
-    Doctor(id: 'd4', name: 'Dr. Rohan Wickramasinghe', specialization: 'Kadum Bidum', qualification: 'BAMS, Dip (Traumatology)', experience: 15, rating: 4.9, reviewCount: 201, profileImage: null, clinicName: 'Durdans Hospital', clinicAddress: '3 Alfred Place, Colombo 03', distance: 4.1, consultationFee: 2500, isVerified: true),
-    Doctor(id: 'd5', name: 'Dr. Priyanka Gunasekara', specialization: 'Sarpa Visha', qualification: 'BAMS, MD (Agada Tantra)', experience: 11, rating: 4.5, reviewCount: 76, profileImage: null, clinicName: 'Ninewells Hospital', clinicAddress: '55/1 Kirimandala Mawatha, Colombo 05', distance: 5.0, consultationFee: 2200, isVerified: false),
-    Doctor(id: 'd6', name: 'Dr. Amara Bandara', specialization: 'General', qualification: 'BAMS', experience: 5, rating: 4.3, reviewCount: 48, profileImage: null, clinicName: 'National Ayurveda Teaching Hospital', clinicAddress: 'Rajagiriya, Colombo', distance: 6.3, consultationFee: 800, isVerified: true),
-    Doctor(id: 'd7', name: 'Dr. Tharanga Ratnayake', specialization: 'Panchakarma', qualification: 'BAMS, MD (Kayachikitsa)', experience: 8, rating: 4.4, reviewCount: 63, profileImage: null, clinicName: 'Nawaloka Hospital', clinicAddress: '23 Galle Rd, Colombo 02', distance: 1.2, consultationFee: 1900, isVerified: false),
-    Doctor(id: 'd8', name: 'Dr. Nirosha Silva', specialization: 'Skin Diseases', qualification: 'BAMS, PG Cert (Cosmetic Ayurveda)', experience: 6, rating: 4.6, reviewCount: 95, profileImage: null, clinicName: 'Asiri Central Hospital', clinicAddress: '114 Norris Canal Rd, Colombo 10', distance: 2.0, consultationFee: 1700, isVerified: true),
-  ];
-
-  List<Doctor> _filterSamples() {
-    final name = _nameController.text.trim().toLowerCase();
-    final hospital = _hospitalController.text.trim().toLowerCase();
-    return _sampleDoctors.where((d) {
-      if (name.isNotEmpty && !d.name.toLowerCase().contains(name)) return false;
-      if (_selectedSpecialty != null && d.specialization != _selectedSpecialty) return false;
-      if (hospital.isNotEmpty && !d.clinicName.toLowerCase().contains(hospital)) return false;
-      return true;
-    }).toList();
-  }
+  static const List<String> _doctorNameOptions = [];
+  static const List<String> _hospitalOptions = [];
 
   Future<void> _searchDoctors() async {
     FocusScope.of(context).unfocus();
@@ -133,13 +108,12 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
       _isNameOnlyMode = nameOnly;
     });
     try {
-      final results = await _apiService.searchDoctors(
+      _doctors = await _apiService.searchDoctors(
         specialty: _selectedSpecialty,
         location: _hospitalController.text.trim().isNotEmpty ? _hospitalController.text.trim() : null,
       );
-      _doctors = results.isEmpty ? _filterSamples() : results;
     } catch (_) {
-      _doctors = _filterSamples();
+      _doctors = [];
     } finally {
       setState(() {
         _isLoading = false;
@@ -149,55 +123,13 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
   }
 
   Future<void> _openAvailability(Doctor doctor) async {
-    DoctorAvailabilityResult result;
-    try {
-      result = await _apiService.getDoctorAvailabilityResult(doctor.id);
-    } catch (_) {
-      result = _generateSampleAvailability(doctor);
-    }
+    final result = await _apiService.getDoctorAvailabilityResult(doctor.id);
     if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => DoctorAvailabilityScreen(availability: result),
       ),
-    );
-  }
-
-  static DoctorAvailabilityResult _generateSampleAvailability(Doctor doctor) {
-    final now = DateTime.now();
-    final daysOffsets = [1, 3, 5, 7, 10];
-    final totalSlots   = [20, 20, 20, 15, 15];
-    final bookedSlots  = [8,  17, 20, 4,  13];
-
-    final dates = <DateSlotSummary>[];
-    for (var i = 0; i < 5; i++) {
-      final d = now.add(Duration(days: daysOffsets[i]));
-      final dateStr =
-          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-      dates.add(DateSlotSummary(
-        date: dateStr,
-        startTime: '09:00',
-        endTime: '12:00',
-        totalSlots: totalSlots[i],
-        bookedSlots: bookedSlots[i],
-      ));
-    }
-
-    return DoctorAvailabilityResult(
-      doctorId: doctor.id,
-      doctorName: doctor.name,
-      specialization: doctor.specialization,
-      qualification: doctor.qualification,
-      isVerified: doctor.isVerified,
-      hospitals: [
-        HospitalAvailability(
-          hospitalId: 'h_${doctor.id}',
-          hospitalName: doctor.clinicName,
-          location: doctor.clinicAddress,
-          dates: dates,
-        ),
-      ],
     );
   }
 
