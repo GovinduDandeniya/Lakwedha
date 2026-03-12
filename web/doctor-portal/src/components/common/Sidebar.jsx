@@ -9,6 +9,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import PersonIcon from '@mui/icons-material/Person';
 import SettingsIcon from '@mui/icons-material/Settings';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -19,8 +20,9 @@ const navItems = [
     { label: 'Dashboard',     icon: <DashboardIcon />, path: '/dashboard' },
     { label: 'Appointments',  icon: <EventIcon />,     path: '/appointments' },
     { label: 'Patients',      icon: <PeopleIcon />,    path: '/patients' },
-    { label: 'Availability',  icon: <ScheduleIcon />,  path: '/availability' },
-    { label: 'Profile',       icon: <PersonIcon />,    path: '/profile' },
+    { label: 'Availability',   icon: <ScheduleIcon />,          path: '/availability' },
+    { label: 'Extra Requests', icon: <AddCircleOutlineIcon />,   path: '/extra-requests' },
+    { label: 'Profile',        icon: <PersonIcon />,             path: '/profile' },
     { label: 'Settings',      icon: <SettingsIcon />,  path: '/settings' },
 ];
 

@@ -8,6 +8,7 @@ import AvailabilityPage from './pages/AvailabilityPage';
 import PatientsPage from './pages/PatientsPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
+import ExtraRequestsPage from './pages/ExtraRequestsPage';
 
 const PrivateRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -68,6 +69,14 @@ const AppRoutes = () => {
             element={
                 <PrivateRoute>
                     <SettingsPage />
+                </PrivateRoute>
+            }
+        />
+        <Route
+            path="/extra-requests"
+            element={
+                <PrivateRoute>
+                    <ExtraRequestsPage />
                 </PrivateRoute>
             }
         />
