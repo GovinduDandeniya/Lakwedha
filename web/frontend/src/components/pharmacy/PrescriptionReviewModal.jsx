@@ -96,18 +96,18 @@ export default function PrescriptionReviewModal({ prescription, isOpen, onClose,
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-earth/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-secondary/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal Container */}
       <div className="relative bg-white w-full max-w-6xl h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-300">
 
         {/* Header */}
-        <header className="px-8 py-5 border-b border-clay flex justify-between items-center bg-sand">
+        <header className="px-8 py-5 border-b border-background flex justify-between items-center bg-background">
           <div>
-            <h2 className="text-2xl font-bold text-earth">Financial Review & Quotation</h2>
-            <p className="text-sm text-earth/60 italic font-medium">Ayurveda Pharmacy Module</p>
+            <h2 className="text-2xl font-bold text-secondary">Financial Review & Quotation</h2>
+            <p className="text-sm text-secondary/60 italic font-medium">Ayurveda Pharmacy Module</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-earth/10 rounded-full transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-secondary/10 rounded-full transition-colors">
             <X size={24} />
           </button>
         </header>
@@ -116,13 +116,13 @@ export default function PrescriptionReviewModal({ prescription, isOpen, onClose,
         <div className="flex-1 flex overflow-hidden">
 
           {/* Left Side: Prescription Image (40%) */}
-          <div className="w-[40%] p-6 bg-clay/5 border-r border-clay flex flex-col">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-earth/40 mb-4">Source Document</span>
-            <div className="flex-1 bg-white rounded-2xl border-2 border-dashed border-clay p-2 overflow-hidden relative group shadow-inner">
+          <div className="w-[40%] p-6 bg-background/5 border-r border-background flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary/40 mb-4">Source Document</span>
+            <div className="flex-1 bg-white rounded-2xl border-2 border-dashed border-background p-2 overflow-hidden relative group shadow-inner">
               {prescription.imageUrl ? (
                 <img src={prescription.imageUrl} alt="Prescription" className="w-full h-full object-contain" />
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-clay">
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-background">
                   <ImageIcon size={64} strokeWidth={1} />
                   <p className="mt-2 font-medium">No Image Provided</p>
                 </div>
@@ -135,7 +135,7 @@ export default function PrescriptionReviewModal({ prescription, isOpen, onClose,
             <div className="flex-1">
               <table className="w-full text-left border-separate border-spacing-y-2">
                 <thead>
-                  <tr className="text-[10px] font-bold uppercase tracking-widest text-earth/40">
+                  <tr className="text-[10px] font-bold uppercase tracking-widest text-secondary/40">
                     <th className="pb-2">Medicine Detail</th>
                     <th className="pb-2 w-20 text-center">Qty</th>
                     <th className="pb-2 w-32 text-center">Unit Price</th>
@@ -150,7 +150,7 @@ export default function PrescriptionReviewModal({ prescription, isOpen, onClose,
                         <input
                           type="text"
                           placeholder="Search or enter medicine name..."
-                          className="w-full px-4 py-3 bg-sand/30 border border-clay/50 rounded-xl focus:ring-2 focus:ring-turmeric/20 focus:border-turmeric outline-none transition-all placeholder:text-earth/30"
+                          className="w-full px-4 py-3 bg-background/30 border border-background/50 rounded-xl focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none transition-all placeholder:text-secondary/30"
                           value={item.name}
                           onChange={(e) => handleInputChange(item.id, 'name', e.target.value)}
                         />
@@ -158,27 +158,27 @@ export default function PrescriptionReviewModal({ prescription, isOpen, onClose,
                       <td>
                         <input
                           type="number"
-                          className="w-full px-2 py-3 bg-sand/30 border border-clay/50 rounded-xl text-center font-bold text-earth"
+                          className="w-full px-2 py-3 bg-background/30 border border-background/50 rounded-xl text-center font-bold text-secondary"
                           value={item.qty}
                           onChange={(e) => handleInputChange(item.id, 'qty', e.target.value)}
                         />
                       </td>
                       <td>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-earth/30">LKR</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-secondary/30">LKR</span>
                           <input
                             type="number"
-                            className="w-full pl-10 pr-3 py-3 bg-sand/30 border border-clay/50 rounded-xl text-center font-bold text-earth"
+                            className="w-full pl-10 pr-3 py-3 bg-background/30 border border-background/50 rounded-xl text-center font-bold text-secondary"
                             value={item.unitPrice}
                             onChange={(e) => handleInputChange(item.id, 'unitPrice', e.target.value)}
                           />
                         </div>
                       </td>
-                      <td className="text-right font-black text-earth text-sm px-4">
+                      <td className="text-right font-black text-secondary text-sm px-4">
                         {(item.total).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
                       </td>
                       <td>
-                        <button onClick={() => handleRemoveRow(item.id)} className="p-2 text-earth/20 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                        <button onClick={() => handleRemoveRow(item.id)} className="p-2 text-secondary/20 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
                           <Trash2 size={16} />
                         </button>
                       </td>
@@ -187,15 +187,15 @@ export default function PrescriptionReviewModal({ prescription, isOpen, onClose,
                 </tbody>
               </table>
 
-              <button onClick={handleAddRow} className="mt-6 flex items-center gap-2 text-earth font-black text-[11px] uppercase tracking-widest hover:text-turmeric transition-colors bg-sand/50 px-4 py-2 rounded-full border border-clay/50">
-                <Plus size={14} className="bg-turmeric text-white p-0.5 rounded-sm" />
+              <button onClick={handleAddRow} className="mt-6 flex items-center gap-2 text-secondary font-black text-[11px] uppercase tracking-widest hover:text-accent transition-colors bg-background/50 px-4 py-2 rounded-full border border-background/50">
+                <Plus size={14} className="bg-accent text-white p-0.5 rounded-sm" />
                 Add Row
               </button>
             </div>
 
             {/* Price Breakdown */}
             <div className="mt-12 space-y-4">
-              <div className="flex justify-between items-center bg-earth text-white p-6 rounded-3xl shadow-xl shadow-earth/10">
+              <div className="flex justify-between items-center bg-secondary text-white p-6 rounded-3xl shadow-xl shadow-secondary/10">
                 <div>
                   <p className="text-[10px] uppercase font-bold tracking-[0.3em] opacity-40">Grand Total (LKR)</p>
                   <p className="text-xs italic opacity-60">Verified Frontend Calculation</p>
@@ -216,7 +216,7 @@ export default function PrescriptionReviewModal({ prescription, isOpen, onClose,
                 <button
                   disabled={grandTotal <= 0 || isSubmitting}
                   onClick={handleApprove}
-                  className="flex-[2] py-4 bg-herbal text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-herbal/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100 disabled:grayscale cursor-pointer"
+                  className="flex-[2] py-4 bg-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100 disabled:grayscale cursor-pointer"
                 >
                   {isSubmitting ? (
                     <Loader2 className="animate-spin" size={18} />
