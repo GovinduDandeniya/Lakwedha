@@ -26,7 +26,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-sand min-h-screen text-earth font-sans antialiased">
+      <body className="bg-background min-h-screen text-secondary font-sans antialiased">
         {children}
         <DevAuthTrigger />
       </body>
