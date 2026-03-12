@@ -110,7 +110,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
     final orderAsync = ref.watch(orderDetailsProvider(widget.orderId));
 
     return Scaffold(
-      backgroundColor: AppTheme.sand,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Order Pipeline'),
         leading: IconButton(
@@ -148,7 +148,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
                   child: Text(
                     'TRACKING STATUS',
                     style: TextStyle(
-                      color: AppTheme.earthLight,
+                      color: AppTheme.secondaryColor,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2,
@@ -186,12 +186,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppTheme.earth, Color(0xFF4E342E)],
+          colors: [AppTheme.secondaryColor, Color(0xFF4E342E)],
         ),
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.earth.withOpacity(0.2),
+            color: AppTheme.secondaryColor.withOpacity(0.2),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -227,7 +227,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
                   Text(
                     'LKR $total',
                     style: const TextStyle(
-                      color: AppTheme.turmeric,
+                      color: AppTheme.accentColor,
                       fontWeight: FontWeight.w900,
                       fontSize: 20,
                     ),
@@ -254,14 +254,14 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppTheme.turmeric.withOpacity(0.2),
+                  color: AppTheme.accentColor.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.turmeric.withOpacity(0.4)),
+                  border: Border.all(color: AppTheme.accentColor.withOpacity(0.4)),
                 ),
                 child: Text(
                   status,
                   style: const TextStyle(
-                    color: AppTheme.turmeric,
+                    color: AppTheme.accentColor,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -291,10 +291,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
                           height: 44,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AppTheme.turmericDeep,
+                            color: AppTheme.accentColor,
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.turmeric.withOpacity(
+                                color: AppTheme.accentColor.withOpacity(
                                     0.35 * _pulseAnimation.value),
                                 blurRadius: 20 * _pulseAnimation.value,
                                 spreadRadius: 3 * _pulseAnimation.value,
@@ -312,12 +312,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: step.isCompleted
-                            ? AppTheme.herbal
-                            : AppTheme.clay.withOpacity(0.5),
+                            ? AppTheme.primaryColor
+                            : AppTheme.backgroundColor.withOpacity(0.5),
                         boxShadow: step.isCompleted
                             ? [
                                 BoxShadow(
-                                  color: AppTheme.herbal.withOpacity(0.3),
+                                  color: AppTheme.primaryColor.withOpacity(0.3),
                                   blurRadius: 10,
                                 )
                               ]
@@ -327,7 +327,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
                         step.icon,
                         color: step.isCompleted
                             ? Colors.white
-                            : AppTheme.earthLight.withOpacity(0.4),
+                            : AppTheme.secondaryColor.withOpacity(0.4),
                         size: 20,
                       ),
                     ),
@@ -341,9 +341,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: step.isCompleted
-                          ? [AppTheme.herbal, AppTheme.herbal.withOpacity(0.2)]
+                          ? [AppTheme.primaryColor, AppTheme.primaryColor.withOpacity(0.2)]
                           : [
-                              AppTheme.clay.withOpacity(0.5),
+                              AppTheme.backgroundColor.withOpacity(0.5),
                               Colors.transparent
                             ],
                     ),
@@ -366,8 +366,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
                       step.title,
                       style: TextStyle(
                         color: step.isCompleted || step.isCurrent
-                            ? AppTheme.earth
-                            : AppTheme.earthLight.withOpacity(0.4),
+                            ? AppTheme.secondaryColor
+                            : AppTheme.secondaryColor.withOpacity(0.4),
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
                       ),
@@ -376,8 +376,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
                       step.time,
                       style: TextStyle(
                         color: step.isCurrent
-                            ? AppTheme.turmericDeep
-                            : AppTheme.earthLight.withOpacity(0.5),
+                            ? AppTheme.accentColor
+                            : AppTheme.secondaryColor.withOpacity(0.5),
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
@@ -388,7 +388,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
                 Text(
                   step.subtitle,
                   style: TextStyle(
-                    color: AppTheme.earth.withOpacity(
+                    color: AppTheme.secondaryColor.withOpacity(
                         step.isCompleted || step.isCurrent ? 0.5 : 0.25),
                     fontSize: 13,
                   ),
@@ -407,8 +407,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
 
   Widget _buildShimmerLoading() {
     return Shimmer.fromColors(
-      baseColor: AppTheme.clay.withOpacity(0.5),
-      highlightColor: AppTheme.sand,
+      baseColor: AppTheme.backgroundColor.withOpacity(0.5),
+      highlightColor: AppTheme.backgroundColor,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -458,7 +458,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.clay),
+        border: Border.all(color: AppTheme.backgroundColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -472,18 +472,18 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppTheme.herbal.withOpacity(0.08),
+              color: AppTheme.primaryColor.withOpacity(0.08),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.support_agent_rounded,
-                color: AppTheme.herbal, size: 22),
+                color: AppTheme.primaryColor, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               'Need help? Our pharmaceutical support team is available 24/7.',
               style: TextStyle(
-                  color: AppTheme.earth.withOpacity(0.6), fontSize: 13),
+                  color: AppTheme.secondaryColor.withOpacity(0.6), fontSize: 13),
             ),
           ),
         ],
