@@ -11,9 +11,6 @@ api.interceptors.request.use(
       const token = localStorage.getItem('token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-      } else {
-        // Dev bypass token for testing without a login page
-        config.headers.Authorization = `Bearer dummy-jwt-token-for-dev`;
       }
     }
     return config;
@@ -26,9 +23,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       if (typeof window !== 'undefined') {
-        // localStorage.clear();
-        // window.location.href = '/login';
-        console.warn('⚠️ 401 Unauthorized - Dev Redirect Suspended for Debugging');
+        localStorage.clear();
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);
