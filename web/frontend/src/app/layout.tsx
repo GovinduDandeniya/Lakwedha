@@ -17,7 +17,6 @@ export const metadata: Metadata = {
   description: "Ayurvedic E-Channeling Platform",
 };
 
-import DevAuthTrigger from "@/components/DevAuthTrigger";
 
 export default function RootLayout({
   children,
@@ -28,7 +27,6 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-background min-h-screen text-secondary font-sans antialiased">
         {children}
-        <DevAuthTrigger />
       </body>
     </html>
   );
