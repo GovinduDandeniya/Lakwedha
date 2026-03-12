@@ -1,0 +1,20 @@
+=== LAKWEDHA API TEST SUITE ===
+
+PASS | GET /api/health | 200 | {"status":"UP","timestamp":"2026-03-12T10:08:11.433Z"}
+PASS | POST /api/users/register | 201 | {"message":"User registered successfully"}
+PASS | POST /api/users/login | 200 | {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YjI5MDhiZmIyYWViNDNiOTRiMmZlNiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxN
+PASS | GET /api/users/profile | 200 | {"message":"Access granted","user":{"id":"000000000000000000000000","role":"admin"}}
+PASS | GET /api/pharmacy/prescriptions | 200 | {"success":true,"data":[{"_id":"699025851081aaada0dc6ad5","userId":"69902289952ea1257b68fc26","imageUrl":"https://placeh
+SKIP | reject <10 chars — no pending prescription
+SKIP | reject valid — no pending prescription
+SKIP | approve — no pending prescription
+PASS | GET /api/orders | 200 | {"success":true,"data":[{"_id":"698f7de5367793a1a6b2235c","userId":"698f7de4367793a1a6b22349","prescriptionId":"698f7de5
+PASS | GET /api/orders/:id | 200 | {"success":true,"data":{"_id":"698f7de5367793a1a6b2235c","userId":"698f7de4367793a1a6b22349","prescriptionId":"698f7de5d
+PASS | PUT /orders/:id/status (valid) | 200 | {"success":true,"data":{"_id":"698f7de5367793a1a6b2235c","userId":"698f7de4367793a1a6b22349","prescriptionId":"698f7de5d
+PASS | PUT /orders/:id/status (invalid) | 400 | {"success":false,"data":null,"message":"Invalid status transition: Cannot move order from 'processing' to 'pending'."}
+PASS | PUT /orders/:id/payment | 200 | {"success":true,"data":{"_id":"698f7de5367793a1a6b2235c","userId":"698f7de4367793a1a6b22349","prescriptionId":"698f7de5d
+PASS | POST /orders/:id/pay/initiate | 403 | {"success":false,"data":null,"message":"You do not have permission to pay for this order"}
+PASS | POST /orders/:id/pay/confirm | 404 | "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Cann
+
+=== SUMMARY ===
+Total: 12 | PASSED: 12 | FAILED: 0
