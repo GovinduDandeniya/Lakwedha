@@ -18,7 +18,7 @@ export default function DevAuthTrigger() {
   return (
     <button
       onClick={handleBypass}
-      className="fixed bottom-4 right-4 z-50 bg-turmeric text-earth p-3 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all flex items-center gap-2 font-bold text-xs"
+      className="fixed bottom-4 right-4 z-50 bg-accent text-secondary p-3 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all flex items-center gap-2 font-bold text-xs"
       title="Dev Auth Bypass"
     >
       <Key size={16} />
