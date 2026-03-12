@@ -40,7 +40,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
       title: 'Credit / Debit Card',
       subtitle: 'Visa, Mastercard, Amex via PayHere',
       icon: Icons.credit_card_rounded,
-      accentColor: AppTheme.herbal,
+      accentColor: AppTheme.primaryColor,
       bgColor: const Color(0xFFE8F5E9),
     ),
     _PaymentOption(
@@ -48,7 +48,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
       title: 'Cash on Delivery',
       subtitle: 'Pay when you receive the medicine',
       icon: Icons.payments_outlined,
-      accentColor: AppTheme.earth,
+      accentColor: AppTheme.secondaryColor,
       bgColor: const Color(0xFFEFEBE9),
     ),
   ];
@@ -130,13 +130,26 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
       final completer = Completer<void>();
 
       if (kIsWeb) {
-        // PayHere SDK is not available on web. Show a message.
+        // PayHere SDK is not available on web. Simulate a successful payment.
         if (mounted) {
-          setState(() {
-            _paymentError = 'PayHere card payment is available on mobile only. Use Cash on Delivery for now.';
-            _isPaying = false;
-          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('PayHere is only available on mobile — for testing purposes this will simulate a successful payment')),
+          );
         }
+
+        await dio.put('/orders/${widget.orderId}/payment', data: {
+          'paymentStatus': 'paid'
+        });
+
+        await dio.put('/orders/${widget.orderId}/status', data: {
+          'status': 'processing',
+          'reason': 'Payment successful (Web Simulation)'
+        });
+
+        if (mounted) {
+          _showSuccessSheet();
+        }
+        setState(() => _isPaying = false);
         return;
       }
 
@@ -204,7 +217,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
     final orderAsync = ref.watch(orderProvider(widget.orderId));
 
     return Scaffold(
-      backgroundColor: AppTheme.sand,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Secure Checkout'),
         leading: IconButton(
@@ -219,18 +232,18 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: AppTheme.herbal.withOpacity(0.1),
+              color: AppTheme.primaryColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.herbal.withOpacity(0.3)),
+              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
             ),
             child: const Row(
               children: [
-                Icon(Icons.lock_rounded, color: AppTheme.herbal, size: 12),
+                Icon(Icons.lock_rounded, color: AppTheme.primaryColor, size: 12),
                 SizedBox(width: 4),
                 Text(
                   'SSL Secured',
                   style: TextStyle(
-                    color: AppTheme.herbal,
+                    color: AppTheme.primaryColor,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -249,7 +262,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
             const Text(
               'Confirm & Pay',
               style: TextStyle(
-                color: AppTheme.earth,
+                color: AppTheme.secondaryColor,
                 fontSize: 28,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.5,
@@ -259,7 +272,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
             Text(
               'Prescription verified by Standard Pharmacy',
               style: TextStyle(
-                  color: AppTheme.earth.withOpacity(0.5), fontSize: 14),
+                  color: AppTheme.secondaryColor.withOpacity(0.5), fontSize: 14),
             ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
 
             const SizedBox(height: 28),
@@ -316,7 +329,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
             const Text(
               'SELECT PAYMENT METHOD',
               style: TextStyle(
-                color: AppTheme.earthLight,
+                color: AppTheme.secondaryColor,
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 2,
@@ -359,12 +372,12 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppTheme.earth, Color(0xFF4E342E)],
+          colors: [AppTheme.secondaryColor, Color(0xFF4E342E)],
         ),
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.earth.withOpacity(0.2),
+            color: AppTheme.secondaryColor.withOpacity(0.2),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -395,7 +408,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
               Text(
                 'LKR $total',
                 style: const TextStyle(
-                  color: AppTheme.turmeric,
+                  color: AppTheme.accentColor,
                   fontWeight: FontWeight.w900,
                   fontSize: 24,
                 ),
@@ -409,8 +422,8 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
 
   Widget _buildShimmerAmountCard() {
     return Shimmer.fromColors(
-      baseColor: AppTheme.clay.withOpacity(0.5),
-      highlightColor: AppTheme.sand,
+      baseColor: AppTheme.backgroundColor.withOpacity(0.5),
+      highlightColor: AppTheme.backgroundColor,
       child: Container(
         height: 100,
         decoration: BoxDecoration(
@@ -439,7 +452,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
           border: Border.all(
             color: isSelected
                 ? option.accentColor.withOpacity(0.5)
-                : AppTheme.clay,
+                : AppTheme.backgroundColor,
             width: isSelected ? 1.5 : 1,
           ),
           boxShadow: isSelected
@@ -476,7 +489,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
                   Text(
                     option.title,
                     style: TextStyle(
-                      color: isSelected ? option.accentColor : AppTheme.earth,
+                      color: isSelected ? option.accentColor : AppTheme.secondaryColor,
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
@@ -485,7 +498,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
                   Text(
                     option.subtitle,
                     style: TextStyle(
-                      color: AppTheme.earth.withOpacity(0.45),
+                      color: AppTheme.secondaryColor.withOpacity(0.45),
                       fontSize: 12,
                     ),
                   ),
@@ -500,7 +513,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
                 shape: BoxShape.circle,
                 color: isSelected ? option.accentColor : Colors.transparent,
                 border: Border.all(
-                  color: isSelected ? option.accentColor : AppTheme.clay,
+                  color: isSelected ? option.accentColor : AppTheme.backgroundColor,
                   width: 2,
                 ),
               ),
@@ -528,11 +541,11 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 20),
             decoration: BoxDecoration(
-              color: _isPaying ? AppTheme.earth.withOpacity(0.6) : AppTheme.earth,
+              color: _isPaying ? AppTheme.secondaryColor.withOpacity(0.6) : AppTheme.secondaryColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.earth.withOpacity(
+                  color: AppTheme.secondaryColor.withOpacity(
                       _isPaying ? 0.1 : 0.2 + 0.08 * _pulseAnimation.value),
                   blurRadius: _isPaying ? 8 : 20 + 10 * _pulseAnimation.value,
                   offset: const Offset(0, 6),
@@ -589,7 +602,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppTheme.clay,
+                color: AppTheme.backgroundColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -599,10 +612,10 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
               height: 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.herbal,
+                color: AppTheme.primaryColor,
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.herbal.withOpacity(0.3),
+                    color: AppTheme.primaryColor.withOpacity(0.3),
                     blurRadius: 30,
                     spreadRadius: 5,
                   ),
@@ -621,7 +634,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
             const Text(
               'Payment Successful!',
               style: TextStyle(
-                color: AppTheme.earth,
+                color: AppTheme.secondaryColor,
                 fontSize: 26,
                 fontWeight: FontWeight.w900,
               ),
@@ -631,7 +644,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
               'Your order is now being packaged.\nTrack its progress in real-time.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: AppTheme.earth.withOpacity(0.5),
+                  color: AppTheme.secondaryColor.withOpacity(0.5),
                   fontSize: 15,
                   height: 1.6),
             ).animate(delay: 400.ms).fadeIn(duration: 400.ms),
