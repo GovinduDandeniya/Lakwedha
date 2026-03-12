@@ -1,14 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL, STORAGE_KEYS } from '../utils/constants';
-import { getMockResponse, MOCK_TOKEN, MOCK_DOCTOR } from './mockData';
-
-// ── Dev-only: seed mock auth so the app opens directly on the dashboard ───────
-if (process.env.NODE_ENV === 'development') {
-    if (!localStorage.getItem(STORAGE_KEYS.TOKEN)) {
-        localStorage.setItem(STORAGE_KEYS.TOKEN, MOCK_TOKEN);
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(MOCK_DOCTOR));
-    }
-}
+import { getMockResponse } from './mockData';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
