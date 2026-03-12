@@ -1,6 +1,5 @@
 
 --- backend/src/app.js ---
-<<<<<<< HEAD
 app.use(cors({
   origin: (origin, callback) => {
     // Allow all origins for dev (covers dynamic Flutter web ports like :12031)
@@ -10,13 +9,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
   credentials: true,
 }));
-=======
-app.use(cors());
->>>>>>> origin/pharmacy
 
 
 --- backend/src/controllers/orderController.js ---
-<<<<<<< HEAD
 const Medicine = require('../models/Medicine');
 const { PRESCRIPTION_STATUS } = require('../config/constants');
 const { updateOrderStatusSchema, updatePaymentStatusSchema } = require('../utils/validationSchemas');
@@ -269,122 +264,9 @@ exports.handlePayhereNotification = asyncHandler(async (req, res) => {
         console.error('[PayHere Webhook] Error processing notification:', err.message);
     }
 });
-=======
-const { DELIVERY_FEE, TAX_RATE, ORDER_STATUS, PAYMENT_STATUS, PRESCRIPTION_STATUS } = require('../config/constants');
-const { updateOrderStatusSchema, updatePaymentStatusSchema } = require('../utils/validationSchemas');
-
-// Create order from prescription
-exports.createOrderFromPrescription = async (req, res, next) => {
-    try {
-        const { prescriptionId } = req.params;
-        const { totalAmount } = req.body; // Accept calculated total if provided, or use prescription data
-        console.log(`Initialising order for prescription ${prescriptionId}`);
-
-        const prescription = await Prescription.findById(prescriptionId);
-        if (!prescription) {
-            return res.status(404).json({ message: 'Prescription context missing.' });
-        }
-
-        if (prescription.pharmacyStatus !== PRESCRIPTION_STATUS.APPROVED) {
-            return res.status(400).json({ message: 'Verification Required: Pharmacy must approve prescription first.' });
-        }
-
-        // Create order using direct financial data
-        const order = await Order.create({
-            userId: prescription.userId,
-            prescriptionId: prescription._id,
-            medicines: prescription.medicines,
-            totalAmount: Number(totalAmount || 0), // Trusted FE value
-            status: ORDER_STATUS.APPROVED,
-            paymentStatus: PAYMENT_STATUS.PENDING
-        });
-
-        console.log(`Order created: ${order._id}`);
-        res.status(201).json({ message: 'Order created successfully', order });
-    } catch (err) {
-        next(err);
-    }
-};
-
-// Update order status
-exports.updateOrderStatus = async (req, res, next) => {
-    try {
-        const { error } = updateOrderStatusSchema.validate(req.body);
-        if (error) return res.status(400).json({ message: error.details[0].message });
-
-        const { id } = req.params;
-        const { status } = req.body;
-
-        console.log(`Updating status for order ${id} to ${status}`);
-
-        const order = await Order.findById(id);
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found' });
-        }
-
-        order.status = status;
-        await order.save();
-
-        console.log(`Order ${id} status updated`);
-        res.json({ message: 'Order status updated', order });
-    } catch (err) {
-        next(err);
-    }
-};
-
-// Update payment status
-exports.updatePaymentStatus = async (req, res, next) => {
-    try {
-        const { error } = updatePaymentStatusSchema.validate(req.body);
-        if (error) return res.status(400).json({ message: error.details[0].message });
-
-        const { id } = req.params;
-        const { paymentStatus } = req.body;
-
-        console.log(`Updating payment status for order ${id} to ${paymentStatus}`);
-
-        const order = await Order.findById(id);
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found' });
-        }
-
-        order.paymentStatus = paymentStatus;
-        await order.save();
-
-        console.log(`Order ${id} payment status updated`);
-        res.json({ message: 'Payment status updated', order });
-    } catch (err) {
-        next(err);
-    }
-};
-
-// GET all orders
-exports.getAllOrders = async (req, res, next) => {
-    try {
-        console.log('Fetching all orders');
-        const orders = await Order.find().sort({ createdAt: -1 });
-        res.json(orders);
-    } catch (err) {
-        next(err);
-    }
-};
-
-// GET single order by ID
-exports.getOrderById = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const order = await Order.findById(id);
-        if (!order) return res.status(404).json({ message: 'Order not found' });
-        res.json(order);
-    } catch (err) {
-        next(err);
-    }
-};
->>>>>>> origin/pharmacy
 
 
 --- backend/src/controllers/pharmacyController.js ---
-<<<<<<< HEAD
 const asyncHandler = require('../utils/asyncHandler');
 
 // GET all prescriptions
@@ -508,142 +390,17 @@ exports.updatePrescriptionMedicines = asyncHandler(async (req, res) => {
 
     res.json({ success: true, data: prescription, message: 'Medicines updated successfully' });
 });
-=======
-
-// GET all prescriptions
-exports.getAllPrescriptions = async (req, res, next) => {
-    try {
-        console.log('Fetching all prescriptions');
-        const prescriptions = await Prescription.find().sort({ createdAt: -1 });
-        res.json(prescriptions);
-    } catch (err) {
-        next(err);
-    }
-};
-
-// Patient: Upload Prescription
-exports.uploadPrescription = async (req, res, next) => {
-    try {
-        const { imageUrl, patientName, userId } = req.body;
-
-        if (!imageUrl) {
-            return res.status(400).json({ message: 'Prescription image is required.' });
-        }
-
-        const prescription = await Prescription.create({
-            userId: userId || '65cc6e32d18442001c8a1234', // Dummy ID if not logged in
-            imageUrl,
-            patientName: patientName || 'Guest Patient',
-            pharmacyStatus: 'pending'
-        });
-
-        console.log(`New prescription uploaded: ${prescription._id}`);
-        res.status(201).json({ message: 'Prescription submitted successfully', prescription });
-    } catch (err) {
-        next(err);
-    }
-};
-
-// Review prescription (Approve/Reject)
-exports.reviewPrescription = async (req, res, next) => {
-    try {
-        const { error } = reviewPrescriptionSchema.validate(req.body);
-        if (error) return res.status(400).json({ message: error.details[0].message });
-
-        const { id } = req.params;
-        const { status, medicines, totalAmount } = req.body;
-
-        console.log(`Reviewing prescription ${id} | Total: ${totalAmount} | Status: ${status}`);
-
-        const prescription = await Prescription.findById(id);
-        if (!prescription) {
-            return res.status(404).json({ message: 'Prescription not found' });
-        }
-
-        // 1. Update Prescription State
-        if (medicines) {
-            prescription.medicines = medicines.map(m => ({
-                name: m.name,
-                quantity: Number(m.qty),
-                price: Number(m.unitPrice)
-            }));
-        }
-
-        prescription.pharmacyStatus = status;
-        await prescription.save();
-
-        // 2. Spawn Order Record
-        if (status === 'approved') {
-             const order = await Order.create({
-                userId: prescription.userId,
-                prescriptionId: prescription._id,
-                medicines: prescription.medicines,
-                totalAmount: Number(totalAmount),
-                status: 'pending',
-                paymentStatus: 'pending'
-            });
-
-            console.log(`Order created: ${order._id}`);
-        }
-
-        res.json({
-            message: `Prescription ${prescription.pharmacyStatus}`,
-            prescription
-        });
-    } catch (err) {
-        next(err);
-    }
-};
-
-// Update medicines
-exports.updatePrescriptionMedicines = async (req, res, next) => {
-    try {
-        const { error } = updateMedicinesSchema.validate(req.body);
-        if (error) return res.status(400).json({ message: error.details[0].message });
-
-        const { id } = req.params;
-        const { medicines } = req.body;
-
-        console.log(`Updating medicines for prescription ${id}`);
-
-        const prescription = await Prescription.findById(id);
-        if (!prescription) {
-            return res.status(404).json({ message: 'Prescription not found' });
-        }
-
-        prescription.medicines = medicines;
-        await prescription.save();
-
-        console.log(`Medicines updated for prescription ${id}`);
-        res.json({ message: 'Medicines updated successfully', prescription });
-    } catch (err) {
-        next(err);
-    }
-};
->>>>>>> origin/pharmacy
 
 
 --- backend/src/controllers/user.controller.js ---
-<<<<<<< HEAD
         const { name, email, password, role } = req.body;
-=======
-        const { name, email, password } = req.body;
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
             role: role || 'user',
-=======
->>>>>>> origin/pharmacy
 
 
 --- backend/src/models/Order.js ---
-<<<<<<< HEAD
             enum: ['pending', 'approved', 'processing', 'shipped', 'completed', 'cancelled', 'rejected'],
-=======
-            enum: ['pending', 'approved', 'processing', 'shipped', 'completed'],
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
 
         statusHistory: [
             {
@@ -654,85 +411,47 @@ exports.updatePrescriptionMedicines = async (req, res, next) => {
                 reason: String
             }
         ]
-=======
->>>>>>> origin/pharmacy
 
 
 --- backend/src/models/Prescription.js ---
-<<<<<<< HEAD
 
         rejectionReason: {
             type: String,
             minlength: 10
         }
-=======
->>>>>>> origin/pharmacy
 
 
 --- backend/src/models/user.js ---
-<<<<<<< HEAD
             enum: ['user', 'admin', 'pharmacist'],
-=======
-            enum: ['user', 'admin'],
->>>>>>> origin/pharmacy
 
 
 --- backend/src/routes/orderRoutes.js ---
-<<<<<<< HEAD
     initiatePayment,
     handlePayhereNotification
-=======
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
 // Initiate PayHere payment — returns hash and all params for mobile SDK - Protected
 router.post('/:id/pay/initiate', auth, initiatePayment);
 
 // PayHere server-to-server webhook — no auth, signature verified internally
 router.post('/pay/notify', handlePayhereNotification);
-=======
-// Initiate payment (get gateway params) - Protected
-router.get('/:id/pay', auth, (req, res, next) => {
-    const { id } = req.params;
-    // Controller logic will go here
-    res.json({ message: 'Gateway integration ready', orderId: id });
-});
->>>>>>> origin/pharmacy
 
 
 --- web/frontend/src/utils/api.js ---
-<<<<<<< HEAD
       } else {
         // Dev bypass token for testing without a login page
         config.headers.Authorization = `Bearer dummy-jwt-token-for-dev`;
-=======
->>>>>>> origin/pharmacy
 
 
 --- web/frontend/src/components/pharmacy/PrescriptionReviewModal.jsx ---
-<<<<<<< HEAD
       <div className="absolute inset-0 bg-secondary/60 backdrop-blur-sm" onClick={onClose} />
-=======
-      <div className="absolute inset-0 bg-earth/60 backdrop-blur-sm" onClick={onClose} />
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
         <header className="px-8 py-5 border-b border-background flex justify-between items-center bg-background">
           <div>
             <h2 className="text-2xl font-bold text-secondary">Financial Review & Quotation</h2>
             <p className="text-sm text-secondary/60 italic font-medium">Ayurveda Pharmacy Module</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-secondary/10 rounded-full transition-colors">
-=======
-        <header className="px-8 py-5 border-b border-clay flex justify-between items-center bg-sand">
-          <div>
-            <h2 className="text-2xl font-bold text-earth">Financial Review & Quotation</h2>
-            <p className="text-sm text-earth/60 italic font-medium">Ayurveda Pharmacy Module</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-earth/10 rounded-full transition-colors">
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
           <div className="w-[40%] p-6 bg-background/5 border-r border-background flex flex-col">
             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary/40 mb-4">Source Document</span>
             <div className="flex-1 bg-white rounded-2xl border-2 border-dashed border-background p-2 overflow-hidden relative group shadow-inner">
@@ -740,83 +459,33 @@ router.get('/:id/pay', auth, (req, res, next) => {
                 <img src={prescription.imageUrl} alt="Prescription" className="w-full h-full object-contain" />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-background">
-=======
-          <div className="w-[40%] p-6 bg-clay/5 border-r border-clay flex flex-col">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-earth/40 mb-4">Source Document</span>
-            <div className="flex-1 bg-white rounded-2xl border-2 border-dashed border-clay p-2 overflow-hidden relative group shadow-inner">
-              {prescription.imageUrl ? (
-                <img src={prescription.imageUrl} alt="Prescription" className="w-full h-full object-contain" />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-clay">
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
                   <tr className="text-[10px] font-bold uppercase tracking-widest text-secondary/40">
-=======
-                  <tr className="text-[10px] font-bold uppercase tracking-widest text-earth/40">
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
                           className="w-full px-4 py-3 bg-background/30 border border-background/50 rounded-xl focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none transition-all placeholder:text-secondary/30"
-=======
-                          className="w-full px-4 py-3 bg-sand/30 border border-clay/50 rounded-xl focus:ring-2 focus:ring-turmeric/20 focus:border-turmeric outline-none transition-all placeholder:text-earth/30"
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
                           className="w-full px-2 py-3 bg-background/30 border border-background/50 rounded-xl text-center font-bold text-secondary"
-=======
-                          className="w-full px-2 py-3 bg-sand/30 border border-clay/50 rounded-xl text-center font-bold text-earth"
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-secondary/30">LKR</span>
                           <input
                             type="number"
                             className="w-full pl-10 pr-3 py-3 bg-background/30 border border-background/50 rounded-xl text-center font-bold text-secondary"
-=======
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-earth/30">LKR</span>
-                          <input
-                            type="number"
-                            className="w-full pl-10 pr-3 py-3 bg-sand/30 border border-clay/50 rounded-xl text-center font-bold text-earth"
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
                       <td className="text-right font-black text-secondary text-sm px-4">
                         {(item.total).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
                       </td>
                       <td>
                         <button onClick={() => handleRemoveRow(item.id)} className="p-2 text-secondary/20 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
-=======
-                      <td className="text-right font-black text-earth text-sm px-4">
-                        {(item.total).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td>
-                        <button onClick={() => handleRemoveRow(item.id)} className="p-2 text-earth/20 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
               <button onClick={handleAddRow} className="mt-6 flex items-center gap-2 text-secondary font-black text-[11px] uppercase tracking-widest hover:text-accent transition-colors bg-background/50 px-4 py-2 rounded-full border border-background/50">
                 <Plus size={14} className="bg-accent text-white p-0.5 rounded-sm" />
-=======
-              <button onClick={handleAddRow} className="mt-6 flex items-center gap-2 text-earth font-black text-[11px] uppercase tracking-widest hover:text-turmeric transition-colors bg-sand/50 px-4 py-2 rounded-full border border-clay/50">
-                <Plus size={14} className="bg-turmeric text-white p-0.5 rounded-sm" />
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
               <div className="flex justify-between items-center bg-secondary text-white p-6 rounded-3xl shadow-xl shadow-secondary/10">
-=======
-              <div className="flex justify-between items-center bg-earth text-white p-6 rounded-3xl shadow-xl shadow-earth/10">
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
                   className="flex-[2] py-4 bg-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100 disabled:grayscale cursor-pointer"
-=======
-                  className="flex-[2] py-4 bg-herbal text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-herbal/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100 disabled:grayscale cursor-pointer"
->>>>>>> origin/pharmacy
 
 
 --- web/frontend/src/components/pharmacy/OrderDetailsModal.jsx ---
-<<<<<<< HEAD
       <div className="absolute inset-0 bg-secondary/60 backdrop-blur-sm" onClick={onClose} />
 
       <div className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
@@ -826,39 +495,14 @@ router.get('/:id/pay', auth, (req, res, next) => {
             <p className="text-sm text-secondary/60">Manage fulfillment and payments</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-secondary/10 rounded-full transition-colors">
-=======
-      <div className="absolute inset-0 bg-earth/60 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
-        <header className="px-8 py-6 border-b border-clay flex justify-between items-center bg-sand">
-          <div>
-            <h2 className="text-2xl font-bold text-earth">Order #{order._id.slice(-8).toUpperCase()}</h2>
-            <p className="text-sm text-earth/60">Manage fulfillment and payments</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-earth/10 rounded-full transition-colors">
->>>>>>> origin/pharmacy
-
-<<<<<<< HEAD
             <h3 className="text-xs font-bold uppercase tracking-widest text-secondary/40">Fulfillment Lifecycle</h3>
-=======
-            <h3 className="text-xs font-bold uppercase tracking-widest text-earth/40">Fulfillment Lifecycle</h3>
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
                       isActive ? "bg-secondary text-white border-secondary scale-110 shadow-lg shadow-secondary/20" :
                       isPast ? "bg-secondary/10 text-secondary border-secondary/20" : "bg-background text-background border-background/30"
-=======
-                      isActive ? "bg-earth text-white border-earth scale-110 shadow-lg shadow-earth/20" :
-                      isPast ? "bg-earth/10 text-earth border-earth/20" : "bg-sand text-clay border-clay/30"
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
                       isActive ? "text-secondary" : "text-background group-hover:text-secondary"
-=======
-                      isActive ? "text-earth" : "text-clay group-hover:text-earth"
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
           <section className="bg-background/30 p-6 rounded-2xl border border-background/50 space-y-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
@@ -868,35 +512,13 @@ router.get('/:id/pay', auth, (req, res, next) => {
                 <div>
                   <h4 className="font-bold text-secondary">Payment Status</h4>
                   <p className="text-xs text-secondary/40">Select the current financial state</p>
-=======
-          <section className="bg-sand/30 p-6 rounded-2xl border border-clay/50 space-y-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="bg-white p-2 rounded-lg shadow-sm">
-                  <CreditCard className="text-earth" size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-earth">Payment Status</h4>
-                  <p className="text-xs text-earth/40">Select the current financial state</p>
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
                 className="bg-white border border-background rounded-xl px-4 py-2 text-sm font-bold text-secondary outline-none focus:ring-2 focus:ring-secondary/10"
-=======
-                className="bg-white border border-clay rounded-xl px-4 py-2 text-sm font-bold text-earth outline-none focus:ring-2 focus:ring-earth/10"
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
             <div className="flex justify-between items-center pt-4 border-t border-background/30">
               <span className="text-xs font-bold text-secondary/60 uppercase">Payment Method</span>
               <span className="px-3 py-1 bg-white border border-background rounded-lg text-xs font-black text-secondary uppercase tracking-widest">
-=======
-            <div className="flex justify-between items-center pt-4 border-t border-clay/30">
-              <span className="text-xs font-bold text-earth/60 uppercase">Payment Method</span>
-              <span className="px-3 py-1 bg-white border border-clay rounded-lg text-xs font-black text-earth uppercase tracking-widest">
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
             <h3 className="text-xs font-bold uppercase tracking-widest text-secondary/40">Items in Order</h3>
             <div className="bg-white border border-background rounded-2xl overflow-hidden divide-y divide-background/30">
               {order.medicines?.map((item, i) => (
@@ -906,47 +528,17 @@ router.get('/:id/pay', auth, (req, res, next) => {
                     <p className="text-[10px] text-secondary/40">Qty: {item.quantity}</p>
                   </div>
                   <p className="text-sm font-mono font-bold text-secondary">
-=======
-            <h3 className="text-xs font-bold uppercase tracking-widest text-earth/40">Items in Order</h3>
-            <div className="bg-white border border-clay rounded-2xl overflow-hidden divide-y divide-clay/30">
-              {order.medicines?.map((item, i) => (
-                <div key={i} className="px-5 py-3 flex justify-between items-center bg-sand/10">
-                  <div>
-                    <p className="text-sm font-bold text-earth">{item.name}</p>
-                    <p className="text-[10px] text-earth/40">Qty: {item.quantity}</p>
-                  </div>
-                  <p className="text-sm font-mono font-bold text-earth">
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
               <div className="px-5 py-4 bg-secondary text-white flex justify-between items-baseline">
-=======
-              <div className="px-5 py-4 bg-earth text-white flex justify-between items-baseline">
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
         <footer className="p-6 border-t border-background bg-background/20 flex gap-4">
           <button
             onClick={onClose}
             className="flex-1 py-3 text-secondary font-bold text-sm uppercase tracking-widest rounded-xl hover:bg-secondary/5 transition-colors"
-=======
-        <footer className="p-6 border-t border-clay bg-sand/20 flex gap-4">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 text-earth font-bold text-sm uppercase tracking-widest rounded-xl hover:bg-earth/5 transition-colors"
->>>>>>> origin/pharmacy
 
-<<<<<<< HEAD
             className="flex-[2] py-4 bg-secondary text-white font-bold text-sm uppercase tracking-widest rounded-xl shadow-xl shadow-secondary/10 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-=======
-            className="flex-[2] py-4 bg-earth text-white font-bold text-sm uppercase tracking-widest rounded-xl shadow-xl shadow-earth/10 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
->>>>>>> origin/pharmacy
 
 
 --- web/frontend/src/components/DevAuthTrigger.jsx ---
-<<<<<<< HEAD
       className="fixed bottom-4 right-4 z-50 bg-accent text-secondary p-3 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all flex items-center gap-2 font-bold text-xs"
-=======
-      className="fixed bottom-4 right-4 z-50 bg-turmeric text-earth p-3 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all flex items-center gap-2 font-bold text-xs"
->>>>>>> origin/pharmacy
 

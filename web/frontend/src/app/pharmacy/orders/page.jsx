@@ -81,21 +81,12 @@ export default function OrdersPage() {
 
   const getStatusBadge = (status) => {
     const styles = {
-<<<<<<< HEAD
       pending: "bg-accent/10 text-accent border-accent/20",
       approved: "bg-primary/10 text-primary border-primary/20",
       processing: "bg-secondary/10 text-secondary border-secondary/20",
       shipped: "bg-secondary/10 text-secondary border-secondary/20",
       completed: "bg-primary/10 text-primary border-primary/20",
       paid: "bg-primary/10 text-primary border-primary/20",
-=======
-      pending: "bg-turmeric/10 text-turmeric border-turmeric/20",
-      approved: "bg-herbal/10 text-herbal border-herbal/20",
-      processing: "bg-earth/10 text-earth border-earth/20",
-      shipped: "bg-earth/10 text-earth border-earth/20",
-      completed: "bg-herbal/10 text-herbal border-herbal/20",
-      paid: "bg-herbal/10 text-herbal border-herbal/20",
->>>>>>> origin/pharmacy
       cancelled: "bg-red-100 text-red-800 border-red-200",
       failed: "bg-red-100 text-red-800 border-red-200",
     };
@@ -103,11 +94,7 @@ export default function OrdersPage() {
     return (
       <span className={clsx(
         "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
-<<<<<<< HEAD
         styles[status.toLowerCase()] || "bg-background/10 text-background border-background/20"
-=======
-        styles[status.toLowerCase()] || "bg-clay/10 text-clay border-clay/20"
->>>>>>> origin/pharmacy
       )}>
         {status}
       </span>
@@ -145,22 +132,13 @@ export default function OrdersPage() {
     <div className="space-y-6">
       <header className="flex justify-between items-end">
         <div>
-<<<<<<< HEAD
           <h1 className="text-3xl font-bold text-secondary">Active Orders</h1>
           <p className="text-secondary/60">Monitor payment status and fulfillment progress.</p>
-=======
-          <h1 className="text-3xl font-bold text-earth">Active Orders</h1>
-          <p className="text-earth/60">Monitor payment status and fulfillment progress.</p>
->>>>>>> origin/pharmacy
         </div>
         <div className="flex items-center gap-4">
           <button
             onClick={handleDownloadReport}
-<<<<<<< HEAD
             className="flex items-center gap-2 px-6 py-2.5 bg-secondary text-white rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-all shadow-lg shadow-secondary/20"
-=======
-            className="flex items-center gap-2 px-6 py-2.5 bg-earth text-white rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-all shadow-lg shadow-earth/20"
->>>>>>> origin/pharmacy
           >
             <DownloadCloud size={18} />
             Download Report
@@ -168,19 +146,11 @@ export default function OrdersPage() {
 
           <div className="flex gap-3">
             <div className="relative">
-<<<<<<< HEAD
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-background" size={18} />
               <input
                 type="text"
                 placeholder="Search Order ID..."
                 className="pl-10 pr-4 py-2.5 bg-white border border-background rounded-xl focus:ring-2 focus:ring-secondary/10 outline-none w-64 transition-all font-medium text-sm"
-=======
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-clay" size={18} />
-              <input
-                type="text"
-                placeholder="Search Order ID..."
-                className="pl-10 pr-4 py-2.5 bg-white border border-clay rounded-xl focus:ring-2 focus:ring-earth/10 outline-none w-64 transition-all font-medium text-sm"
->>>>>>> origin/pharmacy
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -188,11 +158,7 @@ export default function OrdersPage() {
             <select
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-<<<<<<< HEAD
               className="px-4 py-2.5 bg-white border border-background rounded-xl text-xs font-black text-secondary uppercase tracking-widest outline-none shadow-sm cursor-pointer"
-=======
-              className="px-4 py-2.5 bg-white border border-clay rounded-xl text-xs font-black text-earth uppercase tracking-widest outline-none shadow-sm cursor-pointer"
->>>>>>> origin/pharmacy
             >
               <option value="all">📅 All Dates</option>
               <option value="today">Today</option>
@@ -201,11 +167,7 @@ export default function OrdersPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-<<<<<<< HEAD
               className="px-4 py-2.5 bg-white border border-background rounded-xl text-xs font-black text-secondary uppercase tracking-widest outline-none shadow-sm cursor-pointer"
-=======
-              className="px-4 py-2.5 bg-white border border-clay rounded-xl text-xs font-black text-earth uppercase tracking-widest outline-none shadow-sm cursor-pointer"
->>>>>>> origin/pharmacy
             >
               <option value="newest">🕒 Newest</option>
               <option value="oldest">Oldest</option>
@@ -217,35 +179,21 @@ export default function OrdersPage() {
       </header>
 
       {loading ? (
-<<<<<<< HEAD
         <div className="flex flex-col items-center justify-center py-20 text-secondary">
-=======
-        <div className="flex flex-col items-center justify-center py-20 text-earth">
->>>>>>> origin/pharmacy
           <Loader2 className="animate-spin mb-4" size={48} />
           <p className="font-medium italic">Synchronizing order ledger...</p>
         </div>
       ) : processedOrders.length === 0 ? (
-<<<<<<< HEAD
         <div className="bg-white border-2 border-dashed border-background p-20 rounded-2xl text-center space-y-4">
           <div className="bg-background w-20 h-20 rounded-full flex items-center justify-center mx-auto text-background">
             <Package size={40} />
           </div>
           <h2 className="text-2xl font-semibold text-secondary">No Orders Found</h2>
           <p className="text-secondary/60 max-w-sm mx-auto">
-=======
-        <div className="bg-white border-2 border-dashed border-clay p-20 rounded-2xl text-center space-y-4">
-          <div className="bg-sand w-20 h-20 rounded-full flex items-center justify-center mx-auto text-clay">
-            <Package size={40} />
-          </div>
-          <h2 className="text-2xl font-semibold text-earth">No Orders Found</h2>
-          <p className="text-earth/60 max-w-sm mx-auto">
->>>>>>> origin/pharmacy
             Try adjusting your search or wait for new prescriptions to be approved.
           </p>
         </div>
       ) : (
-<<<<<<< HEAD
         <div className="bg-white rounded-2xl border border-background shadow-sm overflow-hidden">
           <table className="w-full text-left">
             <thead>
@@ -265,44 +213,15 @@ export default function OrdersPage() {
                     <div className="font-mono text-xs text-secondary/60">#{order._id.slice(-8).toUpperCase()}</div>
                     <div className="text-sm font-medium text-secondary flex items-center gap-1">
                       <Clock size={12} className="text-accent" />
-=======
-        <div className="bg-white rounded-2xl border border-clay shadow-sm overflow-hidden">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-sand border-b border-clay">
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-earth/40">Order Details</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-earth/40">Patient</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-earth/40 text-center">Amount</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-earth/40 text-center">Payment</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-earth/40 text-center">Fulfillment</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-earth/40 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-clay/40">
-              {processedOrders.map((order) => (
-                <tr key={order._id} className="hover:bg-sand/30 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="font-mono text-xs text-earth/60">#{order._id.slice(-8).toUpperCase()}</div>
-                    <div className="text-sm font-medium text-earth flex items-center gap-1">
-                      <Clock size={12} className="text-turmeric" />
->>>>>>> origin/pharmacy
                       {new Date(order.createdAt).toLocaleDateString()}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-<<<<<<< HEAD
                     <div className="text-sm font-bold text-secondary">{order.customerName || order.patientName || 'Standard Patient'}</div>
                     <div className="text-xs text-secondary/40">Express Fulfillment</div>
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="text-sm font-extrabold text-secondary whitespace-nowrap">
-=======
-                    <div className="text-sm font-bold text-earth">{order.customerName || order.patientName || 'Standard Patient'}</div>
-                    <div className="text-xs text-earth/40">Express Fulfillment</div>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="text-sm font-extrabold text-earth whitespace-nowrap">
->>>>>>> origin/pharmacy
                       LKR {Number(order.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                   </td>
@@ -315,11 +234,7 @@ export default function OrdersPage() {
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={() => handleOpenDetails(order)}
-<<<<<<< HEAD
                       className="p-2 text-secondary/40 hover:text-secondary hover:bg-white rounded-lg border border-transparent hover:border-background transition-all shadow-sm"
-=======
-                      className="p-2 text-earth/40 hover:text-earth hover:bg-white rounded-lg border border-transparent hover:border-clay transition-all shadow-sm"
->>>>>>> origin/pharmacy
                     >
                       <ExternalLink size={18} />
                     </button>
