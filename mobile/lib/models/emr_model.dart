@@ -8,3 +8,13 @@ class Emr {
   final DateTime? createdAt;
 
   Emr({
+    this.id,
+    this.patientId,
+    this.doctorName,
+    required this.diagnosis,
+    required this.treatment,
+    required this.notes,
+    this.createdAt,
+  });
+
+  factory Emr.fromJson(Map<String, dynamic> json) {
