@@ -97,3 +97,33 @@ class _EmrViewScreenState extends State<EmrViewScreen> {
                         _buildSectionHeader('Diagnosis', Colors.blue),
                         Text(emr.diagnosis, style: const TextStyle(fontSize: 15)),
                         const SizedBox(height: 12),
+                        
+                        _buildSectionHeader('Treatment', Colors.green),
+                        Text(emr.treatment, style: const TextStyle(fontSize: 15)),
+                        const SizedBox(height: 12),
+                        
+                        _buildSectionHeader('Notes', Colors.orange),
+                        Text(emr.notes, style: const TextStyle(fontSize: 15)),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: color, letterSpacing: 1.1),
+      ),
+    );
+  }
+}
+
