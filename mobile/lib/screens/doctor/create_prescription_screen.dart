@@ -193,3 +193,65 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
                     labelText: 'Treatment rules, warnings, etc.', 
                     border: OutlineInputBorder(),
                     alignLabelWithHint: true
+                  ),
+                  maxLines: 3,
+                ),
+                
+                const SizedBox(height: 24),
+                _buildSectionTitle('Document Upload'),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(8)
+                  ),
+                  child: Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _pickFile,
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
+                        icon: const Icon(Icons.upload_file),
+                        label: const Text('Select File'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _selectedFile != null ? _selectedFile!.path.split(Platform.pathSeparator).last : 'PDF/JPG/PNG only', 
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: _selectedFile != null ? Colors.black : Colors.grey, fontStyle: FontStyle.italic)
+                        )
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: _submitPrescription,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+                  ),
+                  child: const Text('SUBMIT PRESCRIPTION', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, letterSpacing: 1.1),
+      ),
+    );
+  }
+}
+
