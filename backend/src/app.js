@@ -21,6 +21,7 @@ app.use(limiter);
 app.use(cors());
 app.use(express.json());
 
+// Secure file access will be handled explicitly via authenticated routes.
 
 const userRoutes = require('./routes/user.routes');
 app.use('/api/users', userRoutes);
