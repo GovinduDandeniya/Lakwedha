@@ -31,3 +31,13 @@ class Prescription {
       patientId: json['patientId'] is Map ? json['patientId']['_id'] : json['patientId'],
       doctorName: extractDoctorName(json['doctorId']),
       medications: (json['medications'] as List?)
+              ?.map((m) => Medication.fromJson(m))
+              .toList() ??
+          [],
+      notes: json['notes'],
+      fileUrl: json['fileUrl'],
+      issuedDate: json['issuedDate'] != null ? DateTime.parse(json['issuedDate']) : null,
+    );
+  }
+}
+
