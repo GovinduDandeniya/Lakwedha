@@ -4,3 +4,9 @@ class Medication {
   final String duration;
 
   Medication({
+    required this.name,
+    required this.dosage,
+    required this.duration,
+  });
+
+  Map<String, dynamic> toJson() => {
