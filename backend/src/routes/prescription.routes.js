@@ -11,4 +11,7 @@ router.post('/', auth, authorizeRoles('DOCTOR', 'doctor'), upload.single('file')
 // Get Prescriptions (Doctor fetching for a patient or Patient fetching their own)
 router.get('/', auth, authorizeRoles('PATIENT', 'patient', 'DOCTOR', 'doctor'), prescriptionController.getPrescriptions);
 
+// Safely Retrieve Uploaded Prescription file
+router.get('/files/:filename', auth, authorizeRoles('PATIENT', 'patient', 'DOCTOR', 'doctor'), prescriptionController.getPrescriptionFile);
+
 module.exports = router;

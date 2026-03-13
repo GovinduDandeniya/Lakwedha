@@ -37,16 +37,38 @@ const updatePaymentStatusSchema = Joi.object({
 // Prescription form validation
 const createPrescriptionSchema = Joi.object({
     patientId: Joi.string().required(),
-    medications: Joi.alternatives().try(
-        Joi.string(), // When sent via FormData, arrays come as stringified JSON
-        Joi.array().items(
-            Joi.object({
-                name: Joi.string().required(),
-                dosage: Joi.string().required(),
-                duration: Joi.string().required(),
-            })
-        )
-    ).required(),
+    medications: Joi.any().custom((value, helpers) => {
+        let parsed;
+        if (typeof value === 'string') {
+            try {
+                parsed = JSON.parse(value);
+            } catch (err) {
+                return helpers.message('Invalid JSON format for medications array.');
+            }
+        } else {
+            parsed = value;
+        }
+
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+            return helpers.message('Medications must be a non-empty array.');
+        }
+
+        const itemSchema = Joi.object({
+            name: Joi.string().required(),
+            dosage: Joi.string().required(),
+            duration: Joi.string().required(),
+        });
+
+        for (const item of parsed) {
+            const { error } = itemSchema.validate(item);
+            if (error) {
+                return helpers.message(`Invalid medication object: ${error.details[0].message}`);
+            }
+        }
+
+        // Return parsed array
+        return parsed;
+    }).required(),
     notes: Joi.string().allow('').optional(),
     fileUrl: Joi.string().allow('').optional()
 });
