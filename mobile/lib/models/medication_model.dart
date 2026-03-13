@@ -16,3 +16,9 @@ class Medication {
   };
 
   factory Medication.fromJson(Map<String, dynamic> json) => Medication(
+    name: json['name'],
+    dosage: json['dosage'],
+    duration: json['duration'],
+  );
+}
+
