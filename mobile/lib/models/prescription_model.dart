@@ -20,3 +20,14 @@ class Prescription {
   });
 
   factory Prescription.fromJson(Map<String, dynamic> json) {
+    String extractDoctorName(dynamic data) {
+      if (data == null) return 'Unknown';
+      if (data is Map && data.containsKey('name')) return data['name'];
+      return 'Unknown';
+    }
+
+    return Prescription(
+      id: json['_id'],
+      patientId: json['patientId'] is Map ? json['patientId']['_id'] : json['patientId'],
+      doctorName: extractDoctorName(json['doctorId']),
+      medications: (json['medications'] as List?)
