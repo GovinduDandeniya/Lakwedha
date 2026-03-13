@@ -41,4 +41,5 @@ app.use("/api/emr", emrRoutes);
 // Global Error Handler
 app.use((err, req, res, next) => {
     // Multer size limit error handling
+    if (err.code === 'LIMIT_FILE_SIZE') {
 module.exports = app;
