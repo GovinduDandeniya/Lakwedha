@@ -38,4 +38,5 @@ app.use("/api/prescriptions", prescriptionRoutes);
 const emrRoutes = require('./routes/emr.routes');
 app.use("/api/emr", emrRoutes);
 
+// Global Error Handler
 module.exports = app;
