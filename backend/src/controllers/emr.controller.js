@@ -1,5 +1,6 @@
 const EMR = require('../models/EMR');
 const { encrypt, decrypt } = require('../utils/encryption');
+const logger = require('../utils/logger');
 
 /**
  * Helper to decrypt an EMR record safely
@@ -51,11 +52,14 @@ exports.createEMR = async (req, res) => {
 
         await newEMR.save();
 
+        logger.info(`EMR created successfully for patient ${patientId} by doctor ${doctorId}`);
+
         res.status(201).json({
             message: 'EMR created successfully',
             emr: decryptEMR(newEMR)
         });
     } catch (error) {
+        logger.error(`Failed to create EMR: ${error.message}`);
         res.status(500).json({ message: 'Failed to create EMR', error: error.message });
     }
 };
@@ -89,11 +93,14 @@ exports.getEMRs = async (req, res) => {
 
         const decryptedEMRs = emrs.map(decryptEMR);
 
+        logger.info(`EMRs retrieved safely for user ${userId}`);
+
         res.status(200).json({
             message: 'EMRs retrieved successfully',
             emrs: decryptedEMRs
         });
     } catch (error) {
+        logger.error(`Failed to fetch EMR: ${error.message}`);
         res.status(500).json({ message: 'Failed to fetch EMR', error: error.message });
     }
 };
