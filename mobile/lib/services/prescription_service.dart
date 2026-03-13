@@ -40,3 +40,15 @@ class PrescriptionService {
     }
 
     final streamlinedResponse = await request.send();
+    final response = await http.Response.fromStream(streamlinedResponse);
+
+    if (response.statusCode == 201) {
+      final jsonResponse = jsonDecode(response.body);
+      return Prescription.fromJson(jsonResponse['prescription']);
+    } else {
+      final jsonResponse = jsonDecode(response.body);
+      throw Exception(jsonResponse['message'] ?? 'Failed to create prescription');
+    }
+  }
+}
+
