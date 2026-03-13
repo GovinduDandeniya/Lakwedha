@@ -39,4 +39,5 @@ const emrRoutes = require('./routes/emr.routes');
 app.use("/api/emr", emrRoutes);
 
 // Global Error Handler
+app.use((err, req, res, next) => {
 module.exports = app;
