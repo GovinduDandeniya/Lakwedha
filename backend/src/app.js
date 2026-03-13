@@ -45,4 +45,5 @@ app.use((err, req, res, next) => {
         return res.status(400).json({ success: false, message: 'File is too large. Maximum size allows is 5MB.' });
     }
 
+    return res.status(err.status || 500).json({
 module.exports = app;
