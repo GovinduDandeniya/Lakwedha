@@ -64,3 +64,36 @@ class _EmrViewScreenState extends State<EmrViewScreen> {
             );
           }
 
+          final emrs = snapshot.data!;
+          return RefreshIndicator(
+            onRefresh: () async { _fetchRecords(); },
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: emrs.length,
+              itemBuilder: (context, index) {
+                final emr = emrs[index];
+                final dateStr = emr.createdAt?.toLocal().toString().split(' ')[0] ?? "Unknown Date";
+                
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(dateStr, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const Icon(Icons.medical_services, color: Colors.blueAccent)
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text('Doctor: ${emr.doctorName}', style: TextStyle(color: Colors.grey[700])),
+                        const Divider(height: 24, thickness: 1),
+                        
+                        _buildSectionHeader('Diagnosis', Colors.blue),
+                        Text(emr.diagnosis, style: const TextStyle(fontSize: 15)),
+                        const SizedBox(height: 12),
