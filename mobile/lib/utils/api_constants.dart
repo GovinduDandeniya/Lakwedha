@@ -4,3 +4,6 @@ class ApiConstants {
   static const String baseUrl = 'http://10.0.2.2:5000/api';
   
   // Example token holder (In production, use secure storage & state management)
+  static String dummyToken = '';
+}
+
