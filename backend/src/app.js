@@ -21,7 +21,6 @@ app.use(limiter);
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from the uploads directory securely
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 const userRoutes = require('./routes/user.routes');
