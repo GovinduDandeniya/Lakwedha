@@ -21,7 +21,6 @@ app.use(limiter);
 app.use(cors());
 app.use(express.json());
 
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 const userRoutes = require('./routes/user.routes');
 app.use('/api/users', userRoutes);
