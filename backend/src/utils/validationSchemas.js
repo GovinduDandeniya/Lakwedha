@@ -73,10 +73,19 @@ const createPrescriptionSchema = Joi.object({
     fileUrl: Joi.string().allow('').optional()
 });
 
+// EMR Form Validation
+const createEMRSchema = Joi.object({
+    patientId: Joi.string().required(),
+    diagnosis: Joi.string().required(),
+    treatment: Joi.string().required(),
+    notes: Joi.string().required()
+});
+
 module.exports = {
     reviewPrescriptionSchema,
     updateMedicinesSchema,
     updateOrderStatusSchema,
     updatePaymentStatusSchema,
-    createPrescriptionSchema
+    createPrescriptionSchema,
+    createEMRSchema
 };

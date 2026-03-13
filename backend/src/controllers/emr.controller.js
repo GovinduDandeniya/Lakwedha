@@ -29,16 +29,19 @@ const decryptEMR = (record) => {
     return emrObj;
 };
 
+const { createEMRSchema } = require('../utils/validationSchemas');
+
 /**
  * Controller to create an EMR Record (Doctor Only)
  */
 exports.createEMR = async (req, res) => {
     try {
-        const { patientId, notes, diagnosis, treatment } = req.body;
-
-        if (!patientId || !notes || !diagnosis || !treatment) {
-            return res.status(400).json({ message: 'patientId, notes, diagnosis, and treatment are required.' });
+        const { error } = createEMRSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({ message: error.details[0].message });
         }
+
+        const { patientId, notes, diagnosis, treatment } = req.body;
 
         const doctorId = req.user.id || req.user._id;
 
