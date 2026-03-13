@@ -31,3 +31,36 @@ class _EmrViewScreenState extends State<EmrViewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: const Text('My EMR Timeline'),
+        centerTitle: true,
+        backgroundColor: Colors.blueAccent,
+      ),
+      body: FutureBuilder<List<Emr>>(
+        future: _emrsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } 
+          
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                  const SizedBox(height: 10),
+                  Text('Failed to load records:\n${snapshot.error}', textAlign: TextAlign.center),
+                  const SizedBox(height: 10),
+                  ElevatedButton(onPressed: _fetchRecords, child: const Text('Retry'))
+                ],
+              ),
+            );
+          } 
+          
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(
+              child: Text('No EMR records available.', style: TextStyle(fontSize: 16, color: Colors.grey)),
+            );
+          }
+
