@@ -26,3 +26,17 @@ class PrescriptionService {
     request.fields['medications'] = jsonEncode(medications);
     
     if (notes != null && notes.isNotEmpty) {
+      request.fields['notes'] = notes;
+    }
+
+    // Attach File payload directly converting to buffer payload seamlessly 
+    if (attachedFile != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+            'file', 
+            attachedFile.path,
+        )
+      );
+    }
+
+    final streamlinedResponse = await request.send();
