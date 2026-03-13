@@ -128,3 +128,68 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
                 _buildSectionTitle('Medications Mapping'),
                 ..._medicationControllers.asMap().entries.map((entry) {
                   int idx = entry.key;
+                  var ctrls = entry.value;
+                  return Card(
+                    elevation: 2,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Drug #${idx + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              if (_medicationControllers.length > 1) 
+                                IconButton(icon: const Icon(Icons.cancel, color: Colors.red), onPressed: () => _removeMedicationField(idx)),
+                            ],
+                          ),
+                          TextFormField(
+                            controller: ctrls['name'],
+                            decoration: const InputDecoration(labelText: 'Medication Name'),
+                            validator: (val) => val!.trim().isEmpty ? 'Required' : null,
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: ctrls['dosage'],
+                                  decoration: const InputDecoration(labelText: 'Dosage (e.g. 20mg)'),
+                                  validator: (val) => val!.trim().isEmpty ? 'Required' : null,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: ctrls['duration'],
+                                  decoration: const InputDecoration(labelText: 'Duration (e.g. 5 days)'),
+                                  validator: (val) => val!.trim().isEmpty ? 'Required' : null,
+                                ),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+                
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _addMedicationField,
+                  icon: const Icon(Icons.add_circle, color: Colors.teal),
+                  label: const Text('Add Another Medication', style: TextStyle(color: Colors.teal)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.teal),
+                    padding: const EdgeInsets.symmetric(vertical: 12)
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                _buildSectionTitle('Supplementary Notes'),
+                TextFormField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Treatment rules, warnings, etc.', 
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true
