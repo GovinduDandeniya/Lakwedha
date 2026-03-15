@@ -17,8 +17,8 @@ app.use(cors({
 app.use(express.json());
 app.use(morgan('combined')); // Request logging
 
-app.get('/', (req, res) => res.json({ message: 'Ayurveda Hub API is Live' }));
-app.get('/api/health', (req, res) => res.json({ status: 'UP', timestamp: new Date() }));
+app.get('/', (req, res) => res.json({ success: true, data: null, message: 'Ayurveda Hub API is Live' }));
+app.get('/api/health', (req, res) => res.json({ success: true, data: { status: 'UP', timestamp: new Date() }, message: 'API is healthy' }));
 
 const userRoutes = require('./routes/user.routes');
 app.use('/api/users', userRoutes);

@@ -5,7 +5,6 @@ const mongoose = require('mongoose');
 
 const PORT = process.env.PORT || 5000;
 
-console.log('Starting server...');
 
 mongoose
     .connect(process.env.MONGODB_URI || process.env.MONGO_URI, {
@@ -14,9 +13,7 @@ mongoose
         // For production, consider connection pooling settings here.
     })
     .then(() => {
-        console.log('MongoDB connected');
         app.listen(PORT, '0.0.0.0', () => {
-            console.log(`Server running on port ${PORT} at 0.0.0.0`);
         });
     })
     .catch((err) => {

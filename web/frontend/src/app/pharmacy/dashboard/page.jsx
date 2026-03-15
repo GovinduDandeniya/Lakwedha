@@ -55,8 +55,6 @@ export default function PharmacyDashboard() {
       setLoading(true);
       const res = await api.get('/pharmacy/prescriptions');
 
-      // DEBUG LOG: Check what the backend actually sends
-      console.log('🔍 RAW API RESPONSE:', res.data);
 
       // Handle different response structures (Array vs Object wrapper)
       const data = Array.isArray(res.data)
@@ -66,7 +64,7 @@ export default function PharmacyDashboard() {
       // Filter purely for 'pending' (backend uses pharmacyStatus)
       const pendingItems = data.filter(item => (item.pharmacyStatus || item.status) === 'pending');
 
-      console.log('✅ PROCESSED PENDING LIST:', pendingItems);
+
       setPrescriptions(pendingItems);
       setIsDemoMode(false);
       setError(null);
