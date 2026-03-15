@@ -1,7 +1,6 @@
 const Prescription = require('../models/Prescription');
 const Order = require('../models/Order');
-const { PRESCRIPTION_STATUS } = require('../config/constants');
-const { reviewPrescriptionSchema, updateMedicinesSchema } = require('../utils/validationSchemas');
+
 const asyncHandler = require('../utils/asyncHandler');
 
 // GET all prescriptions
@@ -18,8 +17,12 @@ exports.uploadPrescription = asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, data: null, message: 'Prescription image is required.' });
     }
 
+    if (!userId) {
+        return res.status(400).json({ success: false, data: null, message: 'User ID is required.' });
+    }
+
     const prescription = await Prescription.create({
-        userId: userId || '65cc6e32d18442001c8a1234', // Assuming guest ID logic stays for now
+        userId,
         imageUrl,
         patientName: patientName || 'Guest Patient',
         pharmacyStatus: 'pending'
