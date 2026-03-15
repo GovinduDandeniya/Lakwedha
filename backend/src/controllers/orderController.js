@@ -1,13 +1,12 @@
 const Order = require('../models/Order');
 const Prescription = require('../models/Prescription');
 const Medicine = require('../models/Medicine');
-const { PRESCRIPTION_STATUS } = require('../config/constants');
-const { updateOrderStatusSchema, updatePaymentStatusSchema } = require('../utils/validationSchemas');
+
 const asyncHandler = require('../utils/asyncHandler');
 const { OrderStateMachine, ORDER_STATUSES } = require('../utils/orderStateMachine');
 const PaymentService = require('../utils/PaymentService');
 
-// Create order from prescription (Manually invoked fallback)
+// Create an order from an approved prescription
 exports.createOrderFromPrescription = asyncHandler(async (req, res) => {
     const { prescriptionId } = req.params;
 
@@ -41,7 +40,7 @@ exports.createOrderFromPrescription = asyncHandler(async (req, res) => {
     res.status(201).json({ success: true, data: order, message: 'Order created successfully' });
 });
 
-// Update order status (State transitions, inventory, and history)
+// Update the order status and handle inventory tracking
 exports.updateOrderStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { status, reason } = req.body;
@@ -96,7 +95,7 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
     res.json({ success: true, data: order, message: `Order transitioned securely from ${currentStatus} to ${status}` });
 });
 
-// Update payment status
+// Update the payment status of an order
 exports.updatePaymentStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { paymentStatus } = req.body;
@@ -112,13 +111,13 @@ exports.updatePaymentStatus = asyncHandler(async (req, res) => {
     res.json({ success: true, data: order, message: 'Payment status updated securely' });
 });
 
-// GET all orders
+// Retrieve all orders
 exports.getAllOrders = asyncHandler(async (req, res) => {
     const orders = await Order.find().sort({ createdAt: -1 });
     res.json({ success: true, data: orders, message: 'Orders retrieved' });
 });
 
-// GET single order by ID
+// Retrieve a single order by its ID
 exports.getOrderById = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const order = await Order.findById(id);
@@ -128,8 +127,7 @@ exports.getOrderById = asyncHandler(async (req, res) => {
     res.json({ success: true, data: order, message: 'Order retrieved' });
 });
 
-// POST /api/orders/:id/pay/initiate
-// Verify the order, check it is in a payable state, generate PayHere params and signature
+// Initiate a PayHere payment for an approved order
 exports.initiatePayment = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
@@ -193,8 +191,7 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
     res.json({ success: true, data: payhereParams, message: 'Payment parameters generated' });
 });
 
-// POST /api/orders/pay/notify
-// PayHere webhook — verify signature, update payment and order status
+// Handle PayHere webhook notification for payment status updates
 exports.handlePayhereNotification = asyncHandler(async (req, res) => {
     const { order_id, status_code } = req.body;
     const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
@@ -204,16 +201,10 @@ exports.handlePayhereNotification = asyncHandler(async (req, res) => {
 
     try {
         const isValid = PaymentService.verifyNotification(req.body, merchantSecret);
-        if (!isValid) {
-            console.error('[PayHere Webhook] Invalid signature — possible spoofed notification. OrderId:', order_id);
-            return;
-        }
+        if (!isValid) return;
 
         const order = await Order.findById(order_id);
-        if (!order) {
-            console.error('[PayHere Webhook] Order not found for id:', order_id);
-            return;
-        }
+        if (!order) return;
 
         // status_code 2 = Success, -1 = Cancelled, -2 = Failed, -3 = Chargebacked
         if (status_code === '2') {
@@ -248,6 +239,6 @@ exports.handlePayhereNotification = asyncHandler(async (req, res) => {
 
         await order.save();
     } catch (err) {
-        console.error('[PayHere Webhook] Error processing notification:', err.message);
+        // Silently catch webhook processing errors
     }
 });
