@@ -16,9 +16,9 @@ export default function AppointmentsPage() {
 
       {/* STATS */}
       <div className="grid gap-6 lg:grid-cols-4">
-        <AppointmentStatCard title="Today's Total" value={3} />
-        <AppointmentStatCard title="Confirmed" value={2} />
-        <AppointmentStatCard title="Pending" value={1} />
+        <AppointmentStatCard title="Today's Total" value={0} />
+        <AppointmentStatCard title="Confirmed" value={0} />
+        <AppointmentStatCard title="Pending" value={0} />
         <AppointmentStatCard title="Completed" value={0} />
       </div>
 
@@ -50,7 +50,7 @@ export default function AppointmentsPage() {
       <div className="rounded-xl bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold text-green-800">
-            All Appointments (10)
+            All Appointments (0)
           </h2>
           <button className="rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
             + New Appointment
