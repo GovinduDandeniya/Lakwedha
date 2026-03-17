@@ -1,35 +1,13 @@
-const appointments = [
-  {
-    id: "#1",
-    patient: "Amara Wijesinghe",
-    contact: "0771234567",
-    doctor: "Dr. Chandana Perera",
-    treatment: "Panchakarma",
-    date: "2026-01-25 10:00 AM",
-    fee: "LKR 2,500",
-    status: "confirmed",
-  },
-  {
-    id: "#2",
-    patient: "Nuwan Rajapaksa",
-    contact: "0776543210",
-    doctor: "Dr. Malini Jayawardena",
-    treatment: "Shirodhara",
-    date: "2026-01-25 10:30 AM",
-    fee: "LKR 3,000",
-    status: "pending",
-  },
-  {
-    id: "#3",
-    patient: "Kasuni Fernando",
-    contact: "0763456789",
-    doctor: "Dr. Rohan Herath",
-    treatment: "Consultation",
-    date: "2026-01-25 11:00 AM",
-    fee: "LKR 1,500",
-    status: "confirmed",
-  },
-];
+const appointments: {
+  id: string;
+  patient: string;
+  contact: string;
+  doctor: string;
+  treatment: string;
+  date: string;
+  fee: string;
+  status: string;
+}[] = [];
 
 const statusStyles: Record<string, string> = {
   confirmed: "bg-green-100 text-green-700",

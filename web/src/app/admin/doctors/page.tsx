@@ -16,10 +16,10 @@ export default function DoctorsPage() {
 
       {/* STATS */}
       <div className="grid gap-6 lg:grid-cols-4">
-        <DoctorStatCard title="Total Practitioners" value={6} />
-        <DoctorStatCard title="Active Doctors" value={5} />
-        <DoctorStatCard title="Total Patients" value={1689} />
-        <DoctorStatCard title="Avg Rating" value="4.7" />
+        <DoctorStatCard title="Total Practitioners" value={0} />
+        <DoctorStatCard title="Active Doctors" value={0} />
+        <DoctorStatCard title="Total Patients" value={0} />
+        <DoctorStatCard title="Avg Rating" value="—" />
       </div>
 
       {/* SEARCH + FILTER + ACTION */}
@@ -43,35 +43,7 @@ export default function DoctorsPage() {
 
       {/* PRACTITIONER CARDS */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <DoctorCard
-          name="Dr. Chandana Perera"
-          specialty="Panchakarma Specialist"
-          experience="15 years"
-          patients={234}
-          availability="Mon, Wed, Fri"
-          status="active"
-          initials="DCP"
-        />
-
-        <DoctorCard
-          name="Dr. Malini Jayawardena"
-          specialty="Skin & Beauty Care"
-          experience="12 years"
-          patients={298}
-          availability="Tue, Thu, Sat"
-          status="active"
-          initials="DMJ"
-        />
-
-        <DoctorCard
-          name="Dr. Rohan Herath"
-          specialty="General Consultation"
-          experience="10 years"
-          patients={456}
-          availability="Mon–Sat"
-          status="active"
-          initials="DRH"
-        />
+        <p className="text-sm text-gray-400 col-span-3">No practitioners found.</p>
       </div>
     </div>
   );
