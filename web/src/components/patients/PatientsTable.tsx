@@ -1,53 +1,15 @@
-const patients = [
-  {
-    id: "#1",
-    name: "Amara Wijesinghe",
-    age: 34,
-    gender: "Female",
-    contact: "0771234567",
-    email: "amara.w@gmail.com",
-    address: "Colombo 07",
-    lastVisit: "2026-01-24",
-    visits: 12,
-    status: "active",
-  },
-  {
-    id: "#2",
-    name: "Nuwan Rajapaksa",
-    age: 45,
-    gender: "Male",
-    contact: "0776543210",
-    email: "nuwan.r@gmail.com",
-    address: "Kandy",
-    lastVisit: "2026-01-22",
-    visits: 8,
-    status: "active",
-  },
-  {
-    id: "#3",
-    name: "Kasuni Fernando",
-    age: 28,
-    gender: "Female",
-    contact: "0763456789",
-    email: "kasuni.f@gmail.com",
-    address: "Galle",
-    lastVisit: "2026-01-18",
-    visits: 15,
-    status: "active",
-  },
-  {
-    id: "#4",
-    name: "Dilani Amarasinghe",
-    age: 38,
-    gender: "Female",
-    contact: "0789876543",
-    email: "dilani.a@gmail.com",
-    address: "Colombo 05",
-    lastVisit: "2025-12-15",
-    visits: 5,
-    status: "inactive",
-  },
-];
+const patients: {
+  id: string;
+  name: string;
+  age: number;
+  gender: string;
+  contact: string;
+  email: string;
+  address: string;
+  lastVisit: string;
+  visits: number;
+  status: string;
+}[] = [];
 
 const statusStyles: Record<string, string> = {
   active: "bg-green-100 text-green-700",

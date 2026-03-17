@@ -16,10 +16,10 @@ export default function PatientsPage() {
 
       {/* STATS */}
       <div className="grid gap-6 lg:grid-cols-4">
-        <PatientStatCard title="Total Patients" value={8} />
-        <PatientStatCard title="Active Patients" value={7} />
-        <PatientStatCard title="Total Visits" value={98} />
-        <PatientStatCard title="New This Month" value={7} />
+        <PatientStatCard title="Total Patients" value={0} />
+        <PatientStatCard title="Active Patients" value={0} />
+        <PatientStatCard title="Total Visits" value={0} />
+        <PatientStatCard title="New This Month" value={0} />
       </div>
 
       {/* SEARCH + FILTER + ACTION */}
@@ -44,7 +44,7 @@ export default function PatientsPage() {
       {/* TABLE */}
       <div className="rounded-xl bg-white p-5 shadow-sm">
         <h2 className="mb-4 font-semibold text-green-800">
-          All Patients (8)
+          All Patients (0)
         </h2>
 
         <PatientsTable />
