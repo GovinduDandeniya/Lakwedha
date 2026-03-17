@@ -1,66 +1,51 @@
 const Order = require('../models/Order');
 const Prescription = require('../models/Prescription');
 const { DELIVERY_FEE, TAX_RATE, ORDER_STATUS, PAYMENT_STATUS, PRESCRIPTION_STATUS } = require('../config/constants');
+const { updateOrderStatusSchema, updatePaymentStatusSchema } = require('../utils/validationSchemas');
 
 // Create order from prescription
-exports.createOrderFromPrescription = async (req, res) => {
+exports.createOrderFromPrescription = async (req, res, next) => {
     try {
         const { prescriptionId } = req.params;
-        console.log(`Creating order from prescription ${prescriptionId}`);
+        const { totalAmount } = req.body; // Accept calculated total if provided, or use prescription data
+        console.log(`Initialising order for prescription ${prescriptionId}`);
 
         const prescription = await Prescription.findById(prescriptionId);
         if (!prescription) {
-            return res.status(404).json({ message: 'Prescription not found' });
+            return res.status(404).json({ message: 'Prescription context missing.' });
         }
 
-        // Check if pharmacy approved
         if (prescription.pharmacyStatus !== PRESCRIPTION_STATUS.APPROVED) {
-            return res.status(400).json({ message: 'Prescription must be approved by pharmacy first.' });
+            return res.status(400).json({ message: 'Verification Required: Pharmacy must approve prescription first.' });
         }
 
-        // Calculate totals
-        const subtotal = prescription.medicines.reduce((sum, med) => sum + (med.price * med.quantity), 0);
-
-        // Ensure there is a subtotal (unless free medicines are allowed, but usually not)
-        if (subtotal === 0 && prescription.medicines.length === 0) {
-             return res.status(400).json({ message: 'Cannot create order with no medicines/price.' });
-        }
-
-        const deliveryFee = DELIVERY_FEE;
-        const tax = subtotal * TAX_RATE;
-        const totalAmount = subtotal + deliveryFee + tax;
-
+        // Create order using direct financial data
         const order = await Order.create({
             userId: prescription.userId,
             prescriptionId: prescription._id,
             medicines: prescription.medicines,
-            subtotal,
-            deliveryFee,
-            tax,
-            totalAmount,
-            status: ORDER_STATUS.APPROVED, // Set to approved as per requirement
+            totalAmount: Number(totalAmount || 0), // Trusted FE value
+            status: ORDER_STATUS.APPROVED,
             paymentStatus: PAYMENT_STATUS.PENDING
         });
 
         console.log(`Order created: ${order._id}`);
         res.status(201).json({ message: 'Order created successfully', order });
     } catch (err) {
-        console.error('Error creating order:', err);
-        res.status(500).json({ message: 'Server error creating order' });
+        next(err);
     }
 };
 
 // Update order status
-exports.updateOrderStatus = async (req, res) => {
+exports.updateOrderStatus = async (req, res, next) => {
     try {
+        const { error } = updateOrderStatusSchema.validate(req.body);
+        if (error) return res.status(400).json({ message: error.details[0].message });
+
         const { id } = req.params;
         const { status } = req.body;
 
         console.log(`Updating status for order ${id} to ${status}`);
-
-        if (!Object.values(ORDER_STATUS).includes(status)) {
-            return res.status(400).json({ message: 'Invalid order status' });
-        }
 
         const order = await Order.findById(id);
         if (!order) {
@@ -68,27 +53,25 @@ exports.updateOrderStatus = async (req, res) => {
         }
 
         order.status = status;
-        await order.save(); // timestamps enabled, so updatedAt triggers automatically
+        await order.save();
 
         console.log(`Order ${id} status updated`);
         res.json({ message: 'Order status updated', order });
     } catch (err) {
-        console.error(`Error updating order status ${req.params.id}:`, err);
-        res.status(500).json({ message: 'Server error updating order status' });
+        next(err);
     }
 };
 
 // Update payment status
-exports.updatePaymentStatus = async (req, res) => {
+exports.updatePaymentStatus = async (req, res, next) => {
     try {
+        const { error } = updatePaymentStatusSchema.validate(req.body);
+        if (error) return res.status(400).json({ message: error.details[0].message });
+
         const { id } = req.params;
         const { paymentStatus } = req.body;
 
         console.log(`Updating payment status for order ${id} to ${paymentStatus}`);
-
-        if (!Object.values(PAYMENT_STATUS).includes(paymentStatus)) {
-            return res.status(400).json({ message: 'Invalid payment status' });
-        }
 
         const order = await Order.findById(id);
         if (!order) {
@@ -101,7 +84,6 @@ exports.updatePaymentStatus = async (req, res) => {
         console.log(`Order ${id} payment status updated`);
         res.json({ message: 'Payment status updated', order });
     } catch (err) {
-        console.error(`Error updating payment status ${req.params.id}:`, err);
-        res.status(500).json({ message: 'Server error updating payment status' });
+        next(err);
     }
 };
