@@ -1,89 +1,85 @@
 const Prescription = require('../models/Prescription');
 const { PRESCRIPTION_STATUS } = require('../config/constants');
+const { reviewPrescriptionSchema, updateMedicinesSchema } = require('../utils/validationSchemas');
 
-// GET all prescriptions (for pharmacy view)
-exports.getAllPrescriptions = async (req, res) => {
+// GET all prescriptions
+exports.getAllPrescriptions = async (req, res, next) => {
     try {
         console.log('Fetching all prescriptions');
         const prescriptions = await Prescription.find().sort({ createdAt: -1 });
         res.json(prescriptions);
     } catch (err) {
-        console.error('Error fetching prescriptions:', err);
-        res.status(500).json({ message: 'Server error fetching prescriptions' });
+        next(err);
     }
 };
 
-// Review prescription (Approve/Reject)
-exports.reviewPrescription = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { action } = req.body; // 'approve' or 'reject'
+const Order = require('../models/Order');
 
-        console.log(`Reviewing prescription ${id} with action: ${action}`);
+// Review prescription (Approve/Reject)
+exports.reviewPrescription = async (req, res, next) => {
+    try {
+        const { error } = reviewPrescriptionSchema.validate(req.body);
+        if (error) return res.status(400).json({ message: error.details[0].message });
+
+        const { id } = req.params;
+        const { status, medicines, totalAmount } = req.body;
+
+        console.log(`Reviewing prescription ${id} | Total: ${totalAmount} | Status: ${status}`);
 
         const prescription = await Prescription.findById(id);
         if (!prescription) {
             return res.status(404).json({ message: 'Prescription not found' });
         }
 
-        // Validate that only pending prescriptions can be updated
-        if (prescription.pharmacyStatus !== PRESCRIPTION_STATUS.PENDING) {
-            return res.status(400).json({
-                message: `Cannot update prescription. Current status is ${prescription.pharmacyStatus}`
-            });
+        // 1. Synchronize Prescription State
+        if (medicines) {
+            prescription.medicines = medicines.map(m => ({
+                name: m.name,
+                quantity: Number(m.qty),
+                price: Number(m.unitPrice)
+            }));
         }
 
-        if (action === 'approve') {
-            prescription.pharmacyStatus = PRESCRIPTION_STATUS.APPROVED;
-        } else if (action === 'reject') {
-            prescription.pharmacyStatus = PRESCRIPTION_STATUS.REJECTED;
-        } else {
-            return res.status(400).json({ message: 'Invalid action. Use "approve" or "reject".' });
-        }
-
+        prescription.pharmacyStatus = status;
         await prescription.save();
-        console.log(`Prescription ${id} updated to ${prescription.pharmacyStatus}`);
 
-        res.json({ message: `Prescription ${prescription.pharmacyStatus}`, prescription });
+        // 2. Spawn Order Record
+        if (status === 'approved') {
+            const order = await Order.create({
+                userId: prescription.userId,
+                prescriptionId: prescription._id,
+                medicines: prescription.medicines,
+                totalAmount: Number(totalAmount), // Direct trust of FE value
+                status: 'pending',
+                paymentStatus: 'pending'
+            });
+            console.log(`Financial Checkpoint: Order ${order._id} initialized with FE total: ${totalAmount}`);
+        }
+
+        res.json({
+            message: `Prescription ${prescription.pharmacyStatus}`,
+            prescription
+        });
     } catch (err) {
-        console.error(`Error reviewing prescription ${req.params.id}:`, err);
-        res.status(500).json({ message: 'Server error reviewing prescription' });
+        next(err);
     }
 };
 
-// Update medicines for a prescription
-exports.updatePrescriptionMedicines = async (req, res) => {
+// Update medicines
+exports.updatePrescriptionMedicines = async (req, res, next) => {
     try {
+        const { error } = updateMedicinesSchema.validate(req.body);
+        if (error) return res.status(400).json({ message: error.details[0].message });
+
         const { id } = req.params;
-        const { medicines } = req.body; // Array of { name, quantity, price }
+        const { medicines } = req.body;
 
         console.log(`Updating medicines for prescription ${id}`);
 
-        if (!Array.isArray(medicines)) {
-            return res.status(400).json({ message: 'Medicines must be an array' });
-        }
-
-        // Validate medicines payload
-        for (const med of medicines) {
-            if (!med.name || typeof med.name !== 'string') {
-                return res.status(400).json({ message: 'Invalid medicine name' });
-            }
-            if (!med.quantity || med.quantity <= 0) {
-                return res.status(400).json({ message: `Invalid quantity for ${med.name}` });
-            }
-            if (med.price === undefined || med.price < 0) {
-                return res.status(400).json({ message: `Invalid price for ${med.name}` });
-            }
-        }
-
         const prescription = await Prescription.findById(id);
         if (!prescription) {
             return res.status(404).json({ message: 'Prescription not found' });
         }
-
-        // Optionally check if we can update medicines (e.g., only if pending or approved?)
-        // Requirement doesn't strictly say, but usually shouldn't update if rejected?
-        // Assume allowed if prescription exists for now.
 
         prescription.medicines = medicines;
         await prescription.save();
@@ -91,7 +87,6 @@ exports.updatePrescriptionMedicines = async (req, res) => {
         console.log(`Medicines updated for prescription ${id}`);
         res.json({ message: 'Medicines updated successfully', prescription });
     } catch (err) {
-        console.error(`Error updating medicines for prescription ${req.params.id}:`, err);
-        res.status(500).json({ message: 'Server error updating medicines' });
+        next(err);
     }
 };
