@@ -11,12 +11,14 @@ const doctorController = require("./doctor-channeling/controllers/doctor.control
 const Appointment = require("./doctor-channeling/models/appointment.model");
 const Patient = require("./models/patient.model");
 const Doctor = require("./doctor-channeling/models/doctor.model");
+const RegisteredDoctor = require("./models/RegisteredDoctor");
 const ChannelingSession = require("./doctor-channeling/models/channelingSession.model");
 
 // ── Auth routes ───────────────────────────────────────────────────────────────
-const userRoutes          = require("./routes/user.routes");
-const forgotPasswordRoutes = require("./routes/forgotPassword.routes");
-const registrationRoutes  = require("./routes/registration.routes");
+const userRoutes                  = require("./routes/user.routes");
+const forgotPasswordRoutes        = require("./routes/forgotPassword.routes");
+const registrationRoutes          = require("./routes/registration.routes");
+const doctorRegistrationRoutes    = require("./routes/doctorRegistrationRoutes");
 
 const app = express();
 
@@ -62,10 +64,48 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Doctor portal login (email-based)
+// Doctor portal login (email-based) — checks RegisteredDoctor first, then legacy Doctor
 app.post("/api/v1/auth/login", async (req, res) => {
   const { email, password } = req.body;
   try {
+    // Check new registration model first
+    const registered = await RegisteredDoctor.findOne({ email: email?.toLowerCase().trim() });
+    if (registered) {
+      if (!bcrypt.compareSync(password, registered.password)) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      if (registered.status === "PENDING") {
+        return res.status(403).json({
+          message: "Account pending approval",
+          status: "PENDING",
+        });
+      }
+      if (registered.status === "DECLINED") {
+        return res.status(403).json({
+          message: "Registration declined",
+          status: "DECLINED",
+          reason: registered.declineReason,
+        });
+      }
+      // APPROVED
+      const token = jwt.sign(
+        { id: registered._id, email: registered.email, role: "doctor" },
+        SECRET_KEY,
+        { expiresIn: "8h" }
+      );
+      return res.json({
+        token,
+        status: "APPROVED",
+        user: {
+          id: registered._id,
+          name: registered.fullName || `${registered.firstName} ${registered.lastName}`,
+          email: registered.email,
+          role: "doctor",
+        },
+      });
+    }
+
+    // Fall back to legacy channeling Doctor model
     const user = await Doctor.findOne({ email });
     if (!user || !user.password) return res.status(401).json({ message: "Invalid email or password" });
     if (!bcrypt.compareSync(password, user.password)) return res.status(401).json({ message: "Invalid email or password" });
@@ -555,6 +595,7 @@ app.get('/api/v1/channeling-sessions/public/:doctorId', async (req, res) => {
 app.use("/api/users",            userRoutes);
 app.use("/api/auth",             registrationRoutes);
 app.use("/api/forgot-password",  forgotPasswordRoutes);
+app.use("/api/v1/doctors",       doctorRegistrationRoutes);
 
 // ── Doctor channeling routes ──────────────────────────────────────────────────
 app.use("/doctor-channeling", doctorChannelingRouter);
