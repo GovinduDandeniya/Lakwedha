@@ -50,9 +50,21 @@ export const AuthProvider = ({ children }) => {
             navigate('/dashboard');
             return { success: true };
         } catch (error) {
+            if (error.response?.status === 403) {
+                const { status, reason } = error.response.data;
+                const pendingUser = { email };
+                localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(pendingUser));
+                setUser(pendingUser);
+                if (status === 'PENDING') {
+                    navigate('/pending');
+                } else if (status === 'DECLINED') {
+                    navigate('/declined', { state: { reason } });
+                }
+                return { success: true };
+            }
             return {
-                success: false, 
-                error: error.response?.data?.message || 'Login failed' 
+                success: false,
+                error: error.response?.data?.message || 'Login failed',
             };
         }
     };

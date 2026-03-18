@@ -2,6 +2,9 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import PendingPage from './pages/PendingPage';
+import DeclinedPage from './pages/DeclinedPage';
 import DashboardPage from './pages/DashboardPage';
 import AppointmentsPage from './pages/AppointmentsPage';
 import AvailabilityPage from './pages/AvailabilityPage';
@@ -25,6 +28,9 @@ const AppRoutes = () => {
     return (
         <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/pending" element={<PendingPage />} />
+        <Route path="/declined" element={<DeclinedPage />} />
         <Route
             path="/dashboard"
             element={
