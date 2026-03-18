@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/services/storage_service.dart';
+import '../../../presentation/providers/auth_provider.dart';
 
 
 class SplashScreen extends StatefulWidget {
@@ -35,10 +36,10 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _navigateAfterSplash() async {
     await Future.delayed(const Duration(milliseconds: 2400));
     if (!mounted) return;
-    final token = await StorageService.getToken();
-    final guest = await StorageService.isGuest();
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    await auth.checkAuthStatus();
     if (!mounted) return;
-    if (token != null || guest) {
+    if (auth.isAuthenticated) {
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       Navigator.pushReplacementNamed(context, '/sign-in');

@@ -55,6 +55,13 @@ const userSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        otp_last_sent: {
+            type: Date,
+        },
+        // ── Session invalidation ────────────────────────────
+        passwordChangedAt: {
+            type: Date,
+        },
     },
     { timestamps: true }
 );
