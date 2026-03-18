@@ -13,6 +13,11 @@ const Patient = require("./models/patient.model");
 const Doctor = require("./doctor-channeling/models/doctor.model");
 const ChannelingSession = require("./doctor-channeling/models/channelingSession.model");
 
+// ── Auth routes ───────────────────────────────────────────────────────────────
+const userRoutes          = require("./routes/user.routes");
+const forgotPasswordRoutes = require("./routes/forgotPassword.routes");
+const registrationRoutes  = require("./routes/registration.routes");
+
 const app = express();
 
 app.use(cors());
@@ -545,6 +550,11 @@ app.get('/api/v1/channeling-sessions/public/:doctorId', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// ── User / Auth / Forgot-password routes ─────────────────────────────────────
+app.use("/api/users",            userRoutes);
+app.use("/api/auth",             registrationRoutes);
+app.use("/api/forgot-password",  forgotPasswordRoutes);
 
 // ── Doctor channeling routes ──────────────────────────────────────────────────
 app.use("/doctor-channeling", doctorChannelingRouter);

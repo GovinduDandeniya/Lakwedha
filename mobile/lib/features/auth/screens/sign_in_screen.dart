@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/services/auth_service.dart';
-import '../../../core/services/storage_service.dart';
+import '../../../presentation/providers/auth_provider.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/auth_button.dart';
 
@@ -31,32 +31,33 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
-      final data = await AuthService.login(
-        credential: _credentialController.text.trim(),
-        password: _passwordController.text,
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final success = await auth.login(
+        _credentialController.text.trim(),
+        _passwordController.text,
       );
-      await StorageService.saveToken(data['token'] as String);
-      final userName = (data['name'] ?? data['user']?['name'] ?? '') as String;
-      await StorageService.saveUserName(userName);
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/home');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      if (success) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(auth.error ?? AppStrings.invalidCredentials),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-   Future<void> _continueAsGuest() async {
-    await StorageService.setGuest(true);
+  Future<void> _continueAsGuest() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    auth.continueAsGuest();
     if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/home');
   }
