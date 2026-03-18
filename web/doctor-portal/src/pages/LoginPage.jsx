@@ -7,9 +7,10 @@ import {
     Typography,
     Box,
     Alert,
+    Divider,
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -83,6 +84,20 @@ const LoginPage = () => {
                             {loading ? 'Signing in...' : 'Sign In'}
                         </Button>
                     </form>
+
+                    <Divider sx={{ my: 2 }} />
+
+                    <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            New doctor?{' '}
+                            <Link
+                                to="/register"
+                                style={{ color: '#1565C0', textDecoration: 'none', fontWeight: 600 }}
+                            >
+                                Register here
+                            </Link>
+                        </Typography>
+                    </Box>
                 </Paper>
             </Box>
         </Container>
