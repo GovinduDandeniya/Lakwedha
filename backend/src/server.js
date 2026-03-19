@@ -1,4 +1,9 @@
 require("dotenv").config();
+
+// Override system DNS with Google DNS — local DNS doesn't support MongoDB Atlas SRV/A records
+const dns = require("dns");
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
+
 const express = require("express");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
