@@ -97,6 +97,24 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
     }
   }
 
+  /// Returns a color-coded marker hue based on Ayurvedic center type
+  double _getMarkerHue(String type) {
+    switch (type) {
+      case 'ayurvedic_hospital':
+        return BitmapDescriptor.hueGreen;
+      case 'ayurvedic_clinic':
+        return BitmapDescriptor.hueOrange;
+      case 'panchakarma_center':
+        return BitmapDescriptor.hueCyan;
+      case 'herbal_pharmacy':
+        return BitmapDescriptor.hueViolet;
+      case 'wellness_center':
+        return BitmapDescriptor.hueYellow;
+      default:
+        return BitmapDescriptor.hueGreen;
+    }
+  }
+
   void _buildMarkers() {
     final markers = <Marker>{};
     for (final center in _centers) {
@@ -104,9 +122,10 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
         Marker(
           markerId: MarkerId(center.id),
           position: LatLng(center.latitude, center.longitude),
+          icon: BitmapDescriptor.defaultMarkerWithHue(_getMarkerHue(center.type)),
           infoWindow: InfoWindow(
             title: center.name,
-            snippet: center.typeLabel,
+            snippet: '${center.typeLabel}${center.is24Hours ? ' • 24h' : ''}',
           ),
         ),
       );
@@ -119,7 +138,7 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Emergency Centers',
+          'Ayurvedic Emergency Centers',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.white,
