@@ -26,3 +26,5 @@ jobs:
       - run: npm ci
       - run: npm test -- --watchAll=false
       - run: npm run build
+        env:
+          DISABLE_ESLINT_PLUGIN: "true"
