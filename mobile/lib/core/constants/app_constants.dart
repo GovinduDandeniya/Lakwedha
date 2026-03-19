@@ -10,22 +10,31 @@ class AppConstants {
   static const String baseUrl = 'http://10.0.2.2:5000';
 
   // ── Endpoints ────────────────────────────────────────────────────────────────
-  static const String loginEndpoint               = '/api/users/login';
-  static const String registerEndpoint            = '/api/users/register';
+  static const String loginEndpoint               = '/api/v1/users/login';
+  static const String registerEndpoint            = '/api/v1/users/register';
   static const String doctorsEndpoint             = '/api/v1/doctors';
   static const String availabilityEndpoint        = '/api/v1/doctor-channeling/availability';
   static const String bookAppointmentEndpoint     = '/api/v1/doctor-channeling/appointments/book';
   static const String appointmentHistoryEndpoint  = '/api/v1/doctor-channeling/appointments/history';
 
   // Registration OTP endpoints
-  static const String regSendOtpEndpoint    = '/api/auth/send-otp';
-  static const String regVerifyOtpEndpoint  = '/api/auth/verify-otp';
-  static const String regRegisterEndpoint   = '/api/auth/register';
+  static const String regSendOtpEndpoint    = '/api/v1/auth/send-otp';
+  static const String regVerifyOtpEndpoint  = '/api/v1/auth/verify-otp';
+  static const String regRegisterEndpoint   = '/api/v1/auth/register';
 
   // Forgot-password endpoints
-  static const String fpSendOtpEndpoint     = '/api/forgot-password/send-otp';
-  static const String fpVerifyOtpEndpoint   = '/api/forgot-password/verify-otp';
-  static const String fpResetPasswordEndpoint = '/api/forgot-password/reset-password';
+  static const String fpSendOtpEndpoint       = '/api/v1/forgot-password/send-otp';
+  static const String fpVerifyOtpEndpoint     = '/api/v1/forgot-password/verify-otp';
+  static const String fpResetPasswordEndpoint = '/api/v1/forgot-password/reset-password';
+
+  // Patient notifications endpoints
+  static const String patientNotificationsEndpoint = '/api/v1/patient-notifications';
+
+  // Doctor channeling base (availability, appointments, doctors, clinic sub-routes)
+  static const String doctorChannelingBase = '/api/v1/doctor-channeling';
+
+  // Change password
+  static const String changePasswordEndpoint = '/api/v1/users/change-password';
 
   // ── SharedPreferences keys ───────────────────────────────────────────────────
   static const String tokenKey    = 'auth_token';

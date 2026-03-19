@@ -123,6 +123,19 @@ app.get("/api/v1/auth/verify", async (req, res) => {
   try {
     const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, SECRET_KEY);
+    // Check new RegisteredDoctor model first, then fall back to legacy Doctor
+    const registered = await RegisteredDoctor.findById(decoded.id);
+    if (registered) {
+      return res.json({
+        valid: true,
+        user: {
+          id: registered._id,
+          name: registered.fullName || `${registered.firstName} ${registered.lastName}`,
+          email: registered.email,
+          role: "doctor",
+        },
+      });
+    }
     const user = await Doctor.findById(decoded.id);
     if (!user) return res.json({ valid: false });
     res.json({ valid: true, user: { id: user._id, name: user.name, email: user.email, role: "doctor", specialization: user.specialization } });
@@ -592,16 +605,16 @@ app.get('/api/v1/channeling-sessions/public/:doctorId', async (req, res) => {
 });
 
 // ── User / Auth / Forgot-password routes ─────────────────────────────────────
-app.use("/api/users",            userRoutes);
-app.use("/api/auth",             registrationRoutes);
-app.use("/api/forgot-password",  forgotPasswordRoutes);
-app.use("/api/v1/doctors",       doctorRegistrationRoutes);
+app.use("/api/v1/users",           userRoutes);
+app.use("/api/v1/auth",            registrationRoutes);
+app.use("/api/v1/forgot-password", forgotPasswordRoutes);
+app.use("/api/v1/doctors",         doctorRegistrationRoutes);
 
 // ── Doctor channeling routes ──────────────────────────────────────────────────
-app.use("/doctor-channeling", doctorChannelingRouter);
+app.use("/api/v1/doctor-channeling", doctorChannelingRouter);
 
 // ── Doctor availability by name ───────────────────────────────────────────────
-app.get("/api/doctor-availability", doctorController.getDoctorAvailabilityByName);
+app.get("/api/v1/doctor-availability", doctorController.getDoctorAvailabilityByName);
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;

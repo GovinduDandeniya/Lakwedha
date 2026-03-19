@@ -29,6 +29,28 @@ exports.register = async (req, res) => {
     }
 };
 
+/* CHANGE PASSWORD */
+exports.changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword)
+            return res.status(400).json({ success: false, message: 'currentPassword and newPassword are required' });
+
+        const user = await User.findById(req.user.id).select('+password');
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        const match = await bcrypt.compare(currentPassword, user.password);
+        if (!match) return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        res.json({ success: true, message: 'Password changed successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
 /* LOGIN */
 exports.login = async (req, res) => {
     try {
