@@ -17,6 +17,9 @@ app.use('/api/auth', registrationRoutes);
 const pharmacyRoutes = require('./routes/pharmacyRoutes');
 app.use('/api/pharmacy', pharmacyRoutes);
 
+const pharmacyRegistrationRoutes = require('./routes/pharmacyRegistrationRoutes');
+app.use('/api/pharmacy-registration', pharmacyRegistrationRoutes);
+
 const orderRoutes = require('./routes/orderRoutes');
 app.use('/api/orders', orderRoutes);
 
