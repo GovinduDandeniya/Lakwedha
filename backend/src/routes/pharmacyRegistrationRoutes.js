@@ -6,6 +6,7 @@ const {
   rejectPharmacy,
   getAllPharmacies,
 } = require('../controllers/pharmacyRegistrationController');
+const { authMiddleware, roleMiddleware } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
@@ -13,9 +14,9 @@ const router = express.Router();
 router.post('/register', registerPharmacy);
 router.post('/login', loginPharmacy);
 
-// Admin
-router.get('/all', getAllPharmacies);
-router.put('/approve/:id', approvePharmacy);
-router.put('/reject/:id', rejectPharmacy);
+// Admin only
+router.get('/all', authMiddleware, roleMiddleware(['admin']), getAllPharmacies);
+router.put('/approve/:id', authMiddleware, roleMiddleware(['admin']), approvePharmacy);
+router.put('/reject/:id', authMiddleware, roleMiddleware(['admin']), rejectPharmacy);
 
 module.exports = router;
