@@ -53,7 +53,7 @@ class ApiService {
     required String newPassword,
   }) async {
     final response = await http.post(
-      Uri.parse('${AppConstants.baseUrl}/auth/change-password'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.changePasswordEndpoint}'),
       headers: await _getHeaders(),
       body: json.encode({
         'currentPassword': currentPassword,
@@ -165,7 +165,7 @@ class ApiService {
     String? reason,
   }) async {
     final response = await http.patch(
-      Uri.parse('${AppConstants.baseUrl}/doctor-channeling/appointments/$appointmentId/status'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.doctorChannelingBase}/appointments/$appointmentId/status'),
       headers: await _getHeaders(),
       body: json.encode({'status': status, if (reason != null) 'reason': reason}),
     );
@@ -179,7 +179,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> getQueueStatus(String slotId) async {
     final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}/doctor-channeling/appointments/queue/$slotId'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.doctorChannelingBase}/appointments/queue/$slotId'),
       headers: await _getHeaders(),
     );
 
@@ -193,7 +193,7 @@ class ApiService {
   // ===================== PATIENT NOTIFICATIONS =====================
   Future<List<Map<String, dynamic>>> getPatientNotifications() async {
     final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}/patient-notifications'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}'),
       headers: await _getHeaders(),
     );
     if (response.statusCode == 200) {
@@ -206,14 +206,14 @@ class ApiService {
 
   Future<void> markNotificationRead(int id) async {
     await http.patch(
-      Uri.parse('${AppConstants.baseUrl}/patient-notifications/$id/read'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}/$id/read'),
       headers: await _getHeaders(),
     );
   }
 
   Future<void> markAllNotificationsRead() async {
     await http.patch(
-      Uri.parse('${AppConstants.baseUrl}/patient-notifications/read-all'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}/read-all'),
       headers: await _getHeaders(),
     );
   }

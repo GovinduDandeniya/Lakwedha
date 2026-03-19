@@ -25,6 +25,11 @@ const registeredDoctorSchema = new mongoose.Schema({
   address: String,
   emergencyMobile: String,
 
+  specialization: {
+    type: String,
+    required: true,
+  },
+
   hospitals: [
     {
       name: String,

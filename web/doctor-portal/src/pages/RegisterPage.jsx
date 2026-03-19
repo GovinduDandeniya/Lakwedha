@@ -13,6 +13,7 @@ import {
     CircularProgress,
     IconButton,
 } from '@mui/material';
+import Autocomplete from '@mui/material/Autocomplete';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
@@ -23,6 +24,46 @@ import { API_BASE_URL } from '../utils/constants';
 const NIC_REGEX = /^([0-9]{9}[vVxX]|[0-9]{12})$/;
 const MOBILE_REGEX = /^[0-9]{10}$/;
 const TITLES = ['Dr', 'Mr', 'Ms', 'Mrs'];
+
+const SPECIALIZATIONS = [
+    'Kayachikitsa (General Ayurveda)',
+    'Shalya Tantra (Ayurveda Surgery)',
+    'Kshara Sutra (Para-Surgical)',
+    'Shalakya Tantra (ENT & Eye)',
+    'Netra Roga (Eye Diseases)',
+    'Karna Roga (Ear Diseases)',
+    'Nasa Roga (Nose Diseases)',
+    'Kaumarbhritya / Bala Roga (Pediatrics)',
+    'Stri Roga (Gynecology)',
+    'Prasuti Tantra (Obstetrics)',
+    'Agada Tantra (Toxicology)',
+    'Snake Bite Treatment',
+    'Bhuta Vidya (Mental Health)',
+    'Rasayana Therapy (Rejuvenation)',
+    'Anti-Aging Ayurveda',
+    'Vajikarana (Fertility & Sexual Health)',
+    'Panchakarma (Detox Therapy)',
+    'Sandhi Roga (Joint Diseases)',
+    'Arthritis Treatment',
+    'Orthopedic Ayurveda',
+    'Fracture Treatment (Traditional Bone Setter)',
+    'Paralysis Treatment',
+    'Neurological Disorder Treatment',
+    'Twak Roga (Skin Diseases)',
+    'Ayurveda Dermatology',
+    'Hair Loss Treatment',
+    'Ayurveda Cosmetics',
+    'Diabetes Ayurveda',
+    'Obesity & Weight Loss',
+    'Digestive Disorder Treatment',
+    'Liver Disease Treatment',
+    'Asthma & Respiratory Treatment',
+    'Abhyanga Therapy',
+    'Shirodhara Therapy',
+    'Nasya Therapy',
+    'Vasti Therapy',
+    'Herbal Medicine',
+];
 
 const emptyHospital = () => ({ name: '', location: '', startTime: '', maxAppointments: '' });
 
@@ -36,6 +77,7 @@ const initialForm = {
     nic: '',
     address: '',
     emergencyMobile: '',
+    specialization: '',
     password: '',
     confirmPassword: '',
 };
@@ -98,6 +140,7 @@ const RegisterPage = () => {
         else if (!NIC_REGEX.test(form.nic))
             errs.nic = 'Invalid NIC — old format (9 digits + V/X) or new format (12 digits)';
         if (!form.address.trim()) errs.address = 'Address is required';
+        if (!form.specialization) errs.specialization = 'Specialization is required';
         if (form.emergencyMobile && !MOBILE_REGEX.test(form.emergencyMobile))
             errs.emergencyMobile = 'Enter a valid 10-digit mobile number';
         if (!form.password) errs.password = 'Password is required';
@@ -143,6 +186,7 @@ const RegisterPage = () => {
                 nic: form.nic,
                 address: form.address,
                 emergencyMobile: form.emergencyMobile,
+                specialization: form.specialization,
                 hospitals: hospitals.map((h) => ({
                     name: h.name,
                     location: h.location,
@@ -218,6 +262,32 @@ const RegisterPage = () => {
                         <Grid container spacing={2}>
                             <Grid item xs={12} sm={6}>
                                 {field('emergencyMobile', 'Emergency Mobile Number', { placeholder: '07XXXXXXXX' })}
+                            </Grid>
+                        </Grid>
+
+                        {/* ── Professional Details ──────────────────────── */}
+                        <Typography variant="h6" color="primary" sx={{ mt: 4 }} gutterBottom>Professional Details</Typography>
+                        <Divider sx={{ mb: 2 }} />
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                                <Autocomplete
+                                    options={SPECIALIZATIONS}
+                                    value={form.specialization || null}
+                                    onChange={(_, value) => {
+                                        setForm((prev) => ({ ...prev, specialization: value || '' }));
+                                        setErrors((prev) => ({ ...prev, specialization: '' }));
+                                    }}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label="Specialization"
+                                            placeholder="Select Specialization"
+                                            size="small"
+                                            error={!!errors.specialization}
+                                            helperText={errors.specialization}
+                                        />
+                                    )}
+                                />
                             </Grid>
                         </Grid>
 
