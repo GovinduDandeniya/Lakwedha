@@ -123,14 +123,129 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
           markerId: MarkerId(center.id),
           position: LatLng(center.latitude, center.longitude),
           icon: BitmapDescriptor.defaultMarkerWithHue(_getMarkerHue(center.type)),
-          infoWindow: InfoWindow(
-            title: center.name,
-            snippet: '${center.typeLabel}${center.is24Hours ? ' • 24h' : ''}',
-          ),
+          onTap: () => _showCenterDetails(center),
         ),
       );
     }
     setState(() => _markers = markers);
+  }
+
+  void _showCenterDetails(EmergencyCenter center) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Name
+            Text(
+              center.name,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Type badge + 24h indicator
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondaryGreen.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    center.typeLabel,
+                    style: TextStyle(
+                      color: AppColors.secondaryGreen,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (center.is24Hours) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '24 Hours',
+                      style: TextStyle(
+                        color: AppColors.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Address
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.location_on_outlined, size: 20, color: AppColors.textMedium),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    center.address,
+                    style: TextStyle(
+                      color: AppColors.textMedium,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Phone
+            Row(
+              children: [
+                Icon(Icons.phone_outlined, size: 20, color: AppColors.textMedium),
+                const SizedBox(width: 8),
+                Text(
+                  center.phone,
+                  style: TextStyle(
+                    color: AppColors.textMedium,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
