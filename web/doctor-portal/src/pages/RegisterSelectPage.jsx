@@ -10,7 +10,6 @@ import {
 } from '@mui/material';
 import { useNavigate, Link } from 'react-router-dom';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
-import LocalPharmacyIcon from '@mui/icons-material/LocalPharmacy';
 
 const ACCOUNT_TYPES = [
     {
@@ -22,16 +21,6 @@ const ACCOUNT_TYPES = [
         color: '#2E7D32',
         bg: '#E8F5E9',
         border: '#A5D6A7',
-    },
-    {
-        value: 'pharmacy',
-        label: 'Pharmacy',
-        icon: LocalPharmacyIcon,
-        description: 'Manage medicine and prescriptions',
-        route: '/pharmacy/register',
-        color: '#1565C0',
-        bg: '#E3F2FD',
-        border: '#90CAF9',
     },
 ];
 
