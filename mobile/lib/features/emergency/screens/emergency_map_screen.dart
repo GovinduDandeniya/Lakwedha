@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/constants/app_colors.dart';
+import '../models/emergency_center.dart';
+import '../services/emergency_api_service.dart';
 import '../services/location_service.dart';
 
 class EmergencyMapScreen extends StatefulWidget {
@@ -14,6 +16,7 @@ class EmergencyMapScreen extends StatefulWidget {
 class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
   GoogleMapController? _mapController;
   final LocationService _locationService = LocationService();
+  final EmergencyApiService _apiService = EmergencyApiService();
 
   // Default to Sri Lanka center
   static const LatLng _defaultCenter = LatLng(7.8731, 80.7718);
@@ -23,10 +26,15 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
   bool _isLoadingLocation = true;
   String? _locationError;
 
+  List<EmergencyCenter> _centers = [];
+  Set<Marker> _markers = {};
+  bool _isLoadingCenters = false;
+
   @override
   void initState() {
     super.initState();
     _fetchUserLocation();
+    _fetchEmergencyCenters();
   }
 
   @override
@@ -75,6 +83,37 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
     }
   }
 
+  Future<void> _fetchEmergencyCenters() async {
+    setState(() => _isLoadingCenters = true);
+    try {
+      final centers = await _apiService.fetchEmergencyCenters();
+      setState(() {
+        _centers = centers;
+        _isLoadingCenters = false;
+      });
+      _buildMarkers();
+    } catch (e) {
+      setState(() => _isLoadingCenters = false);
+    }
+  }
+
+  void _buildMarkers() {
+    final markers = <Marker>{};
+    for (final center in _centers) {
+      markers.add(
+        Marker(
+          markerId: MarkerId(center.id),
+          position: LatLng(center.latitude, center.longitude),
+          infoWindow: InfoWindow(
+            title: center.name,
+            snippet: center.typeLabel,
+          ),
+        ),
+      );
+    }
+    setState(() => _markers = markers);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,6 +137,7 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
               target: _defaultCenter,
               zoom: _defaultZoom,
             ),
+            markers: _markers,
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: true,
