@@ -103,11 +103,11 @@ const LoginPage = () => {
                 return;
             }
 
-            // Approved — store token and go to pharmacy dashboard
+            // Approved — store token and go to pharmacy approved page
             if (token) {
                 localStorage.setItem('pharmacy_token', token);
                 localStorage.setItem('pharmacy_user', JSON.stringify(pharmacy || { email }));
-                navigate('/pharmacy/dashboard');
+                navigate('/pharmacy/approved');
             }
         } catch (err) {
             const msg =
