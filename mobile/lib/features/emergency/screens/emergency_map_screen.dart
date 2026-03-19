@@ -31,7 +31,16 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
   Set<Marker> _markers = {};
   bool _isLoadingCenters = false;
   String _searchQuery = '';
+  String? _selectedType;
   final TextEditingController _searchController = TextEditingController();
+
+  static const List<Map<String, String>> _centerTypes = [
+    {'value': 'ayurvedic_hospital', 'label': 'Hospitals'},
+    {'value': 'ayurvedic_clinic', 'label': 'Clinics'},
+    {'value': 'panchakarma_center', 'label': 'Panchakarma'},
+    {'value': 'herbal_pharmacy', 'label': 'Herbal Pharmacy'},
+    {'value': 'wellness_center', 'label': 'Wellness'},
+  ];
 
   @override
   void initState() {
@@ -307,12 +316,25 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
   }
 
   List<EmergencyCenter> get _filteredCenters {
-    if (_searchQuery.isEmpty) return _centers;
-    return _centers.where((c) {
-      return c.name.toLowerCase().contains(_searchQuery) ||
-          c.address.toLowerCase().contains(_searchQuery) ||
-          c.typeLabel.toLowerCase().contains(_searchQuery);
-    }).toList();
+    var filtered = _centers;
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((c) {
+        return c.name.toLowerCase().contains(_searchQuery) ||
+            c.address.toLowerCase().contains(_searchQuery) ||
+            c.typeLabel.toLowerCase().contains(_searchQuery);
+      }).toList();
+    }
+    if (_selectedType != null) {
+      filtered = filtered.where((c) => c.type == _selectedType).toList();
+    }
+    return filtered;
+  }
+
+  void _onFilterTypeChanged(String? type) {
+    setState(() {
+      _selectedType = _selectedType == type ? null : type;
+    });
+    _buildMarkers();
   }
 
   Future<void> _openDirections(double lat, double lng) async {
@@ -389,10 +411,49 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
               ),
             ),
           ),
+          // Filter chips
+          Positioned(
+            top: 64,
+            left: 0,
+            right: 0,
+            child: SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _centerTypes.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final type = _centerTypes[index];
+                  final isSelected = _selectedType == type['value'];
+                  return FilterChip(
+                    label: Text(type['label']!),
+                    selected: isSelected,
+                    onSelected: (_) => _onFilterTypeChanged(type['value']),
+                    selectedColor: AppColors.secondaryGreen.withValues(alpha: 0.2),
+                    checkmarkColor: AppColors.secondaryGreen,
+                    backgroundColor: Colors.white,
+                    labelStyle: TextStyle(
+                      color: isSelected ? AppColors.secondaryGreen : AppColors.textMedium,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontSize: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: isSelected ? AppColors.secondaryGreen : Colors.grey.shade300,
+                      ),
+                    ),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  );
+                },
+              ),
+            ),
+          ),
           // Location error banner
           if (_locationError != null)
             Positioned(
-              top: 68,
+              top: 112,
               left: 16,
               right: 16,
               child: Material(
