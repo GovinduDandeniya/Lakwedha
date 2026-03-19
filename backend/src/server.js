@@ -19,6 +19,7 @@ const userRoutes                  = require("./routes/user.routes");
 const forgotPasswordRoutes        = require("./routes/forgotPassword.routes");
 const registrationRoutes          = require("./routes/registration.routes");
 const doctorRegistrationRoutes    = require("./routes/doctorRegistrationRoutes");
+const pharmacyRegistrationRoutes  = require("./routes/pharmacyRegistrationRoutes");
 
 const app = express();
 
@@ -145,15 +146,49 @@ app.get("/api/v1/auth/verify", async (req, res) => {
 });
 
 // ── Appointments ──────────────────────────────────────────────────────────────
-app.get("/api/v1/appointments", async (req, res) => {
+app.get("/api/v1/appointments", requireAuth, async (req, res) => {
   try {
     const { status } = req.query;
-    const filter = {};
+    const filter = { doctorId: req.user.id };
     if (status && status !== 'all') filter.status = status;
+
     const appointments = await Appointment.find(filter)
-      .populate('patientId', 'name age gender')
+      .populate('patientId', 'name title first_name last_name birthday gender')
       .sort({ slotTime: -1 });
-    res.json({ success: true, data: appointments, total: appointments.length });
+
+    // Transform to flat structure expected by the doctor portal UI
+    const data = appointments.map(a => {
+      const p = a.patientId;
+      let patientAge = null;
+      if (p?.birthday) {
+        const ms = Date.now() - new Date(p.birthday).getTime();
+        patientAge = Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
+      }
+      const firstName = p?.first_name || null;
+      const lastName  = p?.last_name  || null;
+      return {
+        id:               a._id,
+        appointmentId:    a.appointmentId,
+        status:           a.status,
+        slotTime:         a.slotTime,
+        date:             a.slotTime ? a.slotTime.toISOString().split('T')[0] : null,
+        hospital:         a.hospitalName || null,
+        appointmentNumber: a.queuePosition || null,
+        symptoms:         a.symptoms || null,
+        patientId:        p?._id || a.patientId,
+        patientName:      p?.name || null,
+        patientTitle:     p?.title || null,
+        patientFirstName: firstName,
+        patientLastName:  lastName,
+        patientDisplayName: p
+          ? (p.name || `${firstName || ''} ${lastName || ''}`.trim() || null)
+          : null,
+        patientAge,
+        patientGender:    p?.gender || null,
+      };
+    });
+
+    res.json({ success: true, data, total: data.length });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -589,6 +624,55 @@ app.patch('/api/v1/channeling-sessions/:id/close', requireAuth, async (req, res)
   }
 });
 
+// Patient: book an appointment on a channeling session (called after payment)
+app.post('/api/v1/channeling-sessions/:sessionId/book', requireAuth, async (req, res) => {
+  try {
+    const session = await ChannelingSession.findById(req.params.sessionId);
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+    if (session.status === 'cancelled' || session.status === 'closed') {
+      return res.status(400).json({ success: false, error: 'Session is no longer available' });
+    }
+    if (session.bookedCount >= session.totalAppointments) {
+      return res.status(400).json({ success: false, error: 'Session is fully booked' });
+    }
+
+    session.bookedCount += 1;
+    const appointmentNumber = session.bookedCount;
+    if (session.bookedCount >= session.totalAppointments) session.status = 'full';
+    session.updatedAt = new Date();
+    await session.save();
+
+    const [startHour, startMin] = session.startTime.split(':').map(Number);
+    const slotTime = new Date(session.date);
+    slotTime.setHours(startHour, startMin, 0, 0);
+
+    const appointment = new Appointment({
+      doctorId:          session.doctorId,
+      patientId:         req.user.id,
+      slotTime,
+      hospitalName:      session.hospitalName,
+      appointmentNumber,
+      symptoms:          req.body.symptoms || '',
+      status:            'confirmed',
+    });
+    await appointment.save();
+
+    res.status(201).json({
+      success: true,
+      data: {
+        appointmentId:    appointment.appointmentId,
+        appointmentNumber,
+        hospitalName:     session.hospitalName,
+        date:             session.date.toISOString().split('T')[0],
+        startTime:        session.startTime,
+        status:           'confirmed',
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Public: get open sessions for a specific doctor (for patient app)
 app.get('/api/v1/channeling-sessions/public/:doctorId', async (req, res) => {
   try {
@@ -609,6 +693,7 @@ app.use("/api/v1/users",           userRoutes);
 app.use("/api/v1/auth",            registrationRoutes);
 app.use("/api/v1/forgot-password", forgotPasswordRoutes);
 app.use("/api/v1/doctors",         doctorRegistrationRoutes);
+app.use("/api/v1/pharmacy",        pharmacyRegistrationRoutes);
 
 // ── Doctor channeling routes ──────────────────────────────────────────────────
 app.use("/api/v1/doctor-channeling", doctorChannelingRouter);
