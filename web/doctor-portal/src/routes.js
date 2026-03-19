@@ -7,8 +7,7 @@ import RegisterSelectPage from './pages/RegisterSelectPage';
 import PharmacyRegisterPage from './pages/PharmacyRegisterPage';
 import PharmacyPendingPage from './pages/PharmacyPendingPage';
 import PharmacyRejectedPage from './pages/PharmacyRejectedPage';
-import PharmacyDashboardPage from './pages/PharmacyDashboardPage';
-import PharmacyAdminPage from './pages/PharmacyAdminPage';
+import PharmacyApprovedPage from './pages/PharmacyApprovedPage';
 import PendingPage from './pages/PendingPage';
 import DeclinedPage from './pages/DeclinedPage';
 import DashboardPage from './pages/DashboardPage';
@@ -45,10 +44,7 @@ const AppRoutes = () => {
         <Route path="/pharmacy/register"   element={<PharmacyRegisterPage />} />
         <Route path="/pharmacy/pending"    element={<PharmacyPendingPage />} />
         <Route path="/pharmacy/rejected"   element={<PharmacyRejectedPage />} />
-        <Route path="/pharmacy/dashboard"  element={<PharmacyDashboardPage />} />
-
-        {/* Admin pharmacy management */}
-        <Route path="/admin/pharmacies"    element={<PharmacyAdminPage />} />
+        <Route path="/pharmacy/approved"   element={<PharmacyApprovedPage />} />
 
 
         <Route path="/pending"  element={<PendingPage />} />
