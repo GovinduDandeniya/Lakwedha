@@ -59,16 +59,17 @@ jobs:
     defaults:
       run:
         working-directory: web/doctor-portal
+    env:
+      DISABLE_ESLINT_PLUGIN: "true"
+      CI: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
       - run: npm ci
       - run: npm test -- --watchAll=false
       - run: npm run build
-        env:
-          DISABLE_ESLINT_PLUGIN: "true"
 
   # ─── Mobile (Flutter) ─────────────────────────────────────
   mobile:
