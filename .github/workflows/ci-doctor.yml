@@ -1,0 +1,28 @@
+name: Doctor Portal CI
+
+on:
+  push:
+    paths:
+      - 'web/doctor-portal/**'
+  pull_request:
+    paths:
+      - 'web/doctor-portal/**'
+
+jobs:
+  doctor:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: web/doctor-portal
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - run: npm ci
+      - run: npm test -- --watchAll=false
+      - run: npm run build
