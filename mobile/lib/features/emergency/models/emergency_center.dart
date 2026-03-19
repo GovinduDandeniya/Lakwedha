@@ -40,7 +40,7 @@ class EmergencyCenter {
     return EmergencyCenter(
       id: json['_id'] ?? json['id'] ?? '',
       name: json['name'] ?? '',
-      type: json['type'] ?? 'hospital',
+      type: json['type'] ?? 'ayurvedic_hospital',
       address: json['address'] ?? '',
       phone: json['phone'] ?? '',
       latitude: lat,
@@ -69,14 +69,16 @@ class EmergencyCenter {
   /// Returns a user-friendly label for the center type
   String get typeLabel {
     switch (type) {
-      case 'hospital':
-        return 'Hospital';
-      case 'ayurvedic_center':
-        return 'Ayurvedic Center';
-      case 'pharmacy':
-        return 'Pharmacy';
-      case 'clinic':
-        return 'Clinic';
+      case 'ayurvedic_hospital':
+        return 'Ayurvedic Hospital';
+      case 'ayurvedic_clinic':
+        return 'Ayurvedic Clinic';
+      case 'panchakarma_center':
+        return 'Panchakarma Center';
+      case 'herbal_pharmacy':
+        return 'Herbal Pharmacy';
+      case 'wellness_center':
+        return 'Wellness Center';
       default:
         return type.replaceAll('_', ' ');
     }
