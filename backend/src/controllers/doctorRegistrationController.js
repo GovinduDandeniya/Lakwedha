@@ -13,6 +13,7 @@ exports.registerDoctor = async (req, res) => {
       nic,
       address,
       emergencyMobile,
+      specialization,
       hospitals,
       password,
     } = req.body;
@@ -39,6 +40,7 @@ exports.registerDoctor = async (req, res) => {
       nic,
       address,
       emergencyMobile,
+      specialization,
       hospitals: Array.isArray(hospitals) ? hospitals : [],
       password: hashedPassword,
       status: 'PENDING',
