@@ -20,6 +20,7 @@ exports.registerPharmacy = async (req, res) => {
       ownerNIC,
       email,
       password,
+      bankDetails,
     } = req.body;
 
     if (
@@ -60,6 +61,7 @@ exports.registerPharmacy = async (req, res) => {
       ownerNIC,
       email,
       password: hashedPassword,
+      bankDetails: bankDetails || null,
       status: 'pending',
     });
 
