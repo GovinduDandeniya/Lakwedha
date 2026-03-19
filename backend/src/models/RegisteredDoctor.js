@@ -39,6 +39,14 @@ const registeredDoctorSchema = new mongoose.Schema({
     },
   ],
 
+  bankDetails: {
+    bankName:          { type: String, default: null },
+    branchName:        { type: String, default: null },
+    accountNumber:     { type: String, default: null },
+    accountHolderName: { type: String, default: null },
+    accountType:       { type: String, enum: ['Savings', 'Current', null], default: null },
+  },
+
   password: {
     type: String,
     required: true,
