@@ -4,7 +4,7 @@ import '../constants/app_constants.dart';
 
 class AuthService {
   // URL
-  static const String _baseUrl = 'http:lakwedha.lk/api/users';
+  static const String _baseUrl = '${AppConstants.baseUrl}/api/v1/users';
 
   // Login 
   static Future<Map<String, dynamic>> login({

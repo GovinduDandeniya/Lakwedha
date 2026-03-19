@@ -1,6 +1,8 @@
 const Doctor = require('../models/doctor.model');
 const Availability = require('../models/availability.model');
 const ClinicLocation = require('../models/clinicLocation.model');
+const ChannelingSession = require('../models/channelingSession.model');
+const RegisteredDoctor = require('../../models/RegisteredDoctor');
 const AYURVEDA_SPECIALIZATIONS = require('../constants/ayurvedaSpecializations');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -88,36 +90,73 @@ exports.getDoctorAvailabilityByName = async (req, res) => {
             return res.status(400).json({ success: false, error: 'doctorName is required' });
         }
 
-        const doctor = await Doctor.findOne({ name: { $regex: doctorName, $options: 'i' } });
-        if (!doctor) return res.status(404).json({ success: false, error: 'Doctor not found' });
-
-        const clinic = doctor.clinicId ? await ClinicLocation.findById(doctor.clinicId) : null;
-
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        const availabilities = await Availability.find({ doctorId: doctor._id, date: { $gte: now } }).sort({ date: 1 });
-
-        const sessions = availabilities.map(a => {
-            const totalSlots = a.slots.length;
-            const bookedSlots = a.slots.filter(s => s.status === 'booked' || s.isBooked).length;
-            const first = a.slots[0];
-            const last = a.slots[a.slots.length - 1];
-            return {
-                date: a.date.toISOString().split('T')[0],
-                start_time: first ? first.startTime : '09:00',
-                end_time: last ? last.endTime : '14:00',
-                total_slots: totalSlots,
-                booked_slots: bookedSlots,
-            };
+        // Search RegisteredDoctor first (portal-registered, approved doctors)
+        let doctorId, doctorInfo;
+        const regDoctor = await RegisteredDoctor.findOne({
+            $or: [
+                { fullName: { $regex: doctorName, $options: 'i' } },
+                { firstName: { $regex: doctorName, $options: 'i' } },
+            ],
+            status: 'APPROVED',
         });
 
-        const hospitalName = (clinic && clinic.clinicName) || doctor.clinicName || 'Unknown Hospital';
-        const location = clinic ? `${clinic.address}, ${clinic.city}` : (doctor.clinicAddress || '');
-        const hospitalId = clinic ? clinic._id.toString() : `h_${doctor._id}`;
+        if (regDoctor) {
+            doctorId = regDoctor._id;
+            doctorInfo = {
+                id: regDoctor._id.toString(),
+                name: regDoctor.fullName || `${regDoctor.firstName} ${regDoctor.lastName}`,
+                specialization: regDoctor.specialization,
+                qualification: null,
+                is_verified: true,
+            };
+        } else {
+            // Fall back to legacy channeling Doctor
+            const doctor = await Doctor.findOne({ name: { $regex: doctorName, $options: 'i' } });
+            if (!doctor) return res.status(404).json({ success: false, error: 'Doctor not found' });
+            doctorId = doctor._id;
+            doctorInfo = {
+                id: doctor._id.toString(),
+                name: doctor.name,
+                specialization: doctor.specialization,
+                qualification: doctor.qualification || null,
+                is_verified: doctor.isVerified,
+            };
+        }
+
+        // Read open sessions from ChannelingSession (created by the doctor portal)
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const channelings = await ChannelingSession.find({
+            doctorId,
+            date: { $gte: now },
+            status: { $in: ['open', 'full'] },
+        }).sort({ date: 1, hospitalName: 1 });
+
+        // Group by hospital
+        const hospitalMap = {};
+        channelings.forEach(s => {
+            const h = s.hospitalName;
+            if (!hospitalMap[h]) {
+                hospitalMap[h] = {
+                    hospital_id: s._id.toString(),
+                    hospital_name: h,
+                    location: '',
+                    sessions: [],
+                };
+            }
+            hospitalMap[h].sessions.push({
+                session_id: s._id.toString(),
+                date: s.date.toISOString().split('T')[0],
+                start_time: s.startTime,
+                end_time: s.startTime,
+                total_slots: s.totalAppointments,
+                booked_slots: s.bookedCount,
+            });
+        });
 
         res.status(200).json({
-            doctor: { id: doctor._id.toString(), name: doctor.name, specialization: doctor.specialization, qualification: doctor.qualification || null, is_verified: doctor.isVerified },
-            hospitals: sessions.length > 0 ? [{ hospital_id: hospitalId, hospital_name: hospitalName, location, sessions }] : [],
+            doctor: doctorInfo,
+            hospitals: Object.values(hospitalMap),
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
