@@ -4,11 +4,17 @@ import 'package:provider/provider.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/booking_provider.dart';
 import 'presentation/providers/appointment_provider.dart';
+import 'presentation/providers/pharmacy_auth_provider.dart';
 import 'presentation/screens/splash/splash_screen.dart';
 import 'features/auth/screens/sign_in_screen.dart';
 import 'features/auth/screens/sign_up_screen.dart';
 import 'features/auth/screens/forgot_password_screen.dart';
 import 'presentation/screens/shell/main_shell.dart';
+import 'presentation/screens/pharmacy/pharmacy_login_screen.dart';
+import 'presentation/screens/pharmacy/pharmacy_registration_screen.dart';
+import 'presentation/screens/pharmacy/pharmacy_pending_screen.dart';
+import 'presentation/screens/pharmacy/pharmacy_rejected_screen.dart';
+import 'presentation/screens/pharmacy/pharmacy_dashboard_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +31,7 @@ class RavanaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
         ChangeNotifierProvider(create: (_) => AppointmentProvider()),
+        ChangeNotifierProvider(create: (_) => PharmacyAuthProvider()),
       ],
       child: MaterialApp(
         title: 'Lakwedha',
@@ -56,11 +63,17 @@ class RavanaApp extends StatelessWidget {
         ),
         initialRoute: '/',
         routes: {
-          '/':              (context) => const SplashScreen(),
-          '/sign-in':       (context) => const SignInScreen(),
-          '/sign-up':       (context) => const SignUpScreen(),
-          '/forgot-password': (context) => const ForgotPasswordScreen(),
-          '/home':          (context) => const MainShell(),
+          '/':                    (context) => const SplashScreen(),
+          '/sign-in':             (context) => const SignInScreen(),
+          '/sign-up':             (context) => const SignUpScreen(),
+          '/forgot-password':     (context) => const ForgotPasswordScreen(),
+          '/home':                (context) => const MainShell(),
+          // Pharmacy routes
+          '/pharmacy/login':      (context) => const PharmacyLoginScreen(),
+          '/pharmacy/register':   (context) => const PharmacyRegistrationScreen(),
+          '/pharmacy/pending':    (context) => const PharmacyPendingScreen(),
+          '/pharmacy/rejected':   (context) => const PharmacyRejectedScreen(),
+          '/pharmacy/dashboard':  (context) => const PharmacyDashboardScreen(),
         },
       ),
     );

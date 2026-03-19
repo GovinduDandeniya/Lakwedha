@@ -8,7 +8,7 @@ const appointmentSchema = new mongoose.Schema({
     },
     doctorId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        ref: 'Doctor',
         required: true
     },
     patientId: {
@@ -18,6 +18,8 @@ const appointmentSchema = new mongoose.Schema({
     },
   slotId: { type: mongoose.Schema.Types.ObjectId },
   slotTime: { type: Date, required: true },
+  hospitalName: { type: String, default: null },
+  appointmentNumber: { type: Number, default: null },
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no-show'],

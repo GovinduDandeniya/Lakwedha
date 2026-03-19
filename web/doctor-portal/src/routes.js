@@ -3,6 +3,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import RegisterSelectPage from './pages/RegisterSelectPage';
+import PharmacyRegisterPage from './pages/PharmacyRegisterPage';
+import PharmacyPendingPage from './pages/PharmacyPendingPage';
+import PharmacyRejectedPage from './pages/PharmacyRejectedPage';
+import PharmacyDashboardPage from './pages/PharmacyDashboardPage';
 import PendingPage from './pages/PendingPage';
 import DeclinedPage from './pages/DeclinedPage';
 import DashboardPage from './pages/DashboardPage';
@@ -28,8 +33,20 @@ const AppRoutes = () => {
     return (
         <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/pending" element={<PendingPage />} />
+
+        {/* Unified registration entry — pick Doctor or Pharmacy */}
+        <Route path="/register" element={<RegisterSelectPage />} />
+
+        {/* Doctor registration (existing form — untouched) */}
+        <Route path="/doctor/register" element={<RegisterPage />} />
+
+        {/* Pharmacy registration flow */}
+        <Route path="/pharmacy/register" element={<PharmacyRegisterPage />} />
+        <Route path="/pharmacy/pending"   element={<PharmacyPendingPage />} />
+        <Route path="/pharmacy/rejected"  element={<PharmacyRejectedPage />} />
+        <Route path="/pharmacy/dashboard" element={<PharmacyDashboardPage />} />
+
+        <Route path="/pending"  element={<PendingPage />} />
         <Route path="/declined" element={<DeclinedPage />} />
         <Route
             path="/dashboard"

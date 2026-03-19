@@ -36,6 +36,17 @@ class AppConstants {
   // Change password
   static const String changePasswordEndpoint = '/api/v1/users/change-password';
 
+  // Pharmacy registration & auth endpoints
+  static const String pharmacyRegisterEndpoint = '/api/v1/pharmacy/register';
+  static const String pharmacyLoginEndpoint    = '/api/v1/pharmacy/login';
+  static const String pharmacyAllEndpoint      = '/api/v1/pharmacy/all';
+  static const String pharmacyApproveEndpoint  = '/api/v1/pharmacy/approve';
+  static const String pharmacyRejectEndpoint   = '/api/v1/pharmacy/reject';
+
+  // Pharmacy SharedPreferences keys
+  static const String pharmacyTokenKey = 'pharmacy_token';
+  static const String pharmacyDataKey  = 'pharmacy_data';
+
   // ── SharedPreferences keys ───────────────────────────────────────────────────
   static const String tokenKey    = 'auth_token';
   static const String userKey     = 'user_data';
