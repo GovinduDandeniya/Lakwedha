@@ -82,6 +82,14 @@ const pharmacySchema = new mongoose.Schema({
     default: 'pending',
   },
 
+  bankDetails: {
+    bankName:          { type: String, default: null },
+    branchName:        { type: String, default: null },
+    accountNumber:     { type: String, default: null },
+    accountHolderName: { type: String, default: null },
+    accountType:       { type: String, enum: ['Savings', 'Current', null], default: null },
+  },
+
   rejectionReason: {
     type: String,
     default: null,

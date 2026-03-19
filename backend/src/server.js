@@ -14,12 +14,14 @@ const Doctor = require("./doctor-channeling/models/doctor.model");
 const RegisteredDoctor = require("./models/RegisteredDoctor");
 const ChannelingSession = require("./doctor-channeling/models/channelingSession.model");
 
-// ── Auth routes ───────────────────────────────────────────────────────────────
+// ── Route imports ─────────────────────────────────────────────────────────────
 const userRoutes                  = require("./routes/user.routes");
 const forgotPasswordRoutes        = require("./routes/forgotPassword.routes");
 const registrationRoutes          = require("./routes/registration.routes");
 const doctorRegistrationRoutes    = require("./routes/doctorRegistrationRoutes");
 const pharmacyRegistrationRoutes  = require("./routes/pharmacyRegistrationRoutes");
+const pharmacyOperationsRoutes    = require("./routes/pharmacyRoutes");   // prescription management
+const orderRoutes                 = require("./routes/orderRoutes");       // order lifecycle
 
 const app = express();
 
@@ -689,11 +691,13 @@ app.get('/api/v1/channeling-sessions/public/:doctorId', async (req, res) => {
 });
 
 // ── User / Auth / Forgot-password routes ─────────────────────────────────────
-app.use("/api/v1/users",           userRoutes);
-app.use("/api/v1/auth",            registrationRoutes);
-app.use("/api/v1/forgot-password", forgotPasswordRoutes);
-app.use("/api/v1/doctors",         doctorRegistrationRoutes);
-app.use("/api/v1/pharmacy",        pharmacyRegistrationRoutes);
+app.use("/api/v1/users",            userRoutes);
+app.use("/api/v1/auth",             registrationRoutes);
+app.use("/api/v1/forgot-password",  forgotPasswordRoutes);
+app.use("/api/v1/doctors",          doctorRegistrationRoutes);
+app.use("/api/v1/pharmacy",         pharmacyRegistrationRoutes);   // register / login / approve / reject
+app.use("/api/v1/pharmacy",         pharmacyOperationsRoutes);     // prescriptions management
+app.use("/api/v1/orders",           orderRoutes);                  // order lifecycle
 
 // ── Doctor channeling routes ──────────────────────────────────────────────────
 app.use("/api/v1/doctor-channeling", doctorChannelingRouter);
