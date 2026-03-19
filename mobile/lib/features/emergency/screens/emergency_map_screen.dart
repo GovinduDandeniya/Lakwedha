@@ -263,6 +263,27 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            // Directions button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _openDirections(center.latitude, center.longitude),
+                icon: const Icon(Icons.directions, size: 20),
+                label: const Text(
+                  'Get Directions',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
           ],
         ),
@@ -274,6 +295,15 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
     final uri = Uri(scheme: 'tel', path: phoneNumber);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
+    }
+  }
+
+  Future<void> _openDirections(double lat, double lng) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
