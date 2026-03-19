@@ -30,6 +30,7 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
   List<EmergencyCenter> _centers = [];
   Set<Marker> _markers = {};
   bool _isLoadingCenters = false;
+  String? _centersError;
   String _searchQuery = '';
   String? _selectedType;
   final TextEditingController _searchController = TextEditingController();
@@ -97,7 +98,10 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
   }
 
   Future<void> _fetchEmergencyCenters() async {
-    setState(() => _isLoadingCenters = true);
+    setState(() {
+      _isLoadingCenters = true;
+      _centersError = null;
+    });
     try {
       final centers = await _apiService.fetchEmergencyCenters();
       setState(() {
@@ -106,7 +110,10 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
       });
       _buildMarkers();
     } catch (e) {
-      setState(() => _isLoadingCenters = false);
+      setState(() {
+        _isLoadingCenters = false;
+        _centersError = 'Failed to load emergency centers. Please try again.';
+      });
     }
   }
 
@@ -507,6 +514,89 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
                     ),
             ),
           ),
+          // Loading overlay
+          if (_isLoadingCenters)
+            Positioned(
+              bottom: 80,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Loading centers...',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // Error card with retry
+          if (_centersError != null && !_isLoadingCenters)
+            Positioned(
+              bottom: 80,
+              left: 24,
+              right: 24,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red.shade700),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _centersError!,
+                          style: TextStyle(
+                            color: Colors.red.shade900,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: _fetchEmergencyCenters,
+                        child: Text(
+                          'Retry',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
