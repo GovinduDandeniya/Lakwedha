@@ -30,6 +30,8 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
   List<EmergencyCenter> _centers = [];
   Set<Marker> _markers = {};
   bool _isLoadingCenters = false;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -41,6 +43,7 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
   @override
   void dispose() {
     _mapController?.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -118,7 +121,7 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
 
   void _buildMarkers() {
     final markers = <Marker>{};
-    for (final center in _centers) {
+    for (final center in _filteredCenters) {
       markers.add(
         Marker(
           markerId: MarkerId(center.id),
@@ -298,6 +301,20 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
     }
   }
 
+  void _onSearchChanged(String query) {
+    setState(() => _searchQuery = query.trim().toLowerCase());
+    _buildMarkers();
+  }
+
+  List<EmergencyCenter> get _filteredCenters {
+    if (_searchQuery.isEmpty) return _centers;
+    return _centers.where((c) {
+      return c.name.toLowerCase().contains(_searchQuery) ||
+          c.address.toLowerCase().contains(_searchQuery) ||
+          c.typeLabel.toLowerCase().contains(_searchQuery);
+    }).toList();
+  }
+
   Future<void> _openDirections(double lat, double lng) async {
     final uri = Uri.parse(
       'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
@@ -337,10 +354,45 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
             mapToolbarEnabled: false,
             compassEnabled: true,
           ),
+          // Search bar
+          Positioned(
+            top: 8,
+            left: 16,
+            right: 16,
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(12),
+              child: TextField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: 'Search Ayurvedic centers...',
+                  hintStyle: TextStyle(color: AppColors.textLight),
+                  prefixIcon: Icon(Icons.search, color: AppColors.textMedium),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.clear, color: AppColors.textMedium),
+                          onPressed: () {
+                            _searchController.clear();
+                            _onSearchChanged('');
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+          ),
           // Location error banner
           if (_locationError != null)
             Positioned(
-              top: 8,
+              top: 68,
               left: 16,
               right: 16,
               child: Material(
