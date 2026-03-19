@@ -1,6 +1,62 @@
 const RegisteredDoctor = require('../models/RegisteredDoctor');
 const bcrypt = require('bcryptjs');
 
+exports.getApprovedDoctors = async (req, res) => {
+  try {
+    const { specialty, q } = req.query;
+    const filter = { status: 'APPROVED' };
+    if (specialty) filter.specialization = { $regex: specialty, $options: 'i' };
+    if (q) filter.$or = [
+      { firstName: { $regex: q, $options: 'i' } },
+      { lastName: { $regex: q, $options: 'i' } },
+      { fullName: { $regex: q, $options: 'i' } },
+    ];
+
+    const doctors = await RegisteredDoctor.find(filter, { password: 0 });
+    res.status(200).json({ success: true, data: doctors });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.approveDoctor = async (req, res) => {
+  try {
+    const doctor = await RegisteredDoctor.findById(req.params.id);
+    if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
+
+    doctor.status = 'APPROVED';
+    await doctor.save();
+
+    res.status(200).json({ message: 'Doctor approved successfully', doctor });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.declineDoctor = async (req, res) => {
+  try {
+    const doctor = await RegisteredDoctor.findById(req.params.id);
+    if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
+
+    doctor.status = 'DECLINED';
+    doctor.declineReason = req.body.reason || null;
+    await doctor.save();
+
+    res.status(200).json({ message: 'Doctor declined', doctor });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getPendingDoctors = async (req, res) => {
+  try {
+    const doctors = await RegisteredDoctor.find({ status: 'PENDING' }, { password: 0 });
+    res.status(200).json({ success: true, data: doctors });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.registerDoctor = async (req, res) => {
   try {
     const {

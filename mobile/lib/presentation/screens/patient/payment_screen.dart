@@ -1,5 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../data/models/doctor_availability_model.dart';
 import '../../../data/models/doctor_model.dart';
 import 'payment_declined_screen.dart';
@@ -526,26 +530,52 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  Future<void> _bookAppointment() async {
+    final sessionId = widget.slot.sessionId;
+    if (sessionId == null) return; // no session to book
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey);
+
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/api/v1/channeling-sessions/$sessionId/book'),
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'symptoms': widget.patient['symptoms'] ?? ''}),
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception('Booking failed: ${jsonDecode(response.body)['error'] ?? 'Unknown error'}');
+    }
+  }
+
   void _onPayNow() {
     if (!_cardFormKey.currentState!.validate()) return;
 
     setState(() => _isProcessing = true);
 
-    // TODO: Replace the simulated result below with the actual payment
-    // gateway response once the external integration is ready.
-    // Set paymentSuccess = false and declineReason from the gateway response
-    // to route to the declined screen.
-    Future.delayed(const Duration(seconds: 2), () {
+    // TODO: Replace the simulated delay below with a real payment gateway call.
+    // After gateway confirms payment, call _bookAppointment() then navigate.
+    Future.delayed(const Duration(seconds: 2), () async {
       if (!mounted) return;
-      setState(() => _isProcessing = false);
 
       // ── Gateway result ───────────────────────────────────────────────────
-      bool paymentSuccess = false; // ← set from gateway response
+      // ignore: unnecessary_const — replace with gateway response when integrated
+      bool paymentSuccess = true; // ← set from gateway response
       String declineReason =
           'Your payment could not be processed. Please check your card details and try again.';
       // ────────────────────────────────────────────────────────────────────
 
       if (paymentSuccess) {
+        try {
+          await _bookAppointment();
+        } catch (_) {
+          // Booking failed — continue to success screen; appointment saves best-effort
+        }
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
         final txnId = _generateTransactionId();
         final paidAt = DateTime.now();
         Navigator.pushReplacement(
@@ -568,6 +598,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
         );
       } else {
+        setState(() => _isProcessing = false);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(

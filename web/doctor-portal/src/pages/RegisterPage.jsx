@@ -67,6 +67,26 @@ const SPECIALIZATIONS = [
 
 const emptyHospital = () => ({ name: '', location: '', startTime: '', maxAppointments: '' });
 
+const SL_BANKS = [
+    'Bank of Ceylon',
+    'People\'s Bank',
+    'Commercial Bank of Ceylon',
+    'Hatton National Bank (HNB)',
+    'Sampath Bank',
+    'Nations Trust Bank (NTB)',
+    'National Development Bank (NDB)',
+    'Pan Asia Banking Corporation',
+    'DFCC Bank',
+    'Seylan Bank',
+    'Union Bank',
+    'Amana Bank',
+    'MCB Bank',
+    'Standard Chartered',
+    'HSBC',
+];
+
+const ACCOUNT_TYPES = ['Savings', 'Current'];
+
 const initialForm = {
     title: '',
     firstName: '',
@@ -78,6 +98,11 @@ const initialForm = {
     address: '',
     emergencyMobile: '',
     specialization: '',
+    bankName: '',
+    branchName: '',
+    accountNumber: '',
+    accountHolderName: '',
+    accountType: '',
     password: '',
     confirmPassword: '',
 };
@@ -143,6 +168,12 @@ const RegisterPage = () => {
         if (!form.specialization) errs.specialization = 'Specialization is required';
         if (form.emergencyMobile && !MOBILE_REGEX.test(form.emergencyMobile))
             errs.emergencyMobile = 'Enter a valid 10-digit mobile number';
+        if (!form.bankName) errs.bankName = 'Bank name is required';
+        if (!form.branchName.trim()) errs.branchName = 'Branch name is required';
+        if (!form.accountNumber.trim()) errs.accountNumber = 'Account number is required';
+        else if (!/^[0-9]{6,20}$/.test(form.accountNumber)) errs.accountNumber = 'Enter a valid account number (6–20 digits)';
+        if (!form.accountHolderName.trim()) errs.accountHolderName = 'Account holder name is required';
+        if (!form.accountType) errs.accountType = 'Account type is required';
         if (!form.password) errs.password = 'Password is required';
         else if (form.password.length < 8) errs.password = 'Password must be at least 8 characters';
         if (!form.confirmPassword) errs.confirmPassword = 'Please confirm your password';
@@ -187,6 +218,13 @@ const RegisterPage = () => {
                 address: form.address,
                 emergencyMobile: form.emergencyMobile,
                 specialization: form.specialization,
+                bankDetails: {
+                    bankName: form.bankName,
+                    branchName: form.branchName,
+                    accountNumber: form.accountNumber,
+                    accountHolderName: form.accountHolderName,
+                    accountType: form.accountType,
+                },
                 hospitals: hospitals.map((h) => ({
                     name: h.name,
                     location: h.location,
@@ -362,8 +400,41 @@ const RegisterPage = () => {
                             </Box>
                         ))}
 
+                        {/* ── Bank Details ──────────────────────────────── */}
+                        <Typography variant="h6" color="primary" sx={{ mt: 4 }} gutterBottom>Bank Details</Typography>
+                        <Divider sx={{ mb: 2 }} />
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    select fullWidth label="Bank Name" name="bankName"
+                                    value={form.bankName} onChange={handleChange}
+                                    error={!!errors.bankName} helperText={errors.bankName} size="small"
+                                >
+                                    {SL_BANKS.map((b) => <MenuItem key={b} value={b}>{b}</MenuItem>)}
+                                </TextField>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                {field('branchName', 'Branch Name', { placeholder: 'e.g. Colombo 07' })}
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                {field('accountNumber', 'Account Number', { placeholder: 'e.g. 1234567890', inputProps: { maxLength: 20 } })}
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                {field('accountHolderName', 'Account Holder Name', { placeholder: 'As shown on bank book' })}
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    select fullWidth label="Account Type" name="accountType"
+                                    value={form.accountType} onChange={handleChange}
+                                    error={!!errors.accountType} helperText={errors.accountType} size="small"
+                                >
+                                    {ACCOUNT_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                                </TextField>
+                            </Grid>
+                        </Grid>
+
                         {/* ── Password ──────────────────────────────────── */}
-                        <Typography variant="h6" color="primary" sx={{ mt: 3 }} gutterBottom>Set Password</Typography>
+                        <Typography variant="h6" color="primary" sx={{ mt: 4 }} gutterBottom>Set Password</Typography>
                         <Divider sx={{ mb: 2 }} />
                         <Grid container spacing={2}>
                             <Grid item xs={12} sm={6}>{field('password', 'Password', { type: 'password' })}</Grid>

@@ -1,4 +1,5 @@
 class DateSlotSummary {
+  final String? sessionId; // ChannelingSession _id — used for booking
   final String date;       // 'YYYY-MM-DD'
   final String startTime;  // 'HH:MM'
   final String endTime;    // 'HH:MM'
@@ -6,6 +7,7 @@ class DateSlotSummary {
   final int bookedSlots;
 
   const DateSlotSummary({
+    this.sessionId,
     required this.date,
     required this.startTime,
     required this.endTime,
@@ -55,6 +57,7 @@ class HospitalAvailability {
 
     final dates = byDate.entries
         .map((e) => DateSlotSummary(
+              sessionId: e.value['session_id'] as String?,
               date: e.key,
               startTime: e.value['start_time'] as String,
               endTime: e.value['end_time'] as String,
