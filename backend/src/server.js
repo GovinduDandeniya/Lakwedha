@@ -89,6 +89,16 @@ app.get("/students", verifyToken, (req, res) => {
   });
 
 });
+// ── Notification Module Routes ───────────────────────────────────────────────
+const otpRoutes = require("./routes/otpRoutes");
+const notificationAppointmentRoutes = require("./routes/notificationAppointmentRoutes");
+const errorHandler = require("./middleware/errorHandler");
+
+app.use("/api/v1/otp", otpRoutes);
+app.use("/api/v1/notification", notificationAppointmentRoutes);
+
+// Global Error Handler should be the last middleware
+app.use(errorHandler);
 
 
 // Start server
