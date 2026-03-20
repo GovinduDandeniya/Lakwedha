@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../data/datasources/remote/api_service.dart';
+import '../../../presentation/widgets/lakwedha_logo.dart';
 import '../widgets/auth_button.dart';
 import '../widgets/custom_text_field.dart';
 
@@ -266,7 +267,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                     ],
                   ),
-                  child: _buildStep(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const LakwedhaLogo(
+                        size: 64,
+                        layout: LogoLayout.vertical,
+                        textColor: Color(0xFF14532d),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildStep(),
+                    ],
+                  ),
                 ),
               ),
             ),

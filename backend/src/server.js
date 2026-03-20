@@ -31,6 +31,7 @@ const doctorRegistrationRoutes    = require("./routes/doctorRegistrationRoutes")
 const pharmacyRegistrationRoutes  = require("./routes/pharmacyRegistrationRoutes");
 const pharmacyOperationsRoutes    = require("./routes/pharmacyRoutes");   // prescription management
 const orderRoutes                 = require("./routes/orderRoutes");       // order lifecycle
+const adminRoutes                 = require("./routes/admin.routes");      // admin auth
 
 const app = express();
 
@@ -718,6 +719,7 @@ app.get('/api/v1/channeling-sessions/public/:doctorId', async (req, res) => {
 });
 
 // ── User / Auth / Forgot-password routes ─────────────────────────────────────
+app.use("/api/admin",               adminRoutes);
 app.use("/api/v1/users",            userRoutes);
 app.use("/api/v1/auth",             registrationRoutes);
 app.use("/api/v1/forgot-password",  forgotPasswordRoutes);
