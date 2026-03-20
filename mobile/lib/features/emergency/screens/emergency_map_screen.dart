@@ -228,7 +228,32 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
                 ],
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            // Distance from user
+            if (_currentPosition != null)
+              Row(
+                children: [
+                  Icon(Icons.near_me_outlined, size: 20, color: AppColors.accent),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatDistance(
+                      _locationService.calculateDistance(
+                        startLat: _currentPosition!.latitude,
+                        startLng: _currentPosition!.longitude,
+                        endLat: center.latitude,
+                        endLng: center.longitude,
+                      ),
+                    ),
+                    style: TextStyle(
+                      color: AppColors.accent,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            if (_currentPosition != null)
+              const SizedBox(height: 12),
             // Address
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,6 +376,13 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  String _formatDistance(double km) {
+    if (km < 1) {
+      return '${(km * 1000).round()} m away';
+    }
+    return '${km.toStringAsFixed(1)} km away';
   }
 
   @override
