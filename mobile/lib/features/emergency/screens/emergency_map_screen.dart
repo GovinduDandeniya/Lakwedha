@@ -597,6 +597,105 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
                 ),
               ),
             ),
+          // No results from search/filter
+          if (!_isLoadingCenters && _centersError == null && _centers.isNotEmpty && _filteredCenters.isEmpty)
+            Positioned(
+              bottom: 80,
+              left: 24,
+              right: 24,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.search_off, size: 40, color: AppColors.textLight),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No matching centers',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Try a different search or clear filters',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textMedium,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                          setState(() => _selectedType = null);
+                          _buildMarkers();
+                        },
+                        child: Text(
+                          'Clear All Filters',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          // Empty state — API returned no centers
+          if (!_isLoadingCenters && _centersError == null && _centers.isEmpty)
+            Positioned(
+              bottom: 80,
+              left: 24,
+              right: 24,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.local_hospital_outlined, size: 40, color: AppColors.textLight),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No emergency centers available',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Centers will appear here once added by the admin',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
