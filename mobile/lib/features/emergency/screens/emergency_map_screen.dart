@@ -14,8 +14,11 @@ class EmergencyMapScreen extends StatefulWidget {
   State<EmergencyMapScreen> createState() => _EmergencyMapScreenState();
 }
 
-class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
+class _EmergencyMapScreenState extends State<EmergencyMapScreen>
+    with TickerProviderStateMixin {
   GoogleMapController? _mapController;
+  late final AnimationController _stateAnimController;
+  late final Animation<double> _fadeAnimation;
   final LocationService _locationService = LocationService();
   final EmergencyApiService _apiService = EmergencyApiService();
 
@@ -46,6 +49,15 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
   @override
   void initState() {
     super.initState();
+    _stateAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _stateAnimController,
+      curve: Curves.easeOut,
+    );
+    _stateAnimController.forward();
     _fetchUserLocation();
     _fetchEmergencyCenters();
   }
@@ -54,6 +66,7 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
   void dispose() {
     _mapController?.dispose();
     _searchController.dispose();
+    _stateAnimController.dispose();
     super.dispose();
   }
 
@@ -271,7 +284,7 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            Divider(color: Colors.grey.shade200, height: 24),
             // Phone
             Row(
               children: [
@@ -286,7 +299,7 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            Divider(color: Colors.grey.shade200, height: 28),
             // Call button
             SizedBox(
               width: double.infinity,
@@ -301,6 +314,8 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
                   backgroundColor: AppColors.secondaryGreen,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
+                  elevation: 2,
+                  shadowColor: AppColors.secondaryGreen.withValues(alpha: 0.4),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -320,7 +335,7 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
-                  side: BorderSide(color: AppColors.primary),
+                  side: BorderSide(color: AppColors.primary, width: 1.5),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -394,11 +409,21 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            letterSpacing: 0.3,
           ),
         ),
-        backgroundColor: AppColors.primary,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primaryDark, AppColors.primary],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0,
+        elevation: 2,
+        shadowColor: AppColors.primary.withValues(alpha: 0.4),
       ),
       body: Stack(
         children: [
@@ -415,14 +440,27 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
             mapToolbarEnabled: false,
             compassEnabled: true,
           ),
-          // Search bar
+          // Search bar with gradient scrim
           Positioned(
-            top: 8,
-            left: 16,
-            right: 16,
-            child: Material(
-              elevation: 4,
-              borderRadius: BorderRadius.circular(12),
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.only(top: 8, left: 16, right: 16, bottom: 44),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.9),
+                    Colors.white.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+              child: Material(
+                elevation: 4,
+                shadowColor: Colors.black26,
+                borderRadius: BorderRadius.circular(12),
               child: TextField(
                 controller: _searchController,
                 onChanged: _onSearchChanged,
@@ -448,6 +486,7 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
                   ),
                 ),
               ),
+            ),
             ),
           ),
           // Filter chips
@@ -530,20 +569,34 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
           Positioned(
             bottom: 16,
             right: 16,
-            child: FloatingActionButton(
-              mini: true,
-              backgroundColor: Colors.white,
-              onPressed: _isLoadingLocation ? null : _fetchUserLocation,
-              child: _isLoadingLocation
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(
-                      Icons.my_location,
-                      color: AppColors.primary,
-                    ),
+            child: Tooltip(
+              message: 'Go to my location',
+              child: Material(
+                elevation: 6,
+                shadowColor: AppColors.primary.withValues(alpha: 0.3),
+                shape: const CircleBorder(),
+                child: FloatingActionButton(
+                  mini: true,
+                  backgroundColor: Colors.white,
+                  elevation: 0,
+                  onPressed: _isLoadingLocation ? null : _fetchUserLocation,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _isLoadingLocation
+                        ? const SizedBox(
+                            key: ValueKey('loading'),
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            key: const ValueKey('icon'),
+                            Icons.my_location,
+                            color: AppColors.primary,
+                          ),
+                  ),
+                ),
+              ),
             ),
           ),
           // Loading overlay
@@ -552,10 +605,13 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
               bottom: 80,
               left: 0,
               right: 0,
-              child: Center(
-                child: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(24),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Center(
+                  child: Material(
+                    elevation: 6,
+                    shadowColor: Colors.black26,
+                    borderRadius: BorderRadius.circular(24),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
@@ -582,6 +638,7 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen> {
                     ),
                   ),
                 ),
+              ),
               ),
             ),
           // Error card with retry
