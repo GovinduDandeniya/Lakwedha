@@ -107,6 +107,64 @@ class NotificationService {
             console.error('Notification error (reminder):', err.message);
         }
     }
+
+    /**
+     * Emergency request received — notify the doctor (push only).
+     */
+    async sendEmergencyRequestReceived(doctorId) {
+        try {
+            const doctor = await RegisteredDoctor.findById(doctorId).select('fcmToken');
+            if (doctor?.fcmToken) {
+                await sendPushNotification(
+                    doctor.fcmToken,
+                    'Emergency Appointment Request',
+                    'A patient has submitted an emergency appointment request. Please review it in your dashboard.'
+                );
+            }
+        } catch (err) {
+            console.error('Notification error (emergency request received):', err.message);
+        }
+    }
+
+    /**
+     * Emergency approved — notify the patient with appointment details.
+     */
+    async sendEmergencyApproval(patientId, appointment) {
+        try {
+            const dateStr = new Date(appointment.slotTime).toLocaleString('en-US', {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+            });
+            await this._notify(
+                patientId,
+                'Emergency Request Approved',
+                `Your emergency appointment request has been approved. Your appointment is on ${dateStr} at ${appointment.hospitalName || 'the clinic'}.`,
+                'EMERGENCY_APPROVED',
+                appointment._id
+            );
+        } catch (err) {
+            console.error('Notification error (emergency approval):', err.message);
+        }
+    }
+
+    /**
+     * Emergency rejected — notify the patient.
+     */
+    async sendEmergencyRejection(patientId, doctorResponse) {
+        try {
+            const message = doctorResponse
+                ? `Your emergency appointment request was declined. Doctor's note: ${doctorResponse}`
+                : 'Your emergency appointment request has been declined by the doctor.';
+            await this._notify(
+                patientId,
+                'Emergency Request Declined',
+                message,
+                'EMERGENCY_REJECTED'
+            );
+        } catch (err) {
+            console.error('Notification error (emergency rejection):', err.message);
+        }
+    }
 }
 
 module.exports = new NotificationService();

@@ -324,7 +324,7 @@ function parseTimeToMinutes(timeStr) {
   if (period === 'AM' && hours === 12) hours = 0;
   return hours * 60 + minutes;
 }
-const CANCEL_LEAD_MINUTES = 10 * 60; // 10 hours
+const CANCEL_LEAD_MINUTES = 12 * 60; // 12 hours
 
 // Session info: hospitals for a date with 10-hour-rule status
 app.get("/api/v1/dashboard/session-info", async (req, res) => {
@@ -379,9 +379,7 @@ app.get("/api/v1/dashboard/session-info", async (req, res) => {
   }
 });
 
-// ── Patient notifications (in-memory, populated by cancel-session) ────────────
-let patientNotifications = [];
-let patientNotifIdCounter = 1;
+// ── Patient notifications ─────────────────────────────────────────────────────
 
 // Cancel a session — updates DB and notifies affected patients
 app.post("/api/v1/dashboard/cancel-session", async (req, res) => {
@@ -434,7 +432,6 @@ app.post("/api/v1/dashboard/cancel-session", async (req, res) => {
     await Appointment.updateMany({ _id: { $in: ids } }, { status: 'cancelled', cancellationReason: reason || null, updatedAt: new Date() });
 
     // Build patient notifications
-    const now = new Date();
     const formattedDate = new Date(targetDate).toLocaleDateString('en-US', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
@@ -453,21 +450,6 @@ app.post("/api/v1/dashboard/cancel-session", async (req, res) => {
         type: 'SESSION_CANCELLED',
         appointmentId: a._id,
       });
-      // Also keep in in-memory list for the legacy patient-notifications endpoint
-      const notif = {
-        id: patientNotifIdCounter++,
-        patientId: userId?.toString(),
-        patientName: a.patientId?.name || '—',
-        appointmentId: a._id,
-        type: 'session_cancelled',
-        title: 'Session Cancelled',
-        message: notifMessage,
-        date: targetDate,
-        reason: reason || null,
-        read: false,
-        createdAt: now.toISOString(),
-      };
-      patientNotifications.push(notif);
       // Send push (non-blocking)
       User.findById(userId).select('fcmToken').then(u => {
         if (u?.fcmToken) {
@@ -490,30 +472,41 @@ app.post("/api/v1/dashboard/cancel-session", async (req, res) => {
   }
 });
 
-// Patient: get their notifications
-app.get("/api/v1/patient-notifications", (req, res) => {
-  const { patientId } = req.query;
-  let data = patientId
-    ? patientNotifications.filter(n => n.patientId === patientId)
-    : patientNotifications;
-  data = [...data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  res.json({ success: true, data, unreadCount: data.filter(n => !n.read).length });
+// Patient: get their notifications (DB-backed)
+app.get("/api/v1/patient-notifications", async (req, res) => {
+  try {
+    const { patientId } = req.query;
+    if (!patientId) {
+      return res.status(400).json({ success: false, error: 'patientId is required' });
+    }
+    const data = await Notification.find({ userId: patientId })
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data, unreadCount: data.filter(n => !n.read).length });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-// Patient: mark notification as read
-app.patch("/api/v1/patient-notifications/:id/read", (req, res) => {
-  const notif = patientNotifications.find(n => n.id === parseInt(req.params.id));
-  if (notif) notif.read = true;
-  res.json({ success: true });
+// Patient: mark all notifications as read (must be before /:id/read to avoid route conflict)
+app.patch("/api/v1/patient-notifications/read-all", async (req, res) => {
+  try {
+    const { patientId } = req.body;
+    if (!patientId) return res.status(400).json({ success: false, error: 'patientId is required' });
+    await Notification.updateMany({ userId: patientId, read: false }, { read: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-// Patient: mark all notifications as read
-app.patch("/api/v1/patient-notifications/read-all", (req, res) => {
-  const { patientId } = req.body;
-  patientNotifications.forEach(n => {
-    if (!patientId || n.patientId === patientId) n.read = true;
-  });
-  res.json({ success: true });
+// Patient: mark a single notification as read
+app.patch("/api/v1/patient-notifications/:id/read", async (req, res) => {
+  try {
+    await Notification.findByIdAndUpdate(req.params.id, { read: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ── Channeling Sessions (Availability Management) ────────────────────────────
@@ -688,6 +681,11 @@ app.post('/api/v1/channeling-sessions/:sessionId/book', requireAuth, async (req,
     // Fire booking confirmation notification (non-blocking)
     notificationService.sendAppointmentConfirmation(appointment).catch(() => {});
 
+    // Auto-save doctor to patient's My Doctors list (non-blocking)
+    User.findByIdAndUpdate(req.user.id, {
+      $addToSet: { myDoctors: session.doctorId },
+    }).catch(() => {});
+
     res.status(201).json({
       success: true,
       data: {
@@ -733,6 +731,24 @@ app.use("/api/v1/doctor-channeling", doctorChannelingRouter);
 
 // ── Doctor availability by name ───────────────────────────────────────────────
 app.get("/api/v1/doctor-availability", doctorController.getDoctorAvailabilityByName);
+
+// ── My Doctors ────────────────────────────────────────────────────────────────
+
+// Patient: get their saved doctors list
+app.get("/api/v1/users/my-doctors", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('myDoctors');
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+    const doctors = await RegisteredDoctor.find(
+      { _id: { $in: user.myDoctors || [] }, status: 'APPROVED' },
+      { password: 0 }
+    );
+    res.json({ success: true, data: doctors });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 
