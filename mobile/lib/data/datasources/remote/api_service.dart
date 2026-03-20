@@ -190,10 +190,10 @@ class ApiService {
     throw Exception('Failed to get queue status');
   }
 
-  // ===================== PATIENT NOTIFICATIONS =====================
+  // ===================== NOTIFICATIONS (MongoDB-backed) =====================
   Future<List<Map<String, dynamic>>> getPatientNotifications() async {
     final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.notificationsEndpoint}'),
       headers: await _getHeaders(),
     );
     if (response.statusCode == 200) {
@@ -204,16 +204,16 @@ class ApiService {
     throw Exception('Failed to load notifications');
   }
 
-  Future<void> markNotificationRead(int id) async {
+  Future<void> markNotificationRead(String id) async {
     await http.patch(
-      Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}/$id/read'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.notificationsEndpoint}/$id/read'),
       headers: await _getHeaders(),
     );
   }
 
   Future<void> markAllNotificationsRead() async {
     await http.patch(
-      Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}/read-all'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.notificationsEndpoint}/read-all'),
       headers: await _getHeaders(),
     );
   }

@@ -36,6 +36,7 @@ const appointmentSchema = new mongoose.Schema({
     default: 'pending'
   },
   cancellationFee: { type: Number, default: 0 },
+  reminderSent: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
