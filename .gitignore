@@ -9,6 +9,9 @@ node_modules/
 .env.development
 .env.production
 
+# Firebase service account key - NEVER commit this
+firebase-key.json
+
 # Logs
 logs/
 *.log
