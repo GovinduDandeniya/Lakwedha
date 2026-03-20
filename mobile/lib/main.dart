@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/booking_provider.dart';
@@ -10,8 +13,26 @@ import 'features/auth/screens/sign_up_screen.dart';
 import 'features/auth/screens/forgot_password_screen.dart';
 import 'presentation/screens/shell/main_shell.dart';
 
-void main() {
+/// Top-level background message handler — must be outside any class.
+@pragma('vm:entry-point')
+Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('Background message: ${message.notification?.title}');
+}
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Handle messages received while app is terminated / in background
+  FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+
+  // Handle messages received while app is in foreground
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    debugPrint('Foreground message: ${message.notification?.title}');
+    // The notification is received — UI refresh or in-app banner can be triggered here
+  });
+
   runApp(const RavanaApp());
 }
 

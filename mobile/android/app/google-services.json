@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "408380077951",
+    "project_id": "lakwedha-1c7da",
+    "storage_bucket": "lakwedha-1c7da.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:408380077951:android:dd1e72d75ef036baaacc4a",
+        "android_client_info": {
+          "package_name": "com.lakwedha.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHlE2VY2EG9FmlGEZ5IWWbI83SAHCC_60"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

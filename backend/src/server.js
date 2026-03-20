@@ -18,6 +18,10 @@ const Patient = require("./models/patient.model");
 const Doctor = require("./doctor-channeling/models/doctor.model");
 const RegisteredDoctor = require("./models/RegisteredDoctor");
 const ChannelingSession = require("./doctor-channeling/models/channelingSession.model");
+const User = require("./models/user");
+const Notification = require("./models/Notification");
+const notificationService = require("./doctor-channeling/services/notification.service");
+require("./jobs/reminderJob");
 
 // ── Route imports ─────────────────────────────────────────────────────────────
 const userRoutes                  = require("./routes/user.routes");
@@ -439,10 +443,20 @@ app.post("/api/v1/dashboard/cancel-session", async (req, res) => {
       ? `Your appointment${hospitalLabel} on ${formattedDate} has been cancelled by the doctor. Reason: ${reason}. We apologise for the inconvenience.`
       : `Your appointment${hospitalLabel} on ${formattedDate} has been cancelled by the doctor. We apologise for the inconvenience.`;
 
-    const created = toCancel.map(a => {
+    const created = await Promise.all(toCancel.map(async (a) => {
+      const userId = a.patientId?._id || a.patientId;
+      // Persist to DB
+      const dbNotif = await Notification.create({
+        userId,
+        title: 'Session Cancelled',
+        message: notifMessage,
+        type: 'SESSION_CANCELLED',
+        appointmentId: a._id,
+      });
+      // Also keep in in-memory list for the legacy patient-notifications endpoint
       const notif = {
         id: patientNotifIdCounter++,
-        patientId: a.patientId?._id?.toString() || a.patientId?.toString(),
+        patientId: userId?.toString(),
         patientName: a.patientId?.name || '—',
         appointmentId: a._id,
         type: 'session_cancelled',
@@ -454,8 +468,15 @@ app.post("/api/v1/dashboard/cancel-session", async (req, res) => {
         createdAt: now.toISOString(),
       };
       patientNotifications.push(notif);
-      return notif;
-    });
+      // Send push (non-blocking)
+      User.findById(userId).select('fcmToken').then(u => {
+        if (u?.fcmToken) {
+          const { sendPushNotification } = require('./utils/sendNotification');
+          sendPushNotification(u.fcmToken, 'Session Cancelled', notifMessage).catch(() => {});
+        }
+      }).catch(() => {});
+      return dbNotif;
+    }));
 
     res.json({
       success: true,
@@ -664,6 +685,9 @@ app.post('/api/v1/channeling-sessions/:sessionId/book', requireAuth, async (req,
     });
     await appointment.save();
 
+    // Fire booking confirmation notification (non-blocking)
+    notificationService.sendAppointmentConfirmation(appointment).catch(() => {});
+
     res.status(201).json({
       success: true,
       data: {
@@ -709,6 +733,74 @@ app.use("/api/v1/doctor-channeling", doctorChannelingRouter);
 
 // ── Doctor availability by name ───────────────────────────────────────────────
 app.get("/api/v1/doctor-availability", doctorController.getDoctorAvailabilityByName);
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+// Get all notifications for the authenticated user (newest first)
+app.get("/api/v1/notifications", requireAuth, async (req, res) => {
+  try {
+    const notifications = await Notification.find({ userId: req.user.id })
+      .sort({ createdAt: -1 });
+    const unreadCount = notifications.filter(n => !n.read).length;
+    res.json({ success: true, data: notifications, unreadCount });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Mark all notifications as read for the authenticated user (must be before /:id/read)
+app.patch("/api/v1/notifications/read-all", requireAuth, async (req, res) => {
+  try {
+    await Notification.updateMany({ userId: req.user.id, read: false }, { read: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Mark a single notification as read
+app.patch("/api/v1/notifications/:id/read", requireAuth, async (req, res) => {
+  try {
+    await Notification.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      { read: true }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Test push notification — call GET /api/v1/test-push while logged in
+app.get("/api/v1/test-push", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('fcmToken');
+    if (!user?.fcmToken) {
+      return res.status(400).json({ success: false, error: 'No FCM token saved for this user. Login from the mobile app first.' });
+    }
+    const { sendPushNotification } = require('./utils/sendNotification');
+    await sendPushNotification(user.fcmToken, 'Test Notification', 'Firebase is working!');
+    res.json({ success: true, message: 'Push sent', token: user.fcmToken });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Save / update FCM device token for the authenticated user (patient or doctor)
+app.post("/api/v1/save-token", requireAuth, async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ success: false, error: 'token is required' });
+    if (req.user.role === 'doctor') {
+      await RegisteredDoctor.findByIdAndUpdate(req.user.id, { fcmToken: token });
+    } else {
+      await User.findByIdAndUpdate(req.user.id, { fcmToken: token });
+    }
+    res.json({ success: true, message: 'FCM token saved' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
