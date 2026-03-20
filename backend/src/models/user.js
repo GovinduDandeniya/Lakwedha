@@ -67,6 +67,11 @@ const userSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        // ── My Doctors ─────────────────────────────────────
+        myDoctors: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'RegisteredDoctor',
+        }],
     },
     { timestamps: true }
 );
