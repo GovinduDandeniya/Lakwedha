@@ -32,11 +32,16 @@ const pharmacyRegistrationRoutes  = require("./routes/pharmacyRegistrationRoutes
 const pharmacyOperationsRoutes    = require("./routes/pharmacyRoutes");   // prescription management
 const orderRoutes                 = require("./routes/orderRoutes");       // order lifecycle
 const adminRoutes                 = require("./routes/admin.routes");      // admin auth
+const otpRoutes                   = require("./routes/otpRoutes");
+const notificationAppointmentRoutes = require("./routes/notificationAppointmentRoutes");
+const requestLogger               = require("./middleware/requestLogger");
+const errorHandler                = require("./middleware/errorHandler");
 
 const app = express();
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(requestLogger);
 
 // ── MongoDB ───────────────────────────────────────────────────────────────────
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -730,6 +735,8 @@ app.use("/api/v1/orders",           orderRoutes);                  // order life
 
 // ── Doctor channeling routes ──────────────────────────────────────────────────
 app.use("/api/v1/doctor-channeling", doctorChannelingRouter);
+app.use("/api/v1/otp",              otpRoutes);
+app.use("/api/v1/notification",     notificationAppointmentRoutes);
 
 // ── Doctor availability by name ───────────────────────────────────────────────
 app.get("/api/v1/doctor-availability", doctorController.getDoctorAvailabilityByName);
@@ -819,6 +826,9 @@ app.post("/api/v1/save-token", requireAuth, async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// Global error handler — must be last middleware
+app.use(errorHandler);
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
