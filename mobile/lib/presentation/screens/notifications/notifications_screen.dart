@@ -45,11 +45,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  Future<void> _markRead(int id) async {
+  Future<void> _markRead(String id) async {
     try {
       await _api.markNotificationRead(id);
       setState(() {
-        final idx = _notifications.indexWhere((n) => n['id'] == id);
+        final idx = _notifications.indexWhere(
+            (n) => (n['_id'] ?? n['id'])?.toString() == id);
         if (idx != -1) _notifications[idx] = {..._notifications[idx], 'read': true};
       });
     } catch (_) {}
@@ -192,11 +193,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       itemBuilder: (context, index) {
         final n = _notifications[index];
         final bool isRead = n['read'] == true;
-        final bool isCancelled = n['type'] == 'session_cancelled';
+        final bool isCancelled = (n['type'] as String? ?? '').toUpperCase().contains('CANCEL');
 
         return GestureDetector(
           onTap: () {
-            if (!isRead) _markRead(int.parse(n['id'].toString()));
+            if (!isRead) _markRead((n['_id'] ?? n['id']).toString());
             _showDetail(context, n);
           },
           child: AnimatedContainer(
@@ -299,7 +300,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _showDetail(BuildContext context, Map<String, dynamic> n) {
-    final bool isCancelled = n['type'] == 'session_cancelled';
+    final bool isCancelled = (n['type'] as String? ?? '').toUpperCase().contains('CANCEL');
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,

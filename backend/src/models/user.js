@@ -62,6 +62,11 @@ const userSchema = new mongoose.Schema(
         passwordChangedAt: {
             type: Date,
         },
+        // ── Push notifications ──────────────────────────────
+        fcmToken: {
+            type: String,
+            default: null,
+        },
     },
     { timestamps: true }
 );

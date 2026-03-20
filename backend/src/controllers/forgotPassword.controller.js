@@ -80,28 +80,10 @@ async function sendOtpEmail(to, otp) {
     });
 }
 
-/** Send OTP via SMS (Twilio). Falls back to console log in dev mode. */
+/** SMS OTP delivery is handled by the SMS gateway module (separate team member). */
 async function sendOtpSms(phone, otp) {
-    const sid   = process.env.TWILIO_ACCOUNT_SID;
-    const token = process.env.TWILIO_AUTH_TOKEN;
-    const from  = process.env.TWILIO_PHONE_NUMBER;
-
-    if (!sid || !token || !from ||
-        sid.startsWith('AC') === false || sid === 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') {
-        // Dev / unconfigured mode
-        console.log(`\n[DEV SMS OTP] ─────────────────────────────`);
-        console.log(`  To : ${phone}`);
-        console.log(`  OTP: ${otp}`);
-        console.log(`────────────────────────────────────────────\n`);
-        return;
-    }
-
-    const twilio = require('twilio')(sid, token);
-    await twilio.messages.create({
-        body: `Your Lakwedha password reset OTP is: ${otp}. Valid for 30 minutes. Never share this code.`,
-        from,
-        to: phone,
-    });
+    // TODO: SMS gateway integration handled externally
+    console.log(`[SMS OTP] To: ${phone} | OTP: ${otp}`);
 }
 
 /* ═══════════════════════════════════════════════════════════════

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/datasources/remote/api_service.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/notification_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -54,6 +55,9 @@ class AuthProvider extends ChangeNotifier {
 
       // Load any locally saved overrides
       await _loadLocalOverrides(prefs);
+
+      // Register FCM token with backend (non-blocking)
+      NotificationService().initNotifications(_token!).catchError((_) {});
 
       _isLoading = false;
       notifyListeners();

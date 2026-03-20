@@ -36,6 +36,10 @@ class AppConstants {
   // Change password
   static const String changePasswordEndpoint = '/api/v1/users/change-password';
 
+  // Notifications
+  static const String saveTokenEndpoint      = '/api/v1/save-token';
+  static const String notificationsEndpoint  = '/api/v1/notifications';
+
   // Pharmacy registration & auth endpoints
   static const String pharmacyRegisterEndpoint = '/api/v1/pharmacy/register';
   static const String pharmacyLoginEndpoint    = '/api/v1/pharmacy/login';
