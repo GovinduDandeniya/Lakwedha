@@ -9,6 +9,11 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+// ── Logging Middleware ───────────────────────────────────────────────────────
+const requestLogger = require("./middleware/requestLogger");
+app.use(requestLogger);
+
+
 // Secret key for JWT
 const SECRET_KEY = "mysecretkey123";
 
