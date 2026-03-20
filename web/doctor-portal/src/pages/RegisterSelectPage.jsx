@@ -11,6 +11,7 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import LocalPharmacyIcon from '@mui/icons-material/LocalPharmacy';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 const ACCOUNT_TYPES = [
     {
@@ -32,6 +33,16 @@ const ACCOUNT_TYPES = [
         color: '#1565C0',
         bg: '#E3F2FD',
         border: '#90CAF9',
+    },
+    {
+        value: 'admin',
+        label: 'Admin',
+        icon: AdminPanelSettingsIcon,
+        description: 'Manage system settings and operations',
+        route: '/admin/register',
+        color: '#92400E',
+        bg: '#FEF3C7',
+        border: '#FCD34D',
     },
 ];
 

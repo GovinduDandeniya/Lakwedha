@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../shell/main_shell.dart';
+import '../../widgets/lakwedha_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -190,34 +191,7 @@ class _SplashScreenState extends State<SplashScreen>
                   scale: _logoScale,
                   child: FadeTransition(
                     opacity: _logoFade,
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.30),
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.20),
-                            blurRadius: 32,
-                            offset: const Offset(0, 12),
-                          ),
-                          BoxShadow(
-                            color: _accent.withValues(alpha: 0.25),
-                            blurRadius: 48,
-                            spreadRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(22),
-                        child: CustomPaint(painter: _LogoPainter()),
-                      ),
-                    ),
+                    child: const LakwedhaLogo(size: 120),
                   ),
                 ),
 
@@ -372,68 +346,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-// ── Custom logo painter (stylised leaf + cross mark) ──────────────────────────
-class _LogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-
-    // Outer leaf shape
-    final leafPaint = Paint()
-      ..color = const Color(0xFF81C784)
-      ..style = PaintingStyle.fill;
-
-    final path = Path();
-    // Right leaf petal
-    path.moveTo(cx, cy - size.height * 0.42);
-    path.cubicTo(cx + size.width * 0.45, cy - size.height * 0.15,
-        cx + size.width * 0.45, cy + size.height * 0.15,
-        cx, cy + size.height * 0.42);
-    // Left leaf petal
-    path.cubicTo(cx - size.width * 0.45, cy + size.height * 0.15,
-        cx - size.width * 0.45, cy - size.height * 0.15,
-        cx, cy - size.height * 0.42);
-    canvas.drawPath(path, leafPaint);
-
-    // Inner lighter leaf
-    final innerLeafPaint = Paint()
-      ..color = const Color(0xFFA5D6A7)
-      ..style = PaintingStyle.fill;
-    final innerPath = Path();
-    const s = 0.60;
-    innerPath.moveTo(cx, cy - size.height * 0.42 * s);
-    innerPath.cubicTo(cx + size.width * 0.45 * s, cy - size.height * 0.15 * s,
-        cx + size.width * 0.45 * s, cy + size.height * 0.15 * s,
-        cx, cy + size.height * 0.42 * s);
-    innerPath.cubicTo(cx - size.width * 0.45 * s, cy + size.height * 0.15 * s,
-        cx - size.width * 0.45 * s, cy - size.height * 0.15 * s,
-        cx, cy - size.height * 0.42 * s);
-    canvas.drawPath(innerPath, innerLeafPaint);
-
-    // Centre vein line
-    final veinPaint = Paint()
-      ..color = const Color(0xFF2E7D32)
-      ..strokeWidth = 1.8
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(cx, cy - size.height * 0.38),
-        Offset(cx, cy + size.height * 0.38), veinPaint);
-
-    // Small cross / plus health symbol
-    final crossPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.90)
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    final arm = size.width * 0.13;
-    canvas.drawLine(Offset(cx - arm, cy), Offset(cx + arm, cy), crossPaint);
-    canvas.drawLine(Offset(cx, cy - arm), Offset(cx, cy + arm), crossPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
 
 // ── Subtle rotating leaf pattern painter ─────────────────────────────────────
 class _LeafPatternPainter extends CustomPainter {

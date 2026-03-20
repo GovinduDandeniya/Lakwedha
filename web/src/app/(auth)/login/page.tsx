@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Leaf, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import LakwedhaLogo from "@/components/LakwedhaLogo";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
 
@@ -18,7 +19,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/users/login`, {
+      const res = await fetch(`${API}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -29,7 +30,7 @@ export default function LoginPage() {
         return;
       }
       localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("admin", JSON.stringify(data.admin));
       window.location.href = "/admin/dashboard";
     } catch {
       setError("Network error. Please check your connection.");
@@ -42,12 +43,14 @@ export default function LoginPage() {
     <div className="w-full max-w-md">
       <div className="bg-white rounded-2xl shadow-2xl p-8">
         {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center gap-2 mb-1">
-            <Leaf className="h-7 w-7 text-green-700" />
-            <span className="text-2xl font-bold text-green-800">Lakwedha</span>
-          </div>
-          <p className="text-xs text-gray-400">Admin Portal</p>
+        <div className="flex justify-center mb-8">
+          <LakwedhaLogo
+            size={56}
+            layout="v"
+            textColor="#14532d"
+            subtitle="Admin Portal"
+            subtitleColor="#6b7280"
+          />
         </div>
 
         <h2 className="text-xl font-semibold text-gray-800 mb-1">Welcome back</h2>
@@ -111,6 +114,13 @@ export default function LoginPage() {
             {loading ? "Signing in…" : "Sign In"}
           </button>
         </form>
+
+        <div className="mt-6 text-center text-sm text-gray-500">
+          Don&apos;t have an admin account?{" "}
+          <Link href="/admin-register" className="text-green-700 hover:text-green-900 font-medium">
+            Register here
+          </Link>
+        </div>
       </div>
     </div>
   );

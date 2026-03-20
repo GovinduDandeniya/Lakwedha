@@ -13,6 +13,7 @@ import {
   BarChart3,
   Settings,
 } from "lucide-react";
+import LakwedhaLogo from "@/components/LakwedhaLogo";
 
 const menu = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -32,12 +33,13 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-gradient-to-b from-green-900 to-green-700 text-white">
       {/* LOGO */}
-      <div className="px-6 py-6">
-        <div className="flex items-center gap-2">
-          <Leaf className="h-6 w-6 text-green-300" />
-          <h1 className="text-xl font-bold">Lakwedha</h1>
-        </div>
-        <p className="mt-1 text-xs text-green-200">Admin Portal</p>
+      <div className="px-6 py-6 border-b border-green-800/50">
+        <LakwedhaLogo
+          size={40}
+          textColor="white"
+          subtitle="Admin Portal"
+          subtitleColor="rgba(187,247,208,0.75)"
+        />
       </div>
 
       {/* MENU */}
