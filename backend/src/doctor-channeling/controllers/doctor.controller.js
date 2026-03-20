@@ -140,6 +140,90 @@ exports.getDoctorById = async (req, res) => {
 };
 
 /**
+ * GET /api/v1/doctor-channeling/availability/doctor/:doctorId/summary
+ *
+ * Looks up a doctor by _id (RegisteredDoctor first, then legacy Doctor),
+ * then returns their open/full ChannelingSession records in the shape
+ * that DoctorAvailabilityResult.fromJson expects on the mobile app:
+ * { success: true, data: { doctor: {...}, hospitals: [...] } }
+ */
+exports.getDoctorAvailabilityById = async (req, res) => {
+    try {
+        const { doctorId } = req.params;
+
+        // RegisteredDoctor (portal-registered, APPROVED) takes priority
+        let doctorInfo;
+        const regDoctor = await RegisteredDoctor.findOne(
+            { _id: doctorId, status: 'APPROVED' },
+            { password: 0 }
+        );
+        if (regDoctor) {
+            doctorInfo = {
+                id: regDoctor._id.toString(),
+                name: regDoctor.fullName || `${regDoctor.firstName} ${regDoctor.lastName}`,
+                specialization: regDoctor.specialization,
+                qualification: null,
+                is_verified: true,
+            };
+        } else {
+            const doctor = await Doctor.findById(doctorId);
+            if (!doctor) {
+                return res.status(404).json({ success: false, error: 'Doctor not found' });
+            }
+            doctorInfo = {
+                id: doctor._id.toString(),
+                name: doctor.name,
+                specialization: doctor.specialization,
+                qualification: doctor.qualification || null,
+                is_verified: doctor.isVerified || false,
+            };
+        }
+
+        // Fetch upcoming open/full channeling sessions created via the doctor portal
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const sessions = await ChannelingSession.find({
+            doctorId,
+            date: { $gte: today },
+            status: { $in: ['open', 'full'] },
+        }).sort({ date: 1, startTime: 1 });
+
+        // Group by hospital name; each session keeps its own session_id so the
+        // mobile can book the exact session the doctor released.
+        const hospitalMap = {};
+        sessions.forEach(s => {
+            const h = s.hospitalName;
+            if (!hospitalMap[h]) {
+                hospitalMap[h] = {
+                    hospital_id: h,
+                    hospital_name: h,
+                    location: '',
+                    sessions: [],
+                };
+            }
+            hospitalMap[h].sessions.push({
+                session_id:   s._id.toString(),
+                date:         s.date.toISOString().split('T')[0],
+                start_time:   s.startTime,
+                end_time:     s.startTime,
+                total_slots:  s.totalAppointments,
+                booked_slots: s.bookedCount,
+            });
+        });
+
+        res.json({
+            success: true,
+            data: {
+                doctor:    doctorInfo,
+                hospitals: Object.values(hospitalMap),
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
  * GET /api/doctor-availability?doctorName=
  *
  * Response matches DoctorAvailabilityResult.fromJson in Flutter:

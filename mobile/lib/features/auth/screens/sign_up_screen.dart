@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../presentation/widgets/lakwedha_logo.dart';
 
 /* ── Countries: name, nationality label, ISO-2, dial code ───────────── */
 const List<Map<String, String>> _kCountries = [
@@ -1344,6 +1345,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      const LakwedhaLogo(
+                        size: 64,
+                        layout: LogoLayout.vertical,
+                        textColor: Color(0xFF14532d),
+                      ),
+                      const SizedBox(height: 20),
                       _buildStepIndicator(),
                       const SizedBox(height: 20),
                       _buildCurrentStep(),

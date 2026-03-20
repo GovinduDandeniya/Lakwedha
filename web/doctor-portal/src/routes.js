@@ -8,6 +8,8 @@ import PharmacyRegisterPage from './pages/PharmacyRegisterPage';
 import PharmacyPendingPage from './pages/PharmacyPendingPage';
 import PharmacyRejectedPage from './pages/PharmacyRejectedPage';
 import PharmacyApprovedPage from './pages/PharmacyApprovedPage';
+import AdminRegisterPage from './pages/AdminRegisterPage';
+import AdminWelcomePage from './pages/AdminWelcomePage';
 import PendingPage from './pages/PendingPage';
 import DeclinedPage from './pages/DeclinedPage';
 import DashboardPage from './pages/DashboardPage';
@@ -46,6 +48,10 @@ const AppRoutes = () => {
         <Route path="/pharmacy/rejected"   element={<PharmacyRejectedPage />} />
         <Route path="/pharmacy/approved"   element={<PharmacyApprovedPage />} />
 
+
+        {/* Admin auth flow */}
+        <Route path="/admin/register" element={<AdminRegisterPage />} />
+        <Route path="/admin/welcome"  element={<AdminWelcomePage />} />
 
         <Route path="/pending"  element={<PendingPage />} />
         <Route path="/declined" element={<DeclinedPage />} />

@@ -14,12 +14,12 @@ import {
 } from '@mui/material';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import LocalPharmacyIcon from '@mui/icons-material/LocalPharmacy';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { API_BASE_URL } from '../utils/constants';
 
 const TABS = [
     {
@@ -37,6 +37,14 @@ const TABS = [
         color: '#1565C0',
         bg: '#E3F2FD',
         activeBg: '#1565C0',
+    },
+    {
+        value: 'admin',
+        label: 'Admin',
+        icon: AdminPanelSettingsIcon,
+        color: '#92400E',
+        bg: '#FEF3C7',
+        activeBg: '#B45309',
     },
 ];
 
@@ -88,6 +96,23 @@ const LoginPage = () => {
         }
     };
 
+    // ── Admin login ────────────────────────────────────────────────────────
+    const handleAdminLogin = async () => {
+        try {
+            const response = await axios.post('http://localhost:5000/api/admin/login', { email, password });
+            const { token, admin } = response.data;
+            localStorage.setItem('admin_token', token);
+            localStorage.setItem('admin_user', JSON.stringify(admin || { email }));
+            navigate('/admin/welcome');
+        } catch (err) {
+            const msg =
+                err?.response?.data?.message ||
+                err?.response?.data?.error ||
+                'Login failed. Please check your credentials.';
+            setError(msg);
+        }
+    };
+
     // ── Pharmacy login (direct API — separate from doctor auth) ───────────
     const handlePharmacyLogin = async () => {
         try {
@@ -129,8 +154,10 @@ const LoginPage = () => {
         try {
             if (accountType === 'doctor') {
                 await handleDoctorLogin();
-            } else {
+            } else if (accountType === 'pharmacy') {
                 await handlePharmacyLogin();
+            } else {
+                await handleAdminLogin();
             }
         } finally {
             setLoading(false);
@@ -273,12 +300,12 @@ const LoginPage = () => {
 
                     <Box sx={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 0.8 }}>
                         <Typography variant="body2" color="text.secondary">
-                            New here?{' '}
+                            {accountType === 'admin' ? 'Need an admin account?' : 'New here?'}{' '}
                             <Link
-                                to="/register"
+                                to={accountType === 'admin' ? '/admin/register' : '/register'}
                                 style={{ color: activeTab.color, textDecoration: 'none', fontWeight: 600 }}
                             >
-                                Create an account
+                                {accountType === 'admin' ? 'Register here' : 'Create an account'}
                             </Link>
                         </Typography>
                     </Box>

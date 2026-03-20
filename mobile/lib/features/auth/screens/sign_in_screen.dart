@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../presentation/providers/auth_provider.dart';
+import '../../../presentation/widgets/lakwedha_logo.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/auth_button.dart';
 
@@ -127,38 +128,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // Logo
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryDark,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.accent, width: 2.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              )
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.health_and_safety_outlined,
-                            size: 38,
-                            color: AppColors.accentLight,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        // App name
-                        Text(
-                          'RAVANA 2.0',
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.accent,
-                            letterSpacing: 4,
-                          ),
-                        ),
+                        const LakwedhaLogo(size: 80),
                         const SizedBox(height: 16),
                         Text(
                           AppStrings.signIn,
