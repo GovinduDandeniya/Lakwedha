@@ -40,32 +40,33 @@ class HospitalAvailability {
   factory HospitalAvailability.fromJson(Map<String, dynamic> json) {
     final sessions = (json['sessions'] as List).cast<Map<String, dynamic>>();
 
-    // Group sessions by date, summing slots for same date
-    final byDate = <String, Map<String, dynamic>>{};
+    // Key by date+startTime so each session slot is a separate bookable row.
+    // Two entries with identical date+startTime are the same release and get
+    // their slot counts summed (keeps the first session_id).
+    final byKey = <String, Map<String, dynamic>>{};
     for (final s in sessions) {
-      final date = s['date'] as String;
-      if (byDate.containsKey(date)) {
-        byDate[date]!['total_slots'] =
-            (byDate[date]!['total_slots'] as int) + (s['total_slots'] as int);
-        byDate[date]!['booked_slots'] =
-            (byDate[date]!['booked_slots'] as int) + (s['booked_slots'] as int);
-        byDate[date]!['end_time'] = s['end_time'];
+      final key = '${s['date']}|${s['start_time']}';
+      if (byKey.containsKey(key)) {
+        byKey[key]!['total_slots'] =
+            (byKey[key]!['total_slots'] as int) + (s['total_slots'] as int);
+        byKey[key]!['booked_slots'] =
+            (byKey[key]!['booked_slots'] as int) + (s['booked_slots'] as int);
       } else {
-        byDate[date] = Map<String, dynamic>.from(s);
+        byKey[key] = Map<String, dynamic>.from(s);
       }
     }
 
-    final dates = byDate.entries
+    final dates = byKey.entries
         .map((e) => DateSlotSummary(
               sessionId: e.value['session_id'] as String?,
-              date: e.key,
+              date: e.key.split('|')[0],
               startTime: e.value['start_time'] as String,
               endTime: e.value['end_time'] as String,
               totalSlots: e.value['total_slots'] as int,
               bookedSlots: e.value['booked_slots'] as int,
             ))
         .toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
+      ..sort((a, b) => '${a.date}|${a.startTime}'.compareTo('${b.date}|${b.startTime}'));
 
     return HospitalAvailability(
       hospitalId: json['hospital_id'] as String,

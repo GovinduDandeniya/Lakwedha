@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
-  Leaf, Loader2, ArrowLeft, CheckCircle2,
+  Loader2, ArrowLeft, CheckCircle2,
   Mail, Phone, Eye, EyeOff, RefreshCw, ShieldCheck,
 } from "lucide-react";
+import LakwedhaLogo from "@/components/LakwedhaLogo";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
 
@@ -345,12 +346,13 @@ export default function ForgotPasswordPage() {
       <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
 
         {/* ── Header ──────────────────────────────── */}
-        <div className="bg-linear-to-r from-green-900 to-green-700 px-8 py-6 flex items-center gap-3">
-          <Leaf className="h-6 w-6 text-green-300" />
-          <div>
-            <h1 className="text-white font-bold text-lg">Lakwedha</h1>
-            <p className="text-green-200 text-xs">Password Recovery</p>
-          </div>
+        <div className="bg-linear-to-r from-green-900 to-green-700 px-8 py-6">
+          <LakwedhaLogo
+            size={44}
+            textColor="white"
+            subtitle="Password Recovery"
+            subtitleColor="rgba(187,247,208,0.85)"
+          />
         </div>
 
         <div className="px-8 py-8">
