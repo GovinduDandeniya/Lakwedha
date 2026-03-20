@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/emergency_center.dart';
 
 class EmergencyApiService {
-  static const String _baseUrl = 'http://lakwedha.lk/api/emergency-centers';
+  static const String _baseUrl = 'http://10.0.2.2:5000/api/emergency-centers';
 
   /// Fetch all active emergency centers from the backend
   Future<List<EmergencyCenter>> fetchEmergencyCenters() async {
