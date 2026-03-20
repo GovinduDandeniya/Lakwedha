@@ -20,4 +20,7 @@ app.use('/api/pharmacy', pharmacyRoutes);
 const orderRoutes = require('./routes/orderRoutes');
 app.use('/api/orders', orderRoutes);
 
+const emergencyCenterRoutes = require('./routes/emergencyCenterRoutes');
+app.use('/api/emergency-centers', emergencyCenterRoutes);
+
 module.exports = app;
