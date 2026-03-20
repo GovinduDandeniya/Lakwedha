@@ -11,7 +11,15 @@ const notificationSchema = new mongoose.Schema({
     message: { type: String, required: true },
     type: {
         type: String,
-        enum: ['BOOKING', 'REMINDER', 'STATUS_UPDATE', 'SLOT_AVAILABLE', 'SESSION_CANCELLED'],
+        enum: [
+            'BOOKING',
+            'REMINDER',
+            'STATUS_UPDATE',
+            'SLOT_AVAILABLE',
+            'SESSION_CANCELLED',
+            'EMERGENCY_APPROVED',
+            'EMERGENCY_REJECTED',
+        ],
         required: true,
     },
     appointmentId: {

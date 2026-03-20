@@ -5,6 +5,24 @@ const ChannelingSession = require('../models/channelingSession.model');
 const RegisteredDoctor = require('../../models/RegisteredDoctor');
 const AYURVEDA_SPECIALIZATIONS = require('../constants/ayurvedaSpecializations');
 
+function formatRegisteredDoctor(d) {
+    return {
+        _id: d._id,
+        name: d.fullName || `${d.firstName || ''} ${d.lastName || ''}`.trim(),
+        specialization: d.specialization,
+        qualification: null,
+        experience: 0,
+        rating: 0,
+        reviewCount: 0,
+        profileImage: null,
+        clinicName: d.hospitals?.[0]?.name || '',
+        clinicAddress: d.hospitals?.[0]?.location || '',
+        consultationFee: 0,
+        isVerified: true,
+        isRegistered: true,
+    };
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDoctor(d) {
@@ -41,23 +59,68 @@ exports.searchDoctors = async (req, res) => {
         const { q, name, specialty, hospital, date } = req.query;
         const nameQuery = q || name;
 
-        const filter = {};
-        if (nameQuery) filter.name = { $regex: nameQuery, $options: 'i' };
-        if (specialty) filter.specialization = { $regex: specialty, $options: 'i' };
-        if (hospital) filter.clinicName = { $regex: hospital, $options: 'i' };
+        // ── Legacy Doctor collection ───────────────────────────────────────────
+        const legacyFilter = {};
+        if (nameQuery) legacyFilter.name = { $regex: nameQuery, $options: 'i' };
+        if (specialty) legacyFilter.specialization = { $regex: specialty, $options: 'i' };
+        if (hospital) legacyFilter.clinicName = { $regex: hospital, $options: 'i' };
 
         if (date) {
             const targetDate = new Date(date);
             const nextDay = new Date(targetDate);
             nextDay.setDate(nextDay.getDate() + 1);
             const avails = await Availability.find({ date: { $gte: targetDate, $lt: nextDay } }).select('doctorId');
-            const ids = avails.map(a => a.doctorId);
-            if (ids.length === 0) return res.status(200).json({ success: true, data: [] });
-            filter._id = { $in: ids };
+            const legacyIds = avails.map(a => a.doctorId);
+            if (legacyIds.length > 0) legacyFilter._id = { $in: legacyIds };
+            else legacyFilter._id = null; // no matches
         }
 
-        const doctors = await Doctor.find(filter);
-        res.status(200).json({ success: true, data: doctors.map(formatDoctor) });
+        const legacyDoctors = await Doctor.find(legacyFilter);
+
+        // ── Portal RegisteredDoctor collection (APPROVED only) ────────────────
+        const regFilter = { status: 'APPROVED' };
+        if (nameQuery) {
+            regFilter.$or = [
+                { fullName:   { $regex: nameQuery, $options: 'i' } },
+                { firstName:  { $regex: nameQuery, $options: 'i' } },
+                { lastName:   { $regex: nameQuery, $options: 'i' } },
+            ];
+        }
+        if (specialty) regFilter.specialization = { $regex: specialty, $options: 'i' };
+        if (hospital) regFilter['hospitals.name'] = { $regex: hospital, $options: 'i' };
+
+        if (date) {
+            const targetDate = new Date(date);
+            const nextDay = new Date(targetDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const sessions = await ChannelingSession.find({
+                date: { $gte: targetDate, $lt: nextDay },
+                status: { $in: ['open', 'full'] },
+            }).select('doctorId');
+            const regIds = sessions.map(s => s.doctorId);
+            if (regIds.length > 0) regFilter._id = { $in: regIds };
+            else regFilter._id = null;
+        }
+
+        const registeredDoctors = await RegisteredDoctor.find(regFilter, { password: 0 });
+
+        // ── Merge, deduplicating by _id ───────────────────────────────────────
+        const seen = new Set();
+        const merged = [];
+        for (const d of legacyDoctors) {
+            if (!seen.has(d._id.toString())) {
+                seen.add(d._id.toString());
+                merged.push(formatDoctor(d));
+            }
+        }
+        for (const d of registeredDoctors) {
+            if (!seen.has(d._id.toString())) {
+                seen.add(d._id.toString());
+                merged.push(formatRegisteredDoctor(d));
+            }
+        }
+
+        res.status(200).json({ success: true, data: merged });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

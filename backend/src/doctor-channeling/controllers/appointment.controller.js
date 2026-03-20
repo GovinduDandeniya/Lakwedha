@@ -112,15 +112,31 @@ exports.updateStatus = async (req, res) => {
             });
         }
 
-        // Only admins can cancel appointments
-        if (status === 'cancelled' && req.user.role !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                error: 'Only admins can cancel appointments'
-            });
+        if (status === 'cancelled') {
+            const isAdmin = req.user.role === 'admin';
+            const isDoctorOwner = req.user.role === 'doctor' &&
+                req.user.id === appointment.doctorId.toString();
+
+            if (!isAdmin && !isDoctorOwner) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'Only the assigned doctor or an admin can cancel appointments'
+                });
+            }
+
+            // Doctors must cancel at least 12 hours before the appointment
+            if (isDoctorOwner) {
+                const hoursUntil = (new Date(appointment.slotTime) - new Date()) / (1000 * 60 * 60);
+                if (hoursUntil < 12) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Appointments can only be cancelled at least 12 hours before the scheduled time'
+                    });
+                }
+            }
         }
 
-        // Check authorization (doctor or patient for non-cancel status updates)
+        // For non-cancel status updates only the assigned doctor or patient is allowed
         if (status !== 'cancelled' &&
             req.user.id !== appointment.doctorId.toString() &&
             req.user.id !== appointment.patientId.toString()) {
