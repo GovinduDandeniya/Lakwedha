@@ -20,6 +20,8 @@ const emergencyCenterSchema = new mongoose.Schema(
             type: { type: String, enum: ['Point'], default: 'Point' },
             coordinates: { type: [Number], required: true }, // [longitude, latitude]
         },
+        emergencyTypes: { type: [String], default: [] },
+        country: { type: String, default: 'Sri Lanka' },
         is24Hours: { type: Boolean, default: false },
         isActive: { type: Boolean, default: true },
     },
