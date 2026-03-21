@@ -2,11 +2,11 @@ class AppStrings {
     AppStrings._();
 
   // App
-  static const String appName = 'Ravana 2.0';
+  static const String appName = 'Lakwedha';
 
   // Sign In
   static const String signIn = 'Sign In';
-  static const String welcomeBack = 'Welcome to Ravana 2.0';
+  static const String welcomeBack = 'Welcome to Lakwedha';
   static const String credentialLabel = 'Mobile Number | Email or Username';
   static const String credentialHint = 'Enter your credentials';
   static const String passwordLabel = 'Password';

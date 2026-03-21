@@ -47,6 +47,22 @@ class ApiService {
     throw Exception(data['message'] ?? data['error'] ?? 'Login failed');
   }
 
+  Future<void> register({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.registerEndpoint}'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'name': name, 'email': email, 'password': password, 'role': 'patient'}),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final data = json.decode(response.body);
+      throw Exception(data['message'] ?? data['error'] ?? 'Registration failed');
+    }
+  }
+
   // ===================== AUTH - VALIDATE TOKEN =====================
   /// Returns true if the stored token is still valid on the backend.
   /// Times out after 5 seconds so the splash screen never hangs.
@@ -103,18 +119,22 @@ class ApiService {
 
   // ===================== DOCTOR =====================
   Future<List<Doctor>> searchDoctors({
+    String? name,
     String? specialty,
     String? location,
     double? lat,
     double? lng,
+    DateTime? fromDate,
   }) async {
     String url = '${AppConstants.baseUrl}${AppConstants.doctorsEndpoint}';
     final queryParams = <String, String>{};
 
+    if (name != null && name.isNotEmpty) queryParams['q'] = name;
     if (specialty != null) queryParams['specialty'] = specialty;
     if (location != null) queryParams['location'] = location;
     if (lat != null) queryParams['lat'] = lat.toString();
     if (lng != null) queryParams['lng'] = lng.toString();
+    if (fromDate != null) queryParams['date'] = fromDate.toIso8601String().split('T')[0];
     if (queryParams.isNotEmpty) url += '?${Uri(queryParameters: queryParams).query}';
 
     final response = await http.get(Uri.parse(url), headers: await _getHeaders());
@@ -228,7 +248,7 @@ class ApiService {
   // ===================== NOTIFICATIONS (MongoDB-backed) =====================
   Future<List<Map<String, dynamic>>> getPatientNotifications() async {
     final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}${AppConstants.notificationsEndpoint}'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}'),
       headers: await _getHeaders(),
     );
     if (response.statusCode == 200) {
@@ -241,14 +261,14 @@ class ApiService {
 
   Future<void> markNotificationRead(String id) async {
     await http.patch(
-      Uri.parse('${AppConstants.baseUrl}${AppConstants.notificationsEndpoint}/$id/read'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}/$id/read'),
       headers: await _getHeaders(),
     );
   }
 
   Future<void> markAllNotificationsRead() async {
     await http.patch(
-      Uri.parse('${AppConstants.baseUrl}${AppConstants.notificationsEndpoint}/read-all'),
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}/read-all'),
       headers: await _getHeaders(),
     );
   }

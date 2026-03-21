@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/services/auth_service.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/lakwedha_logo.dart';
 import '../../../features/auth/widgets/custom_text_field.dart';
 import '../../../features/auth/widgets/auth_button.dart';
@@ -22,9 +23,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  bool _isLoading = false;
-  String? _error;
-
   @override
   void dispose() {
     _firstNameController.dispose();
@@ -39,39 +37,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_passwordController.text != _confirmPasswordController.text) {
-      setState(() => _error = AppStrings.passwordsDoNotMatch);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(AppStrings.passwordsDoNotMatch),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final fullName =
+        '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}';
+    final success = await auth.register(
+      name: fullName,
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
 
-    try {
-      final fullName =
-          '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}';
-      await AuthService.register(
-        name: fullName,
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      if (!mounted) return;
+    if (!mounted) return;
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppStrings.registrationSuccess),
+          content: const Text(AppStrings.registrationSuccess),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       Navigator.pushReplacementNamed(context, '/sign-in');
-    } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    } else if (auth.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(auth.error!),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 
@@ -85,11 +90,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Color(0xFF1A3C1A),
-                  Color(0xFF2D5A27),
-                  Color(0xFF1A3C1A)
-                ],
+                colors: [Color(0xFF1A3C1A), Color(0xFF2D5A27), Color(0xFF1A3C1A)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -104,7 +105,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.accentLight.withOpacity(0.08),
+                color: AppColors.accentLight.withValues(alpha: 0.08),
               ),
             ),
           ),
@@ -116,7 +117,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.15),
+                color: AppColors.primary.withValues(alpha: 0.15),
               ),
             ),
           ),
@@ -124,17 +125,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 32),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                   decoration: BoxDecoration(
                     color: AppColors.backgroundBlur,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.25),
+                        color: Colors.black.withValues(alpha: 0.25),
                         blurRadius: 30,
                         offset: const Offset(0, 10),
                       ),
@@ -145,7 +144,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Logo
                         const LakwedhaLogo(size: 72),
                         const SizedBox(height: 16),
                         Text(
@@ -242,45 +240,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ? AppStrings.fieldRequired
                               : null,
                         ),
-
-                        // Error message
-                        if (_error != null) ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: AppColors.error.withOpacity(0.08),
-                              border: Border.all(
-                                  color: AppColors.error.withOpacity(0.40)),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.warning_amber_rounded,
-                                    size: 16, color: AppColors.error),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _error!,
-                                    style: GoogleFonts.inter(
-                                        fontSize: 12, color: AppColors.error),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-
                         const SizedBox(height: 24),
 
                         // Register button
-                        AuthButton(
-                          label: AppStrings.signUp,
-                          onPressed: _register,
-                          isLoading: _isLoading,
+                        Consumer<AuthProvider>(
+                          builder: (_, auth, __) => AuthButton(
+                            label: AppStrings.signUp,
+                            onPressed: _register,
+                            isLoading: auth.isLoading,
+                          ),
                         ),
                         const SizedBox(height: 20),
 

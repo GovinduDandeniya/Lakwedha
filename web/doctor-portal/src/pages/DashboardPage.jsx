@@ -6,19 +6,21 @@ import {
     List, ListItem, ListItemText, ListItemAvatar,
     ListItemIcon, Divider, Tooltip, CircularProgress,
     Dialog, DialogTitle, DialogContent, DialogActions,
-    TextField, Alert, Snackbar,
+    TextField, Alert, Snackbar, InputAdornment,
 } from '@mui/material';
 import {
     CalendarToday, People, EventAvailable,
     CheckCircle, Schedule, LocalHospital,
     NotificationsActive, Payment,
     EventNote, ManageAccounts, TrendingUp, PersonAdd,
-    Cancel, Event, Today, Warning,
+    Cancel, Event, Today, Warning, Edit, AttachMoney, Save,
+    Description,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import AppointmentChart from '../components/dashboard/AppointmentChart';
+import EMRUploadDialog from '../components/emr/EMRUploadDialog';
 
 // ── Theme tokens ──────────────────────────────────────────────────────────────
 const GREEN      = '#2E7D32';
@@ -204,6 +206,22 @@ const DashboardPage = () => {
     const [loading, setLoading]           = useState(true);
     const [todaySessionInfo, setTodaySessionInfo] = useState(null);
 
+    // Fee management
+    const [consultationFee, setConsultationFee] = useState('');
+    const [hospitalCharge, setHospitalCharge]   = useState(0);
+    const [feeEditing, setFeeEditing]           = useState(false);
+    const [feeInput, setFeeInput]               = useState('');
+    const [feeSaving, setFeeSaving]             = useState(false);
+    const [feeError, setFeeError]               = useState('');
+    const CHANNELING_RATE = 0.10;
+
+    // Medical records upload
+    const [medDialogOpen, setMedDialogOpen]         = useState(false);
+    const [medPatientId, setMedPatientId]           = useState('');
+    const [medPatientName, setMedPatientName]       = useState('');
+    const [medAppointmentId, setMedAppointmentId]   = useState('');
+    const [medAppointmentNum, setMedAppointmentNum] = useState('');
+
     // Cancel session dialog
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
     const [cancelStep, setCancelStep]             = useState(1); // 1 = select, 2 = confirm
@@ -215,16 +233,27 @@ const DashboardPage = () => {
     const [sessionInfoLoading, setSessionInfoLoading] = useState(false);
     const [snackbar, setSnackbar]                 = useState({ open: false, message: '', severity: 'success' });
 
+    // ── Medical Records handlers ───────────────────────────────────────────────
+    const openMedDialog = (apt) => {
+        const pid = apt.patientId?._id || apt.patientId;
+        setMedPatientId(String(pid));
+        setMedPatientName(apt.patientId?.name || patientDisplayName(apt));
+        setMedAppointmentId(String(apt.id || apt._id || ''));
+        setMedAppointmentNum(String(apt.appointmentNumber || ''));
+        setMedDialogOpen(true);
+    };
+
     const fetchAll = useCallback(async () => {
         const todayStr = new Date().toISOString().slice(0, 10);
         try {
-            const [sRes, tRes, uRes, nRes, eRes, siRes] = await Promise.all([
+            const [sRes, tRes, uRes, nRes, eRes, siRes, feeRes] = await Promise.all([
                 api.get('/dashboard/stats'),
                 api.get('/dashboard/today-appointments'),
                 api.get('/dashboard/upcoming'),
                 api.get('/dashboard/notifications'),
                 api.get('/dashboard/earnings'),
                 api.get(`/dashboard/session-info?date=${todayStr}`),
+                api.get('/doctor-channeling/doctors/me/fee').catch(() => ({ data: { consultationFee: 0 } })),
             ]);
             setStats(sRes.data);
             setTodayApts((tRes.data.data || []).filter(a => a.status !== 'pending'));
@@ -232,12 +261,33 @@ const DashboardPage = () => {
             setNotifications(nRes.data.data || []);
             setEarnings(eRes.data.data || null);
             setTodaySessionInfo(siRes.data || null);
+            const fee = feeRes.data?.consultationFee ?? 0;
+            setConsultationFee(fee);
+            setFeeInput(String(fee));
+            setHospitalCharge(feeRes.data?.hospitalCharge ?? 0);
         } catch (err) {
             console.error('Dashboard fetch error:', err);
         } finally {
             setLoading(false);
         }
     }, []);
+
+    const handleSaveFee = async () => {
+        const val = Number(feeInput);
+        if (isNaN(val) || val < 0) { setFeeError('Enter a valid amount'); return; }
+        setFeeSaving(true);
+        setFeeError('');
+        try {
+            const res = await api.put('/doctor-channeling/doctors/me/fee', { consultationFee: val });
+            setConsultationFee(res.data.consultationFee);
+            setFeeInput(String(res.data.consultationFee));
+            setFeeEditing(false);
+        } catch (err) {
+            setFeeError(err.response?.data?.error || 'Failed to save fee');
+        } finally {
+            setFeeSaving(false);
+        }
+    };
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -429,7 +479,129 @@ const DashboardPage = () => {
                 </Grid>
             </Grid>
 
-            {/* ── 4. Today's Appointments Table + Notifications ────────────── */}
+            {/* ── 4. Fee Management Card ──────────────────────────────────── */}
+            <Paper elevation={0} sx={{
+                mb: 3, p: 3, borderRadius: 3,
+                border: '1px solid #E8EDF2',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+            }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
+                    <Box sx={{ width: 38, height: 38, borderRadius: 2, bgcolor: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <AttachMoney sx={{ color: GREEN, fontSize: 22 }} />
+                    </Box>
+                    <Box>
+                        <Typography variant="h6" fontWeight={800}>My Consultation Fee</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Patients see: Doctor Fee + Hospital Charge + 10% Channeling Fee = Total
+                        </Typography>
+                    </Box>
+                </Box>
+
+                <Grid container spacing={3} alignItems="center">
+                    {/* Fee input */}
+                    <Grid item xs={12} sm={5}>
+                        {feeEditing ? (
+                            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                                <TextField
+                                    label="Consultation Fee"
+                                    type="number"
+                                    value={feeInput}
+                                    onChange={e => setFeeInput(e.target.value)}
+                                    size="small"
+                                    error={!!feeError}
+                                    helperText={feeError || ' '}
+                                    InputProps={{
+                                        startAdornment: <InputAdornment position="start">LKR</InputAdornment>,
+                                        inputProps: { min: 0 },
+                                    }}
+                                    sx={{ flex: 1 }}
+                                    autoFocus
+                                />
+                                <Button
+                                    variant="contained"
+                                    onClick={handleSaveFee}
+                                    disabled={feeSaving}
+                                    startIcon={feeSaving ? <CircularProgress size={14} color="inherit" /> : <Save />}
+                                    sx={{ bgcolor: GREEN, '&:hover': { bgcolor: '#1B5E20' }, textTransform: 'none', mt: 0.3, minWidth: 90 }}
+                                >
+                                    {feeSaving ? 'Saving…' : 'Save'}
+                                </Button>
+                                <Button
+                                    variant="text"
+                                    onClick={() => { setFeeEditing(false); setFeeInput(String(consultationFee)); setFeeError(''); }}
+                                    sx={{ color: '#888', textTransform: 'none', mt: 0.3 }}
+                                >
+                                    Cancel
+                                </Button>
+                            </Box>
+                        ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={600}>Your Fee</Typography>
+                                    <Typography variant="h4" fontWeight={900} sx={{ color: GREEN, lineHeight: 1.1 }}>
+                                        LKR {Number(consultationFee).toLocaleString()}
+                                    </Typography>
+                                </Box>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<Edit />}
+                                    onClick={() => setFeeEditing(true)}
+                                    size="small"
+                                    sx={{ borderColor: GREEN, color: GREEN, textTransform: 'none', '&:hover': { borderColor: GREEN, bgcolor: '#E8F5E9' } }}
+                                >
+                                    Edit
+                                </Button>
+                            </Box>
+                        )}
+                    </Grid>
+
+                    {/* Fee breakdown preview */}
+                    <Grid item xs={12} sm={7}>
+                        <Box sx={{ bgcolor: '#F8FAF8', borderRadius: 2.5, p: 2.5, border: '1px solid #E0EFE0' }}>
+                            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mb: 1.5, display: 'block', letterSpacing: 0.5 }}>
+                                PATIENT PAYMENT BREAKDOWN
+                            </Typography>
+                            {(() => {
+                                const docFee   = Number(feeEditing ? feeInput : consultationFee) || 0;
+                                const hospFee  = hospitalCharge;
+                                const chanFee  = Math.round((docFee + hospFee) * CHANNELING_RATE);
+                                const total    = docFee + hospFee + chanFee;
+                                return (
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+                                        {[
+                                            { label: 'Doctor Fee (you set)',   amount: docFee,  color: GREEN      },
+                                            { label: 'Hospital Charge (admin sets)', amount: hospFee, color: '#1565C0' },
+                                            { label: '10% Channeling Fee',     amount: chanFee, color: ORANGE     },
+                                        ].map(({ label, amount, color }) => (
+                                            <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                                                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
+                                                    <Typography variant="caption" color="text.secondary">{label}</Typography>
+                                                </Box>
+                                                <Typography variant="caption" fontWeight={700} sx={{ color }}>
+                                                    LKR {amount.toLocaleString()}
+                                                </Typography>
+                                            </Box>
+                                        ))}
+                                        <Divider sx={{ my: 0.5 }} />
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="body2" fontWeight={800}>Total Patient Pays</Typography>
+                                            <Typography variant="body1" fontWeight={900} sx={{ color: PURPLE }}>
+                                                LKR {total.toLocaleString()}
+                                            </Typography>
+                                        </Box>
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, fontStyle: 'italic' }}>
+                                            * Hospital charge is set by admin per session. Shown above is your next upcoming session's charge.
+                                        </Typography>
+                                    </Box>
+                                );
+                            })()}
+                        </Box>
+                    </Grid>
+                </Grid>
+            </Paper>
+
+            {/* ── 5. Today's Appointments Table + Notifications ────────────── */}
             <Grid container spacing={2.5} sx={{ mb: 3 }}>
                 {/* Today's Appointments Table */}
                 <Grid item xs={12} md={8}>
@@ -506,17 +678,30 @@ const DashboardPage = () => {
                                                         <StatusChip status={apt.status} />
                                                     </TableCell>
                                                     <TableCell>
-                                                        {apt.status !== 'completed' && apt.status !== 'cancelled' && (
-                                                            <Tooltip title="Mark as Completed">
-                                                                <IconButton
-                                                                    size="small"
-                                                                    sx={{ color: GREEN }}
-                                                                    onClick={() => handleMarkComplete(apt.id)}
-                                                                >
-                                                                    <CheckCircle fontSize="small" />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                        )}
+                                                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                            {apt.status !== 'completed' && apt.status !== 'cancelled' && (
+                                                                <Tooltip title="Mark as Completed">
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        sx={{ color: GREEN }}
+                                                                        onClick={() => handleMarkComplete(apt.id)}
+                                                                    >
+                                                                        <CheckCircle fontSize="small" />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                            {(apt.patientId?._id || apt.patientId) && (
+                                                                <Tooltip title="Upload Medical Record">
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        sx={{ color: LIGHT_BLUE }}
+                                                                        onClick={() => openMedDialog(apt)}
+                                                                    >
+                                                                        <Description fontSize="small" />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                        </Box>
                                                     </TableCell>
                                                 </TableRow>
                                             );
@@ -567,6 +752,16 @@ const DashboardPage = () => {
                     </Paper>
                 </Grid>
             </Grid>
+
+            {/* ── Medical Records Upload Dialog ────────────────────────────── */}
+            <EMRUploadDialog
+                open={medDialogOpen}
+                onClose={() => setMedDialogOpen(false)}
+                patientId={medPatientId}
+                patientName={medPatientName}
+                appointmentId={medAppointmentId}
+                appointmentNumber={medAppointmentNum}
+            />
 
             {/* ── Cancel Session Dialog ────────────────────────────────────── */}
             <Dialog open={cancelDialogOpen} onClose={() => !cancelLoading && setCancelDialogOpen(false)}
@@ -762,13 +957,33 @@ const DashboardPage = () => {
                                     </Typography>
                                 </Box>
                                 {cancelReason && (
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                                         <Typography variant="body2" color="text.secondary">Reason</Typography>
                                         <Typography variant="body2" fontWeight={600} sx={{ maxWidth: '60%', textAlign: 'right' }}>
                                             {cancelReason}
                                         </Typography>
                                     </Box>
                                 )}
+                                {(() => {
+                                    const count = selectedHospitalInfo?.appointmentCount ?? 0;
+                                    if (count === 0) return null;
+                                    const channelingFeePerApt = Math.round((consultationFee + hospitalCharge) * CHANNELING_RATE);
+                                    const chargePerApt        = Math.round(channelingFeePerApt * 0.06);
+                                    const totalCharge         = chargePerApt * count;
+                                    return (
+                                        <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px dashed #FFCDD2' }}>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Typography variant="body2" color="text.secondary">Cancellation charge (6%)</Typography>
+                                                <Typography variant="body2" fontWeight={800} sx={{ color: '#E65100' }}>
+                                                    LKR {totalCharge.toLocaleString()}
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant="caption" color="text.secondary">
+                                                {count} patient(s) × LKR {chargePerApt} per appointment
+                                            </Typography>
+                                        </Box>
+                                    );
+                                })()}
                             </Paper>
 
                             <Alert severity="error" sx={{ borderRadius: 2, fontSize: 12, textAlign: 'left', mb: 1 }}>
@@ -824,7 +1039,7 @@ const DashboardPage = () => {
                                         <ListItem alignItems="flex-start" sx={{ py: 1.5, px: 2 }}>
                                             <ListItemAvatar>
                                                 <Avatar sx={{ width: 36, height: 36, bgcolor: '#E3F2FD', color: LIGHT_BLUE, fontSize: 12, fontWeight: 700 }}>
-                                                    {u.date?.slice(0, 2)}
+                                                    {u.date?.slice(8, 10)}
                                                 </Avatar>
                                             </ListItemAvatar>
                                             <ListItemText

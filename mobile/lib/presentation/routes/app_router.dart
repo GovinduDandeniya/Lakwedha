@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/auth/login_screen.dart';
+import '../screens/auth/register_screen.dart';
 import '../screens/shell/main_shell.dart';
+import '../screens/notifications/notifications_screen.dart';
 import '../../features/auth/screens/sign_in_screen.dart';
 import '../../features/auth/screens/sign_up_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
@@ -19,6 +21,7 @@ class AppRouter {
   static const String login          = '/login';
   static const String register       = '/register';
   static const String suspended      = '/suspended';
+  static const String notifications  = '/notifications';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -35,9 +38,11 @@ class AppRouter {
       case login:
         return _route(const LoginScreen());
       case register:
-        return _route(const SignUpScreen());
+        return _route(const RegisterScreen());
       case suspended:
         return _route(const SuspendedScreen());
+      case notifications:
+        return _route(const NotificationsScreen());
       default:
         return _route(
           const Scaffold(

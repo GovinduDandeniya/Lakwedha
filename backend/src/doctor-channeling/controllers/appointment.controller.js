@@ -1,5 +1,7 @@
 const Appointment = require('../models/appointment.model');
 const Availability = require('../models/availability.model');
+const ExtraAppointmentRequest = require('../models/extra_appointment_request.model');
+const ChannelingSession = require('../models/channelingSession.model');
 const queueService = require('../services/queue.service');
 const notificationService = require('../services/notification.service');
 const { validateAppointment, validateStatusUpdate } = require('../validators/appointment.validator');
@@ -346,5 +348,129 @@ exports.getQueueStatus = async (req, res) => {
             success: false,
             error: error.message
         });
+    }
+};
+
+/**
+ * GET /api/v1/doctor-channeling/appointments/extra-requests
+ * Doctor: list their extra appointment requests
+ */
+exports.getExtraRequests = async (req, res) => {
+    try {
+        const requests = await ExtraAppointmentRequest.find({ doctorId: req.user.id })
+            .sort({ createdAt: -1 })
+            .populate('patientId', 'name phone email birthday gender')
+            .populate('sessionId', 'hospitalName date startTime');
+
+        const data = requests.map(r => ({
+            _id: r._id,
+            requestId: r.requestId,
+            sessionId: r.sessionId,
+            status: r.status,
+            reason: r.reason,
+            urgencyNote: r.urgencyNote,
+            doctorResponse: r.doctorResponse,
+            createdAt: r.createdAt,
+            patient: r.patientId ? {
+                name: r.patientId.name,
+                phone: r.patientId.phone,
+                email: r.patientId.email,
+                age: r.patientId.birthday
+                    ? Math.floor((Date.now() - new Date(r.patientId.birthday)) / (365.25 * 24 * 3600 * 1000))
+                    : null,
+                gender: r.patientId.gender,
+            } : null,
+        }));
+
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
+ * PATCH /api/v1/doctor-channeling/appointments/extra-requests/:id/respond
+ * Doctor: accept or reject an extra appointment request
+ */
+exports.respondToExtraRequest = async (req, res) => {
+    try {
+        const { action, doctorResponse } = req.body;
+        if (!['accepted', 'rejected'].includes(action)) {
+            return res.status(400).json({ success: false, error: 'action must be accepted or rejected' });
+        }
+
+        const request = await ExtraAppointmentRequest.findOne({
+            _id: req.params.id,
+            doctorId: req.user.id,
+        });
+        if (!request) return res.status(404).json({ success: false, error: 'Request not found' });
+        if (request.status !== 'pending') {
+            return res.status(400).json({ success: false, error: 'Request has already been responded to' });
+        }
+
+        request.status = action;
+        request.doctorResponse = doctorResponse || '';
+        request.updatedAt = new Date();
+        await request.save();
+
+        res.json({ success: true, data: request });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
+ * POST /api/v1/doctor-channeling/appointments/extra-requests
+ * Patient: submit an extra appointment request for a full session
+ */
+exports.submitExtraRequest = async (req, res) => {
+    try {
+        const { sessionId, reason, urgencyNote } = req.body;
+        if (!sessionId || !reason) {
+            return res.status(400).json({ success: false, error: 'sessionId and reason are required' });
+        }
+
+        const session = await ChannelingSession.findById(sessionId);
+        if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+        if (!session.extraRequestsEnabled) {
+            return res.status(403).json({ success: false, error: 'This doctor has not enabled extra appointment requests for this session' });
+        }
+        if (session.status !== 'full') {
+            return res.status(400).json({ success: false, error: 'Extra requests are only allowed when the session is fully booked' });
+        }
+
+        // Only patients with a previous appointment history with this doctor can request
+        const hasHistory = await Appointment.findOne({
+            doctorId: session.doctorId,
+            patientId: req.user.id,
+            status: { $in: ['completed', 'confirmed'] },
+        });
+        if (!hasHistory) {
+            return res.status(403).json({
+                success: false,
+                error: 'You can only request an extra appointment with a doctor you have previously visited.',
+            });
+        }
+
+        const existing = await ExtraAppointmentRequest.findOne({
+            sessionId,
+            patientId: req.user.id,
+            status: 'pending',
+        });
+        if (existing) {
+            return res.status(409).json({ success: false, error: 'You already have a pending request for this session' });
+        }
+
+        const request = await ExtraAppointmentRequest.create({
+            sessionId,
+            doctorId: session.doctorId,
+            patientId: req.user.id,
+            reason,
+            urgencyNote: urgencyNote || '',
+        });
+
+        res.status(201).json({ success: true, data: request });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 };

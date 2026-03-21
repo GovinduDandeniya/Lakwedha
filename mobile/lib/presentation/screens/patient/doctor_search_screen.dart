@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/booking_provider.dart';
@@ -25,6 +26,8 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
   final FocusNode _hospitalFocusNode = FocusNode();
 
   List<Doctor> _doctors = [];
+  List<String> _nameSuggestions = [];
+  Timer? _debounce;
   bool _isLoading = false;
   bool _hasSearched = false;
   bool _isNameOnlyMode = false;
@@ -86,10 +89,32 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
   @override
   void initState() {
     super.initState();
+    _nameController.addListener(_onNameChanged);
+  }
+
+  void _onNameChanged() {
+    _debounce?.cancel();
+    final query = _nameController.text.trim();
+    if (query.isEmpty) {
+      setState(() => _nameSuggestions = []);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      try {
+        final doctors = await _apiService.searchDoctors(name: query);
+        if (mounted) {
+          setState(() {
+            _nameSuggestions = doctors.map((d) => d.name).toSet().toList();
+          });
+        }
+      } catch (_) {}
+    });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _nameController.removeListener(_onNameChanged);
     _nameController.dispose();
     _hospitalController.dispose();
     _nameFocusNode.dispose();
@@ -97,7 +122,6 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
     super.dispose();
   }
 
-  static const List<String> _doctorNameOptions = [];
   static const List<String> _hospitalOptions = [];
 
   Future<void> _searchDoctors() async {
@@ -109,8 +133,10 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
     });
     try {
       _doctors = await _apiService.searchDoctors(
+        name: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
         specialty: _selectedSpecialty,
         location: _hospitalController.text.trim().isNotEmpty ? _hospitalController.text.trim() : null,
+        fromDate: _selectedDate,
       );
     } catch (_) {
       _doctors = [];
@@ -433,7 +459,7 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
             focusNode: _nameFocusNode,
             hint: 'Doctor name',
             icon: Icons.person_search_outlined,
-            options: _doctorNameOptions,
+            options: _nameSuggestions,
           ),
           const SizedBox(height: 10),
           _autocompleteField(

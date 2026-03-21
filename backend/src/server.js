@@ -120,6 +120,8 @@ app.post("/api/v1/auth/login", async (req, res) => {
           name: registered.fullName || `${registered.firstName} ${registered.lastName}`,
           email: registered.email,
           role: "doctor",
+          specialization: registered.specialization,
+          status: "APPROVED",
         },
       });
     }
@@ -152,6 +154,8 @@ app.get("/api/v1/auth/verify", async (req, res) => {
           name: registered.fullName || `${registered.firstName} ${registered.lastName}`,
           email: registered.email,
           role: "doctor",
+          specialization: registered.specialization,
+          status: registered.status,
         },
       });
     }
@@ -191,7 +195,7 @@ app.get("/api/v1/appointments", requireAuth, async (req, res) => {
         slotTime:         a.slotTime,
         date:             a.slotTime ? a.slotTime.toISOString().split('T')[0] : null,
         hospital:         a.hospitalName || null,
-        appointmentNumber: a.queuePosition || null,
+        appointmentNumber: a.appointmentNumber || null,
         symptoms:         a.symptoms || null,
         patientId:        p?._id || a.patientId,
         patientName:      p?.name || null,
@@ -222,13 +226,74 @@ app.patch("/api/v1/appointments/:id/complete", async (req, res) => {
 });
 
 // ── Patients ──────────────────────────────────────────────────────────────────
-app.get("/api/v1/patients", async (req, res) => {
+app.get("/api/v1/patients", requireAuth, async (req, res) => {
   try {
     const { search } = req.query;
-    const filter = {};
-    if (search) filter.name = { $regex: search, $options: 'i' };
-    const patients = await Patient.find(filter, { password: 0 });
-    res.json({ success: true, data: patients, total: patients.length });
+
+    // Get all appointments for this doctor to build patient stats
+    const appointments = await Appointment.find({ doctorId: req.user.id })
+      .select('patientId slotTime status')
+      .sort({ slotTime: -1 });
+
+    // Aggregate: unique patientIds with visit count (completed only) and last visit date
+    const statsMap = {};
+    for (const a of appointments) {
+      const pid = a.patientId?.toString();
+      if (!pid) continue;
+      // Always register the patient (they booked), but only count completed as a visit
+      if (!statsMap[pid]) {
+        statsMap[pid] = { totalVisits: 0, lastVisit: null };
+      }
+      if (a.status === 'completed') {
+        statsMap[pid].totalVisits += 1;
+        if (!statsMap[pid].lastVisit && a.slotTime) {
+          statsMap[pid].lastVisit = a.slotTime.toISOString().split('T')[0];
+        }
+      }
+    }
+
+    const patientIds = Object.keys(statsMap);
+    if (patientIds.length === 0) {
+      return res.json({ success: true, data: [], total: 0 });
+    }
+
+    // Fetch User records for these patients
+    const userFilter = { _id: { $in: patientIds } };
+    if (search) {
+      userFilter.$or = [
+        { name:       { $regex: search, $options: 'i' } },
+        { first_name: { $regex: search, $options: 'i' } },
+        { last_name:  { $regex: search, $options: 'i' } },
+      ];
+    }
+    const users = await User.find(userFilter, {
+      password: 0, otp_code: 0, otp_expiry: 0,
+    });
+
+    // Build response in the shape PatientList expects
+    const data = users.map(u => {
+      const stats = statsMap[u._id.toString()] || { totalVisits: 0, lastVisit: null };
+      let age = null;
+      if (u.birthday) {
+        const ms = Date.now() - new Date(u.birthday).getTime();
+        age = Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
+      }
+      return {
+        id:          u._id,
+        name:        u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || null,
+        title:       u.title || null,
+        firstName:   u.first_name || null,
+        lastName:    u.last_name  || null,
+        email:       u.email || null,
+        phone:       u.phone || null,
+        gender:      u.gender || null,
+        age,
+        totalVisits: stats.totalVisits,
+        lastVisit:   stats.lastVisit,
+      };
+    });
+
+    res.json({ success: true, data, total: data.length });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -244,17 +309,52 @@ app.get("/api/v1/patients/:id/history", async (req, res) => {
 });
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-app.get("/api/v1/dashboard/stats", async (req, res) => {
+
+function transformAppointment(a) {
+  const p = a.patientId;
+  let patientAge = null;
+  if (p?.birthday) {
+    const ms = Date.now() - new Date(p.birthday).getTime();
+    patientAge = Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
+  }
+  const firstName = p?.first_name || null;
+  const lastName  = p?.last_name  || null;
+  return {
+    id:                a._id,
+    appointmentId:     a.appointmentId,
+    status:            a.status,
+    slotTime:          a.slotTime,
+    date:              a.slotTime ? a.slotTime.toISOString().split('T')[0] : null,
+    time:              a.slotTime ? a.slotTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : null,
+    hospital:          a.hospitalName || null,
+    appointmentNumber: a.appointmentNumber || null,
+    symptoms:          a.symptoms || null,
+    patientId:         p?._id || a.patientId,
+    patientName:       p?.name || null,
+    patientTitle:      p?.title || null,
+    patientFirstName:  firstName,
+    patientLastName:   lastName,
+    patientDisplayName: p
+      ? (p.name || `${firstName || ''} ${lastName || ''}`.trim() || null)
+      : null,
+    patientAge,
+    patientGender:     p?.gender || null,
+  };
+}
+
+app.get("/api/v1/dashboard/stats", requireAuth, async (req, res) => {
   try {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    const doctorFilter = { doctorId: req.user.id };
 
     const [todayApts, totalPatients] = await Promise.all([
-      Appointment.find({ slotTime: { $gte: today, $lt: tomorrow } }),
+      Appointment.find({ ...doctorFilter, slotTime: { $gte: today, $lt: tomorrow } }),
       Patient.countDocuments(),
     ]);
 
     const upcoming = await Appointment.countDocuments({
+      ...doctorFilter,
       slotTime: { $gte: tomorrow },
       status: { $in: ['pending', 'confirmed'] },
     });
@@ -273,20 +373,23 @@ app.get("/api/v1/dashboard/stats", async (req, res) => {
   }
 });
 
-app.get("/api/v1/dashboard/today-appointments", async (req, res) => {
+app.get("/api/v1/dashboard/today-appointments", requireAuth, async (req, res) => {
   try {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-    const appointments = await Appointment.find({ slotTime: { $gte: today, $lt: tomorrow } })
-      .populate('patientId', 'name age gender')
-      .sort({ slotTime: 1 });
-    res.json({ success: true, data: appointments });
+    const appointments = await Appointment.find({
+      doctorId: req.user.id,
+      slotTime: { $gte: today, $lt: tomorrow },
+    })
+      .populate('patientId', 'name title first_name last_name birthday gender')
+      .sort({ hospitalName: 1, appointmentNumber: 1 });
+    res.json({ success: true, data: appointments.map(transformAppointment) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.patch("/api/v1/dashboard/appointments/:id/complete", async (req, res) => {
+app.patch("/api/v1/dashboard/appointments/:id/complete", requireAuth, async (req, res) => {
   try {
     await Appointment.findByIdAndUpdate(req.params.id, { status: 'completed', updatedAt: new Date() });
     res.json({ success: true, message: 'Appointment marked as completed' });
@@ -295,15 +398,19 @@ app.patch("/api/v1/dashboard/appointments/:id/complete", async (req, res) => {
   }
 });
 
-app.get("/api/v1/dashboard/upcoming", async (_, res) => {
+app.get("/api/v1/dashboard/upcoming", requireAuth, async (req, res) => {
   try {
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(0, 0, 0, 0);
     const weekLater = new Date(tomorrow); weekLater.setDate(weekLater.getDate() + 7);
     const appointments = await Appointment.find({
+      doctorId: req.user.id,
       slotTime: { $gte: tomorrow, $lt: weekLater },
       status: { $in: ['pending', 'confirmed'] },
-    }).populate('patientId', 'name age gender').sort({ slotTime: 1 }).limit(20);
-    res.json({ success: true, data: appointments });
+    })
+      .populate('patientId', 'name title first_name last_name birthday gender')
+      .sort({ slotTime: 1 })
+      .limit(20);
+    res.json({ success: true, data: appointments.map(transformAppointment) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -437,6 +544,28 @@ app.post("/api/v1/dashboard/cancel-session", async (req, res) => {
     // Mark cancelled in DB
     const ids = toCancel.map(a => a._id);
     await Appointment.updateMany({ _id: { $in: ids } }, { status: 'cancelled', cancellationReason: reason || null, updatedAt: new Date() });
+
+    // Mark matching ChannelingSession(s) as cancelled and record 6% cancellation charge
+    const CHANNELING_RATE = 0.10;
+    const CANCELLATION_CHARGE_RATE = 0.06;
+    const affectedDoctorIds = [...new Set(toCancel.map(a => a.doctorId?.toString()).filter(Boolean))];
+    for (const dId of affectedDoctorIds) {
+      const doc = await RegisteredDoctor.findById(dId).select('consultationFee');
+      const doctorFee = doc?.consultationFee || 0;
+      // Find active ChannelingSession(s) for this doctor/date/hospital and mark as cancelled
+      const sessionFilter = { doctorId: dId, date: { $gte: start, $lte: end }, status: { $in: ['open', 'full', 'closed'] } };
+      if (hospital && hospital !== 'ALL') sessionFilter.hospitalName = hospital;
+      const affectedSessions = await ChannelingSession.find(sessionFilter);
+      for (const sess of affectedSessions) {
+        const hospCharge = sess.hospitalCharge || 0;
+        const channelingFeePerApt = Math.round((doctorFee + hospCharge) * CHANNELING_RATE);
+        const chargePerApt = Math.round(channelingFeePerApt * CANCELLATION_CHARGE_RATE);
+        sess.status = 'cancelled';
+        sess.cancellationCharge = chargePerApt * sess.bookedCount;
+        sess.updatedAt = new Date();
+        await sess.save();
+      }
+    }
 
     // Build patient notifications
     const formattedDate = new Date(targetDate).toLocaleDateString('en-US', {
@@ -646,8 +775,19 @@ app.patch('/api/v1/channeling-sessions/:id/cancel', requireAuth, async (req, res
       }
     );
 
-    // Cancel the session itself
+    // Compute 6% cancellation charge on the channeling fee per booked appointment
+    const CHANNELING_RATE = 0.10;
+    const CANCELLATION_CHARGE_RATE = 0.06;
+    const doctor = await RegisteredDoctor.findById(session.doctorId).select('consultationFee');
+    const doctorFee  = doctor?.consultationFee || 0;
+    const hospCharge = session.hospitalCharge  || 0;
+    const channelingFeePerApt   = Math.round((doctorFee + hospCharge) * CHANNELING_RATE);
+    const chargePerApt          = Math.round(channelingFeePerApt * CANCELLATION_CHARGE_RATE);
+    const totalCancellationCharge = chargePerApt * session.bookedCount;
+
+    // Cancel the session itself and record the charge
     session.status = 'cancelled';
+    session.cancellationCharge = totalCancellationCharge;
     session.updatedAt = new Date();
     await session.save();
 
@@ -667,6 +807,8 @@ app.patch('/api/v1/channeling-sessions/:id/cancel', requireAuth, async (req, res
       data: session,
       message: `Session cancelled. ${modifiedCount} appointment(s) cancelled and patients notified.`,
       affectedAppointments: modifiedCount,
+      cancellationCharge: totalCancellationCharge,
+      cancellationChargePerApt: chargePerApt,
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -687,6 +829,23 @@ app.patch('/api/v1/channeling-sessions/:id/close', requireAuth, async (req, res)
     await session.save();
 
     res.json({ success: true, data: session, message: 'Booking closed successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Doctor: toggle extra appointment requests on/off for a session
+app.patch('/api/v1/channeling-sessions/:id/extra-requests/toggle', requireAuth, async (req, res) => {
+  try {
+    const session = await ChannelingSession.findOne({ _id: req.params.id, doctorId: req.user.id });
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+    if (['cancelled', 'completed'].includes(session.status)) {
+      return res.status(400).json({ success: false, error: 'Cannot modify a cancelled or completed session' });
+    }
+    session.extraRequestsEnabled = !session.extraRequestsEnabled;
+    session.updatedAt = new Date();
+    await session.save();
+    res.json({ success: true, data: session, extraRequestsEnabled: session.extraRequestsEnabled });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -896,4 +1055,9 @@ app.get("/test-email", async (_req, res) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Graceful shutdown — releases the port so nodemon restarts cleanly
+const shutdown = () => server.close(() => process.exit(0));
+process.on('SIGTERM', shutdown);
+process.on('SIGINT',  shutdown);
