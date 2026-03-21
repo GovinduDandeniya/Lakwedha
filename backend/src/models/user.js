@@ -24,6 +24,11 @@ const userSchema = new mongoose.Schema(
             enum: ['user', 'admin', 'pharmacist'],
             default: 'user',
         },
+        province: { type: String, trim: true },
+        district: { type: String, trim: true },
+        city:     { type: String, trim: true },
+        address:  { type: String, trim: true },
+        phone:    { type: String, trim: true },
     },
     { timestamps: true }
 );
