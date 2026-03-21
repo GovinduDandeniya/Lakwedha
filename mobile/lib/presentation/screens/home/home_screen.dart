@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../patient/doctor_search_screen.dart';
-import '../../../features/emergency/screens/emergency_map_screen.dart';
+import '../../../features/emergency/screens/emergency_type_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onGoToProfile;
@@ -347,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   buttonIcon: Icons.location_on_rounded,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const EmergencyMapScreen()),
+                    MaterialPageRoute(builder: (_) => const EmergencyTypeScreen()),
                   ),
                 ),
               ],

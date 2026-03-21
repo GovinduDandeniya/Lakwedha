@@ -5,12 +5,28 @@ import '../models/emergency_center.dart';
 class EmergencyApiService {
   static const String _baseUrl = 'http://lakwedha.lk/api/emergency-centers';
 
-  /// Fetch all active emergency centers from the backend
-  Future<List<EmergencyCenter>> fetchEmergencyCenters() async {
+  /// Fetch the list of Ayurveda-treatable emergency types from the backend
+  Future<List<String>> fetchEmergencyTypes() async {
     final response = await http.get(
-      Uri.parse(_baseUrl),
+      Uri.parse('$_baseUrl/types'),
       headers: {'Content-Type': 'application/json'},
     );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final List<dynamic> typesJson = data['data'] ?? [];
+      return typesJson.map((e) => e.toString()).toList();
+    } else {
+      throw Exception('Failed to load emergency types');
+    }
+  }
+
+  /// Fetch all active emergency centers, optionally filtered by emergency type
+  Future<List<EmergencyCenter>> fetchEmergencyCenters({String? emergencyType}) async {
+    final uri = Uri.parse(_baseUrl).replace(
+      queryParameters: emergencyType != null ? {'emergencyType': emergencyType} : null,
+    );
+    final response = await http.get(uri, headers: {'Content-Type': 'application/json'});
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -24,31 +40,26 @@ class EmergencyApiService {
     }
   }
 
-  /// Fetch nearby emergency centers based on user coordinates
+  /// Fetch nearby centers sorted by distance, optionally filtered by emergency type
   Future<List<EmergencyCenter>> fetchNearbyCenters({
     required double latitude,
     required double longitude,
     double radiusKm = 50,
+    String? emergencyType,
   }) async {
-    final uri = Uri.parse('$_baseUrl/nearby').replace(
-      queryParameters: {
-        'lat': latitude.toString(),
-        'lng': longitude.toString(),
-        'radius': radiusKm.toString(),
-      },
-    );
-
-    final response = await http.get(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-    );
+    final params = <String, String>{
+      'lat': latitude.toString(),
+      'lng': longitude.toString(),
+      'radius': radiusKm.toString(),
+      if (emergencyType != null) 'emergencyType': emergencyType,
+    };
+    final uri = Uri.parse('$_baseUrl/nearby').replace(queryParameters: params);
+    final response = await http.get(uri, headers: {'Content-Type': 'application/json'});
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       final List<dynamic> centersJson = data is List ? data : data['data'] ?? [];
-      return centersJson
-          .map((json) => EmergencyCenter.fromJson(json))
-          .toList();
+      return centersJson.map((json) => EmergencyCenter.fromJson(json)).toList();
     } else {
       throw Exception('Failed to load nearby emergency centers');
     }
