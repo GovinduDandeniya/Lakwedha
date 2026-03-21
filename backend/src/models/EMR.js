@@ -12,18 +12,18 @@ const emrSchema = new mongoose.Schema(
             ref: 'User',
             required: true,
         },
-        encryptedDiagnosis: {
-            type: String,
+        appointmentId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Appointment',
+            default: null,
         },
-        encryptedTreatment: {
-            type: String,
-        },
-        encryptedNotes: {
-            type: String,
-        },
-        title: String,
-        type: String,
-        fileUrl: String,
+        encryptedDiagnosis: { type: String },
+        encryptedTreatment: { type: String },
+        encryptedNotes:     { type: String },
+        title:        String,
+        type:         { type: String, enum: ['camera', 'file', 'text', 'medical_record'], default: 'file' },
+        fileUrl:      String,
+        uploadedDate: String,
     },
     {
         timestamps: true,

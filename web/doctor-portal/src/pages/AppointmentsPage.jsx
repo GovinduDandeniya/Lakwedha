@@ -1,13 +1,19 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     Box, Typography, Paper, CircularProgress,
     TextField, InputAdornment, Button, Chip, Divider,
+    Dialog, DialogTitle, DialogContent,
+    List, ListItemButton, ListItemText, LinearProgress,
+    IconButton,
 } from '@mui/material';
 import {
     Search, CalendarToday, Refresh, LocalHospital, People,
+    Close, FolderOpen, InsertDriveFile,
 } from '@mui/icons-material';
 import AppointmentList from '../components/appointments/AppointmentList';
 import api from '../services/api';
+import emrApi from '../services/emrApi';
+import EMRUploadDialog from '../components/emr/EMRUploadDialog';
 
 const GREEN = '#2E7D32';
 
@@ -147,6 +153,20 @@ const AppointmentsPage = () => {
     const [loading, setLoading] = useState(true);
     const [hospitalFilter, setHospitalFilter] = useState('all'); // today's hospital quick-filter
 
+    // ── EMR state ──────────────────────────────────────────────────────────────
+    const [emrViewOpen, setEmrViewOpen]       = useState(false);
+    const [emrUploadOpen, setEmrUploadOpen]   = useState(false);
+    const [emrPatientId, setEmrPatientId]     = useState('');
+    const [emrPatientName, setEmrPatientName] = useState('');
+    const [emrAppointmentId, setEmrAppointmentId]   = useState('');
+    const [emrAppointmentNum, setEmrAppointmentNum] = useState('');
+    const [emrRecords, setEmrRecords]         = useState([]);
+    const [emrFetching, setEmrFetching]       = useState(false);
+    const [emrActiveRecord, setEmrActiveRecord] = useState(null);
+    const [emrFileUrl, setEmrFileUrl]         = useState('');
+    const [emrError, setEmrError]             = useState('');
+    const emrObjectUrlRef = useRef('');
+
     const fetchAppointments = useCallback(async () => {
         setLoading(true);
         try {
@@ -171,9 +191,56 @@ const AppointmentsPage = () => {
         } catch { /* ignore */ }
     };
 
-    // EMR handlers — implementation owned by the EMR module developer
-    const handleViewRecords   = (appointment) => { /* TODO: open EMR view for appointment.patientId */ };
-    const handleUploadRecords = (appointment) => { /* TODO: open EMR upload for appointment.patientId */ };
+    // ── EMR handlers ───────────────────────────────────────────────────────────
+    const handleViewRecords = async (appointment) => {
+        const pid = appointment.patientId;
+        if (!pid) return;
+        const name = appointment.patientTitle
+            ? `${appointment.patientTitle} ${appointment.patientFirstName} ${appointment.patientLastName}`
+            : appointment.patientName || 'Patient';
+        setEmrPatientId(pid);
+        setEmrPatientName(name);
+        setEmrRecords([]);
+        setEmrActiveRecord(null);
+        setEmrFileUrl('');
+        setEmrError('');
+        setEmrViewOpen(true);
+        setEmrFetching(true);
+        try {
+            const data = await emrApi.getByPatientId(pid);
+            setEmrRecords(Array.isArray(data) ? data : []);
+        } catch (err) {
+            setEmrError(err.message || 'Failed to load records');
+        } finally {
+            setEmrFetching(false);
+        }
+    };
+
+    const handleSelectEmrRecord = async (record) => {
+        setEmrActiveRecord(record);
+        setEmrFileUrl('');
+        if (record.fileUrl) {
+            try {
+                if (emrObjectUrlRef.current) URL.revokeObjectURL(emrObjectUrlRef.current);
+                const objUrl = await emrApi.fetchSecureFile(record.fileUrl);
+                emrObjectUrlRef.current = objUrl;
+                setEmrFileUrl(objUrl);
+            } catch { /* show metadata only */ }
+        }
+    };
+
+    const handleUploadRecords = (appointment) => {
+        const pid = appointment.patientId?._id || appointment.patientId;
+        if (!pid) return;
+        const name = appointment.patientTitle
+            ? `${appointment.patientTitle} ${appointment.patientFirstName} ${appointment.patientLastName}`
+            : appointment.patientName || 'Patient';
+        setEmrPatientId(String(pid));
+        setEmrPatientName(name);
+        setEmrAppointmentId(String(appointment.id || appointment._id || ''));
+        setEmrAppointmentNum(String(appointment.appointmentNumber || ''));
+        setEmrUploadOpen(true);
+    };
 
     // Filtered appointments (search + status)
     const filtered = useMemo(() => {
@@ -215,6 +282,7 @@ const AppointmentsPage = () => {
     ];
 
     return (
+        <>
         <Box sx={{ p: { xs: 2, md: 3 }, bgcolor: '#F0F4F8', minHeight: '100vh' }}>
 
             {/* Page header */}
@@ -422,6 +490,105 @@ const AppointmentsPage = () => {
                 )}
             </Paper>
         </Box>
+
+        {/* ── EMR View Dialog ──────────────────────────────────────────────── */}
+        <Dialog open={emrViewOpen} onClose={() => setEmrViewOpen(false)} maxWidth="md" fullWidth
+            PaperProps={{ sx: { borderRadius: 3, height: '80vh' } }}>
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FolderOpen sx={{ color: GREEN }} />
+                    <Typography fontWeight={700}>Medical Records — {emrPatientName}</Typography>
+                </Box>
+                <IconButton size="small" onClick={() => setEmrViewOpen(false)}><Close fontSize="small" /></IconButton>
+            </DialogTitle>
+            <Divider />
+            <DialogContent sx={{ p: 0, display: 'flex', overflow: 'hidden' }}>
+                {/* Record list */}
+                <Box sx={{ width: 240, borderRight: '1px solid #E0E0E0', overflow: 'auto', flexShrink: 0 }}>
+                    {emrFetching && <LinearProgress />}
+                    {!emrFetching && emrRecords.length === 0 && (
+                        <Typography sx={{ p: 2, color: 'text.secondary', fontSize: 13 }}>
+                            {emrError || 'No records found.'}
+                        </Typography>
+                    )}
+                    <List dense disablePadding>
+                        {emrRecords.map((rec, i) => (
+                            <ListItemButton
+                                key={rec._id || i}
+                                selected={emrActiveRecord?._id === rec._id}
+                                onClick={() => handleSelectEmrRecord(rec)}
+                                sx={{ borderBottom: '1px solid #F5F5F5', '&.Mui-selected': { bgcolor: '#E8F5E9' } }}
+                            >
+                                <ListItemText
+                                    primary={<Typography noWrap fontSize={13} fontWeight={600}>{rec.title || 'Record'}</Typography>}
+                                    secondary={
+                                        <Typography noWrap fontSize={11} color="text.secondary">
+                                            {rec.type} · {new Date(rec.createdAt).toLocaleDateString()}
+                                        </Typography>
+                                    }
+                                />
+                            </ListItemButton>
+                        ))}
+                    </List>
+                </Box>
+
+                {/* Record detail */}
+                <Box sx={{ flex: 1, p: 3, overflow: 'auto' }}>
+                    {!emrActiveRecord ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'text.secondary' }}>
+                            <InsertDriveFile sx={{ fontSize: 48, mb: 1, opacity: 0.3 }} />
+                            <Typography fontSize={14}>Select a record to view details</Typography>
+                        </Box>
+                    ) : (
+                        <Box>
+                            <Typography variant="h6" fontWeight={700} mb={2}>{emrActiveRecord.title}</Typography>
+                            {emrActiveRecord.diagnosis && (
+                                <Box mb={2}>
+                                    <Typography fontSize={12} fontWeight={700} color="text.secondary" mb={0.5}>DIAGNOSIS</Typography>
+                                    <Typography fontSize={14}>{emrActiveRecord.diagnosis}</Typography>
+                                </Box>
+                            )}
+                            {emrActiveRecord.notes && (
+                                <Box mb={2}>
+                                    <Typography fontSize={12} fontWeight={700} color="text.secondary" mb={0.5}>NOTES</Typography>
+                                    <Typography fontSize={14}>{emrActiveRecord.notes}</Typography>
+                                </Box>
+                            )}
+                            {emrActiveRecord.treatment && (
+                                <Box mb={2}>
+                                    <Typography fontSize={12} fontWeight={700} color="text.secondary" mb={0.5}>TREATMENT</Typography>
+                                    <Typography fontSize={14}>{emrActiveRecord.treatment}</Typography>
+                                </Box>
+                            )}
+                            {emrFileUrl && (
+                                <Box mt={2}>
+                                    {/\.(jpg|jpeg|png|gif|webp)$/i.test(emrActiveRecord.fileUrl || '') ? (
+                                        <img src={emrFileUrl} alt="attachment"
+                                            style={{ maxWidth: '100%', borderRadius: 8, pointerEvents: 'none', userSelect: 'none' }} />
+                                    ) : (
+                                        <object data={emrFileUrl} type="application/pdf"
+                                            style={{ width: '100%', height: 400, borderRadius: 8 }}>
+                                            <Typography color="text.secondary" fontSize={13}>Cannot preview this file type.</Typography>
+                                        </object>
+                                    )}
+                                </Box>
+                            )}
+                        </Box>
+                    )}
+                </Box>
+            </DialogContent>
+        </Dialog>
+
+        {/* ── EMR Upload Dialog (Camera / File / Text) ─────────────────────── */}
+        <EMRUploadDialog
+            open={emrUploadOpen}
+            onClose={() => setEmrUploadOpen(false)}
+            patientId={emrPatientId}
+            patientName={emrPatientName}
+            appointmentId={emrAppointmentId}
+            appointmentNumber={emrAppointmentNum}
+        />
+        </>
     );
 };
 

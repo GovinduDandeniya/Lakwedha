@@ -12,9 +12,9 @@ import 'payment_success_screen.dart';
 const Color _primary = Color(0xFF2E7D32);
 const Color _bg = Color(0xFFF4FAF4);
 
-// Fee constants (LKR)
-const double _hospitalCharge = 500.0;
-const double _channelingCharge = 300.0;
+// Fallback fee constants when session data has no fee breakdown (LKR)
+const double _fallbackHospitalCharge = 500.0;
+const double _fallbackChangelingCharge = 300.0;
 
 enum _PayMethod { creditCard, debitCard, onlineBanking, mobileWallet }
 
@@ -57,9 +57,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   bool _isProcessing = false;
 
-  double get _doctorFee =>
-      widget.doctor.consultationFee > 0 ? widget.doctor.consultationFee : 1500.0;
-  double get _totalAmount => _doctorFee + _hospitalCharge + _channelingCharge;
+  double get _doctorFee => widget.slot.totalAmount > 0
+      ? widget.slot.doctorFee
+      : (widget.doctor.consultationFee > 0 ? widget.doctor.consultationFee : 1500.0);
+  double get _hospitalCharge => widget.slot.totalAmount > 0
+      ? widget.slot.hospitalCharge
+      : _fallbackHospitalCharge;
+  double get _channelingCharge => widget.slot.totalAmount > 0
+      ? widget.slot.channelingFee
+      : _fallbackChangelingCharge;
+  double get _totalAmount => widget.slot.totalAmount > 0
+      ? widget.slot.totalAmount
+      : _doctorFee + _hospitalCharge + _channelingCharge;
 
   @override
   void dispose() {

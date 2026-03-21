@@ -1,6 +1,31 @@
 const cron = require('node-cron');
 const Appointment = require('../doctor-channeling/models/appointment.model');
+const ChannelingSession = require('../doctor-channeling/models/channelingSession.model');
 const notificationService = require('../doctor-channeling/services/notification.service');
+
+/**
+ * Runs every hour. Auto-marks channeling sessions as 'completed' when their
+ * date has passed and they are still in open/full/closed status.
+ */
+cron.schedule('0 * * * *', async () => {
+    try {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        const result = await ChannelingSession.updateMany(
+            { date: { $lt: now }, status: { $in: ['open', 'full', 'closed'] } },
+            { $set: { status: 'completed', updatedAt: new Date() } }
+        );
+
+        if (result.modifiedCount > 0) {
+            console.log(`Session completion job: marked ${result.modifiedCount} session(s) as completed.`);
+        }
+    } catch (err) {
+        console.error('Session completion job error:', err.message);
+    }
+});
+
+console.log('Session auto-completion job scheduled (runs every hour).');
 
 /**
  * Runs every 10 minutes. Finds confirmed appointments whose slotTime is within

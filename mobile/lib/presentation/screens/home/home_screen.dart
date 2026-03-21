@@ -144,7 +144,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const Spacer(),
-                    _topBarBtn(Icons.notifications_outlined, badge: true),
+                    GestureDetector(
+                      onTap: () => Navigator.pushNamed(context, '/notifications'),
+                      child: _topBarBtn(Icons.notifications_outlined, badge: true),
+                    ),
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: widget.onGoToProfile,

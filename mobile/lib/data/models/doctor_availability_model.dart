@@ -5,6 +5,10 @@ class DateSlotSummary {
   final String endTime;    // 'HH:MM'
   final int totalSlots;
   final int bookedSlots;
+  final double doctorFee;
+  final double hospitalCharge;
+  final double channelingFee;
+  final double totalAmount;
 
   const DateSlotSummary({
     this.sessionId,
@@ -13,6 +17,10 @@ class DateSlotSummary {
     required this.endTime,
     required this.totalSlots,
     required this.bookedSlots,
+    this.doctorFee = 0,
+    this.hospitalCharge = 0,
+    this.channelingFee = 0,
+    this.totalAmount = 0,
   });
 
   int get availableSlots => totalSlots - bookedSlots;
@@ -64,6 +72,10 @@ class HospitalAvailability {
               endTime: e.value['end_time'] as String,
               totalSlots: e.value['total_slots'] as int,
               bookedSlots: e.value['booked_slots'] as int,
+              doctorFee: (e.value['doctor_fee'] as num? ?? 0).toDouble(),
+              hospitalCharge: (e.value['hospital_charge'] as num? ?? 0).toDouble(),
+              channelingFee: (e.value['channeling_fee'] as num? ?? 0).toDouble(),
+              totalAmount: (e.value['total_amount'] as num? ?? 0).toDouble(),
             ))
         .toList()
       ..sort((a, b) => '${a.date}|${a.startTime}'.compareTo('${b.date}|${b.startTime}'));

@@ -28,6 +28,7 @@ router.delete('/users/:id', admin.deleteUser);
 router.get('/appointments', admin.getAppointments);
 router.put('/appointments/:id/cancel', admin.cancelAppointment);
 router.get('/channeling-sessions', admin.getChannelingSessions);
+router.put('/channeling-sessions/:id/hospital-charge', admin.setSessionHospitalCharge);
 
 /* ── Orders ── */
 router.get('/orders', admin.getOrders);
