@@ -3,11 +3,6 @@ Thumbs.db
 node_modules/
 
 # Environment files - NEVER commit these
-.env
-.env.*
-.env.local
-.env.development
-.env.production
 
 # Firebase service account key - NEVER commit this
 firebase-key.json
@@ -16,3 +11,4 @@ firebase-key.json
 logs/
 *.log
 npm-debug.log*
+config.bat
