@@ -10,353 +10,201 @@ import {
   DollarSign,
   ExternalLink,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Clock,
+  CheckCircle,
+  XCircle,
+  RotateCcw
 } from 'lucide-react';
 
 import PrescriptionReviewModal from '@/components/pharmacy/PrescriptionReviewModal';
 
-const DUMMY_DATA = [
-  {
-    _id: 'dummy_1',
-    patientName: 'Test Patient (Demo)',
-    createdAt: new Date().toISOString(),
-    status: 'pending',
-    pharmacyStatus: 'pending',
-    imageUrl: 'https://placehold.co/600x400/5D4037/FFF8E1?text=Demo+Prescription+A'
-  },
-  {
-    _id: 'dummy_2',
-    patientName: 'John Doe (Demo)',
-    createdAt: new Date().toISOString(),
-    status: 'pending',
-    pharmacyStatus: 'pending',
-    imageUrl: 'https://placehold.co/600x400/2E7D32/FFF8E1?text=Demo+Prescription+B'
-  }
-];
-
+/**
+ * Pharmacy Admin Dashboard
+ * Strictly for pharmacists to manage prescriptions and view live stats.
+ */
 export default function PharmacyDashboard() {
   const [prescriptions, setPrescriptions] = useState([]);
+  const [stats, setStats] = useState({ pendingPrescriptions: 0, activeOrders: 0, completedToday: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isDemoMode, setIsDemoMode] = useState(false);
 
   // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
 
-  // Search and Filter State
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'alpha-asc', 'alpha-desc'
-  const [selectedLetter, setSelectedLetter] = useState('All');
-  const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', 'week', 'month'
-
-  const fetchPrescriptions = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/pharmacy/prescriptions');
-
-
-      // Handle different response structures (Array vs Object wrapper)
-      const data = Array.isArray(res.data)
-        ? res.data
-        : (res.data.data || res.data.prescriptions || []);
-
-      // Filter purely for 'pending' (backend uses pharmacyStatus)
-      const pendingItems = data.filter(item => (item.pharmacyStatus || item.status) === 'pending');
-
-
-      setPrescriptions(pendingItems);
-      setIsDemoMode(false);
       setError(null);
-    } catch (error) {
-      console.error('❌ FETCH ERROR - Switching to Demo Mode:', error);
-      setPrescriptions(DUMMY_DATA);
-      setIsDemoMode(true);
-      setError('Backend connection failed. Displaying temporary demo data.');
+
+      // Fetch Stats and Prescriptions in parallel
+      const [statsRes, presRes] = await Promise.all([
+        api.get('/pharmacy/stats'),
+        api.get('/pharmacy/prescriptions')
+      ]);
+
+      setStats(statsRes.data.data || stats);
+      
+      const allPres = Array.isArray(presRes.data) ? presRes.data : (presRes.data.data || []);
+      // Filter for pending only
+      setPrescriptions(allPres.filter(p => (p.pharmacyStatus || p.status) === 'pending'));
+
+    } catch (err) {
+      console.error('Failed to sync pharmacy dashboard:', err);
+      setError('Connection to pharmacy ledger lost. Retrying...');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPrescriptions();
+    fetchData();
   }, []);
 
   const handleOpenReview = (prescription) => {
     setSelectedPrescription(prescription);
-    setIsModalOpen(true);
+    setIsReviewOpen(true);
   };
-
-  // Filter and Sort Logic
-  const processedPrescriptions = prescriptions
-    .filter(item => {
-      // 1. Search Filter (ID or Name)
-      const matchesSearch =
-        item._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.patientName || '').toLowerCase().includes(searchTerm.toLowerCase());
-
-      // 2. Letter Filter
-      const matchesLetter = selectedLetter === 'All' ||
-        (item.patientName || '').toUpperCase().startsWith(selectedLetter);
-
-      // 3. Date Filter
-      let matchesDate = true;
-      if (dateFilter !== 'all') {
-        const itemDate = new Date(item.createdAt);
-        const now = new Date();
-        if (dateFilter === 'today') {
-           matchesDate = itemDate.toDateString() === now.toDateString();
-        } else if (dateFilter === 'week') {
-           const weekAgo = new Date(now.setDate(now.getDate() - 7));
-           matchesDate = itemDate >= weekAgo;
-        } else if (dateFilter === 'month') {
-           const monthAgo = new Date(now.setMonth(now.getMonth() - 1));
-           matchesDate = itemDate >= monthAgo;
-        }
-      }
-
-      return matchesSearch && matchesLetter && matchesDate;
-    })
-    .sort((a, b) => {
-      // Sort Logic
-      if (sortBy === 'newest') return new Date(b.createdAt) - new Date(a.createdAt);
-      if (sortBy === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
-      if (sortBy === 'alpha-asc') return (a.patientName || '').localeCompare(b.patientName || '');
-      if (sortBy === 'alpha-desc') return (b.patientName || '').localeCompare(a.patientName || '');
-      return 0;
-    });
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-secondary">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-primary">
         <Loader2 className="animate-spin mb-4" size={48} />
-        <p className="font-medium italic text-lg animate-pulse">Synchronizing Prescription Data...</p>
+        <p className="font-bold italic animate-pulse">Synchronizing Pharmacy Data...</p>
       </div>
     );
   }
-
-  if (error && !isDemoMode) { // Only show full error screen if not in demo mode
-    return (
-      <div className="bg-red-50 border border-red-200 p-8 rounded-2xl flex flex-col items-center gap-4 text-red-800 max-w-lg mx-auto mt-20 shadow-xl">
-        <AlertCircle size={48} className="text-red-500" />
-        <div className="text-center">
-          <h3 className="font-bold text-xl mb-2">Fetch Error</h3>
-          <p className="text-red-700/80">{error}</p>
-        </div>
-        <button
-          onClick={fetchPrescriptions}
-          className="mt-4 px-6 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-all"
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
-
-  const letters = ['All', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')];
 
   return (
-    <div className="space-y-6 relative">
-      {/* Demo Mode Badge */}
-      {isDemoMode && (
-        <div className="absolute -top-4 -right-4 bg-accent text-secondary px-4 py-1 rounded-bl-xl font-bold text-xs shadow-lg animate-pulse z-10 flex items-center gap-2">
-          <AlertCircle size={14} />
-          DEMO MODE ACTIVE
-        </div>
-      )}
-
-      <header className="flex justify-between items-end">
+    <div className="space-y-10 animate-in fade-in duration-500">
+      <header className="flex justify-between items-end border-b border-primary/10 pb-6">
         <div>
-          <h1 className="text-3xl font-bold text-secondary">Pharmacy Dashboard</h1>
-          <p className="text-secondary/60">Manage your dispensary and patient requests.</p>
+          <h1 className="text-3xl font-black text-primary tracking-tight">Pharmacy Hub</h1>
+          <p className="text-secondary font-medium italic mt-1 uppercase text-[10px] tracking-widest">Pharmacist Admin Operations Only</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-bold border border-primary/20 flex items-center gap-2">
-            <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-            Live System
-          </div>
+        <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-secondary/10 border border-secondary/20 rounded-full text-secondary text-[11px] font-black uppercase tracking-widest">
+          <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+          Live Connection Established
         </div>
       </header>
 
-      {/* Stats Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Real-time Stats Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {[
-          { label: 'Inbox', value: prescriptions.length, icon: FileText, color: 'text-accent', bg: 'bg-accent/10' },
-          { label: 'Active Orders', value: '12', icon: Package, color: 'text-primary', bg: 'bg-primary/10' },
-          { label: 'Daily Revenue', value: 'LKR 42K', icon: DollarSign, color: 'text-secondary', bg: 'bg-secondary/10' },
-          { label: 'Alerts', value: '2', icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50' },
+          { label: 'Pending Prescriptions', value: stats.pendingPrescriptions, icon: Clock, color: 'text-secondary', bg: 'bg-secondary/10' },
+          { label: 'Active Orders', value: stats.activeOrders, icon: Package, color: 'text-primary', bg: 'bg-primary/20' },
+          { label: 'Completed Today', value: stats.completedToday, icon: CheckCircle, color: 'text-accent', bg: 'bg-accent/10' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-[32px] border border-background shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className={`${stat.bg} ${stat.color} p-3 rounded-2xl`}>
-                <stat.icon size={24} />
-              </div>
-              <span className="text-[10px] font-black text-secondary/20 uppercase tracking-widest">MTD</span>
+          <div key={i} className="bg-white p-8 rounded-[40px] border border-secondary/10 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col items-center text-center">
+            <div className={`${stat.bg} ${stat.color} p-4 rounded-3xl mb-4`}>
+              <stat.icon size={32} />
             </div>
-            <div className="text-2xl font-black text-secondary">{stat.value}</div>
-            <div className="text-xs font-bold text-secondary/40 uppercase tracking-tighter mt-1">{stat.label}</div>
+            <div className="text-4xl font-black text-primary mb-1">{stat.value}</div>
+            <div className="text-[10px] font-black text-secondary uppercase tracking-[0.2em]">{stat.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Advanced Filter Bar */}
-      <div className="bg-white p-6 rounded-[32px] border border-background shadow-sm space-y-6">
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative flex-1 w-full">
-            <input
-              type="text"
-              placeholder="Search patient name or ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-background rounded-2xl border border-background/50 outline-none focus:ring-2 focus:ring-secondary/10 transition-all font-medium"
-            />
-            <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary/30" size={20} />
+      {/* Error Retry Alert */}
+      {error && (
+        <div className="bg-red-50 p-4 rounded-2xl border border-red-100 flex items-center justify-between text-red-600 font-bold mb-6">
+          <div className="flex items-center gap-3">
+            <AlertCircle size={20} />
+            {error}
           </div>
-
-          <div className="flex gap-4 w-full md:w-auto">
-             <select
-               value={dateFilter}
-               onChange={(e) => setDateFilter(e.target.value)}
-               className="bg-background px-4 py-3 rounded-2xl border border-background/50 font-bold text-secondary text-sm outline-none"
-             >
-                <option value="all">All Dates</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-             </select>
-
-             <select
-               value={sortBy}
-               onChange={(e) => setSortBy(e.target.value)}
-               className="bg-background px-4 py-3 rounded-2xl border border-background/50 font-bold text-secondary text-sm outline-none"
-             >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="alpha-asc">A-Z</option>
-                <option value="alpha-desc">Z-A</option>
-             </select>
-          </div>
-        </div>
-
-        {/* Letter Filtering */}
-        <div className="flex flex-wrap gap-2 pt-2">
-           {letters.map(letter => (
-             <button
-               key={letter}
-               onClick={() => setSelectedLetter(letter)}
-               className={clsx(
-                 "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all border",
-                 selectedLetter === letter
-                  ? "bg-secondary text-white border-secondary shadow-lg shadow-secondary/20"
-                  : "bg-background text-secondary/60 border-background/30 hover:bg-secondary/5 hover:text-secondary"
-               )}
-             >
-               {letter}
-             </button>
-           ))}
-        </div>
-      </div>
-
-      <div className="pt-4 flex items-center gap-4">
-         <h2 className="text-xl font-bold text-secondary">Incoming Requests ({processedPrescriptions.length})</h2>
-         <div className="h-px flex-1 bg-background/30" />
-      </div>
-
-      {processedPrescriptions.length === 0 ? (
-        <div className="bg-white border-2 border-dashed border-background p-20 rounded-3xl text-center space-y-6 shadow-sm">
-          <div className="bg-background w-24 h-24 rounded-full flex items-center justify-center mx-auto text-background">
-            <AlertCircle size={48} />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-secondary">No Results Found.</h2>
-            <p className="text-secondary/60 max-w-sm mx-auto text-lg italic">
-              Try adjusting your filters or clearing your search term.
-            </p>
-          </div>
-          <button
-            onClick={() => { setSearchTerm(''); setSelectedLetter('All'); setDateFilter('all'); }}
-            className="px-8 py-3 bg-secondary text-white rounded-xl font-bold transition-all shadow-lg mx-auto"
-          >
-            Clear All Filters
+          <button onClick={fetchData} className="p-2 hover:bg-red-100 rounded-lg transition-colors">
+            <RotateCcw size={20} />
           </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {processedPrescriptions.map((prescription) => (
-            <div
-              key={prescription._id}
-              className="bg-white rounded-3xl border border-background shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group border-b-4 border-b-accent/20"
-            >
-              {/* Card Header */}
-              <div className="bg-accent/10 p-4 border-b border-background flex justify-between items-start">
-                <div className="flex items-center gap-3">
-                  <div className="bg-secondary text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg">
-                    {prescription.patientName?.charAt(0) || 'P'}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-secondary leading-tight">
-                      {prescription.patientName || 'Anonymous Patient'}
-                    </h3>
-                    <div className="flex items-center gap-1 text-xs text-secondary/60">
-                      <Calendar size={12} />
-                      {new Date(prescription.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-                <span className="bg-primary/10 text-primary px-2 py-1 rounded text-[10px] uppercase font-bold tracking-wider">
-                  New
-                </span>
-              </div>
-
-              {/* Card Body - Image Placeholder */}
-              <div className="aspect-video bg-background relative overflow-hidden">
-                {prescription.imageUrl ? (
-                  <img
-                    src={prescription.imageUrl}
-                    alt="Prescription"
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-background p-4">
-                    <FileText size={48} strokeWidth={1} />
-                    <span className="text-xs mt-2 uppercase tracking-widest font-bold">Image Missing</span>
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-secondary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <button
-                    onClick={() => handleOpenReview(prescription)}
-                    className="bg-white text-secondary p-3 rounded-full shadow-lg hover:scale-110 transition-transform"
-                  >
-                    <ExternalLink size={24} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Card Footer */}
-              <div className="p-4 bg-white mt-auto">
-                <button
-                  onClick={() => handleOpenReview(prescription)}
-                  className="w-full py-2.5 bg-secondary text-white rounded-lg font-bold hover:bg-secondary/95 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                >
-                  Review & Process
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       )}
 
-      {/* Calculator Modal */}
+      {/* Prescription Queue */}
+      <section className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-black text-primary uppercase tracking-widest px-2 border-l-4 border-secondary ml-1">Incoming Prescription Queue</h2>
+          <span className="bg-secondary text-primary px-3 py-1 rounded-full text-[10px] font-black">{prescriptions.length} Requests</span>
+        </div>
+
+        {prescriptions.length === 0 ? (
+          <div className="bg-white border-2 border-dashed border-secondary/20 p-24 rounded-[40px] text-center space-y-4">
+            <div className="bg-background w-20 h-20 rounded-full flex items-center justify-center mx-auto text-secondary/40">
+              <FileText size={40} />
+            </div>
+            <h3 className="text-xl font-bold text-primary">Queue Clear!</h3>
+            <p className="text-secondary/60 max-w-xs mx-auto text-sm italic">All incoming prescriptions have been processed. New ones will appear here automatically.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {prescriptions.map((p) => (
+              <div
+                key={p._id}
+                className="bg-white rounded-[40px] border border-secondary/10 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 flex flex-col border-b-[6px] border-secondary"
+              >
+                {/* Image/Thumbnail area */}
+                <div className="aspect-[4/3] bg-background relative overflow-hidden group">
+                  {p.imageUrl ? (
+                    <img 
+                      src={p.imageUrl} 
+                      alt="Prescription" 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-secondary/20">
+                      <AlertCircle size={48} />
+                      <p className="text-[10px] uppercase font-black tracking-widest mt-2">No Image Attachment</p>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button 
+                      onClick={() => handleOpenReview(p)}
+                      className="bg-white text-primary p-4 rounded-full shadow-2xl hover:scale-110 transition-all font-black"
+                    >
+                      <ExternalLink size={24} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Patient Info */}
+                <div className="p-8 flex flex-col flex-1">
+                  <div className="flex-1 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-primary text-secondary rounded-[18px] flex items-center justify-center font-black text-lg">
+                        {p.patientName?.charAt(0) || 'P'}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-primary line-clamp-1">{p.patientName || 'Anonymous Patient'}</h4>
+                        <div className="flex items-center gap-1.5 text-xs text-secondary/60 font-medium">
+                          <Clock size={12} />
+                          {new Date(p.createdAt).toLocaleDateString()} at {new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Action Block */}
+                  <div className="mt-8 flex gap-3">
+                    <button 
+                      onClick={() => handleOpenReview(p)}
+                      className="flex-1 py-4 bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-secondary hover:text-primary transition-all active:scale-95 shadow-lg shadow-primary/5 flex items-center justify-center gap-2"
+                    >
+                      Review & Process
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Review & Quotation Modal */}
       <PrescriptionReviewModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isReviewOpen}
+        onClose={() => setIsReviewOpen(false)}
         prescription={selectedPrescription}
-        onRefresh={fetchPrescriptions}
+        onRefresh={fetchData}
       />
     </div>
   );
-}
-
-function clsx(...classes) {
-  return classes.filter(Boolean).join(' ');
 }
