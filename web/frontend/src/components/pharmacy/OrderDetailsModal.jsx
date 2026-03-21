@@ -62,6 +62,71 @@ export default function OrderDetailsModal({ order, isOpen, onClose, onRefresh })
     }
   };
 
+  // PayHere Integration Logic (Step 8)
+  const startPayment = async (orderId) => {
+    try {
+      setIsSubmitting(true);
+      const response = await api.post(`/orders/${orderId}/pay/initiate`);
+      const data = response.data;
+      if (!data.success) throw new Error(data.message);
+      
+      setIsSubmitting(false);
+      
+      // PayHere event handlers
+      payhere.onCompleted = async function(oId) {
+        console.log('Payment received for ' + oId);
+        try {
+          const res = await api.post(`/orders/${oId}/pay/confirm`);
+          if (res.data.success) {
+            alert('Payment confirmed. Order moved to processing.');
+            onRefresh?.();
+            onClose();
+          } else {
+            alert(res.data.message || 'Payment confirmation failed.');
+          }
+        } catch (error) {
+          pollOrderStatus(oId);
+        }
+      };
+
+      payhere.onDismissed = function() {
+        alert('Payment was cancelled.');
+      };
+
+      payhere.onError = function(error) {
+        alert('Payment error: ' + error);
+      };
+
+      payhere.startPayment(data.data);
+    } catch (error) {
+      setIsSubmitting(false);
+      alert('Could not start payment: ' + (error.message || error));
+    }
+  };
+
+  const pollOrderStatus = async (orderId) => {
+    let attempts = 0;
+    const maxAttempts = 12;
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const response = await api.get(`/orders/${orderId}`);
+        if (response.data.data.paymentStatus === 'paid') {
+          clearInterval(interval);
+          alert('Payment confirmed via background sync.');
+          onRefresh?.();
+          onClose();
+        }
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          alert('Verification taking longer than expected. Please refresh.');
+        }
+      } catch (e) {
+        clearInterval(interval);
+      }
+    }, 5000);
+  };
+
   const statusOptions = [
     { key: 'approved', label: 'Approved', color: 'bg-blue-500' },
     { key: 'processing', label: 'Processing', color: 'bg-orange-500' },
@@ -146,6 +211,18 @@ export default function OrderDetailsModal({ order, isOpen, onClose, onRefresh })
                     </button>
                   ))}
                 </div>
+                
+                {/* PayNow Override for Pending Payment */}
+                {order.paymentStatus === 'pending' && (
+                   <button
+                     onClick={() => startPayment(order._id)}
+                     disabled={isSubmitting}
+                     className="w-full py-4 bg-accent text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-accent/80 transition-all flex items-center justify-center gap-2"
+                   >
+                     <CreditCard size={16} />
+                     Pay Now (PayHere Gateway)
+                   </button>
+                )}
               </section>
 
               {/* Items List */}
