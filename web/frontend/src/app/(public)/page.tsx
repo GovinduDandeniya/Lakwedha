@@ -45,14 +45,14 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Link href="/prescriptions/upload" className="px-8 py-5 bg-secondary text-white rounded-2xl font-extrabold text-lg flex items-center justify-center gap-3 hover:bg-secondary/95 hover:shadow-2xl hover:shadow-secondary/30 transition-all active:scale-95">
-                <Upload size={24} />
-                Order Medicine
+              <Link href="/login" className="px-8 py-5 bg-secondary text-white rounded-2xl font-extrabold text-lg flex items-center justify-center gap-3 hover:bg-secondary/95 hover:shadow-2xl hover:shadow-secondary/30 transition-all active:scale-95">
+                <ShieldCheck size={24} />
+                Pharmacy Portal
               </Link>
-              <button className="px-8 py-5 bg-white border-2 border-background rounded-2xl font-extrabold text-lg text-secondary flex items-center justify-center gap-3 hover:bg-background transition-all active:scale-95 shadow-sm">
-                Channel a Doctor
+              <Link href="/admin/dashboard" className="px-8 py-5 bg-white border-2 border-background rounded-2xl font-extrabold text-lg text-secondary flex items-center justify-center gap-3 hover:bg-background transition-all active:scale-95 shadow-sm">
+                Developer Admin
                 <ArrowRight size={24} className="text-accent" />
-              </button>
+              </Link>
             </div>
           </div>
 

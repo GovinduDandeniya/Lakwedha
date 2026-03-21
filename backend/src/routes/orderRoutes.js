@@ -8,7 +8,7 @@ const {
     getAllOrders,
     getOrderById,
     initiatePayment,
-    handlePayhereNotification
+    handleStripeWebhook
 } = require('../controllers/orderController');
 
 // GET all orders - Protected
@@ -29,7 +29,7 @@ router.put('/:id/status', auth, updateOrderStatus);
 // Initiate PayHere payment — returns hash and all params for mobile SDK - Protected
 router.post('/:id/pay/initiate', auth, initiatePayment);
 
-// PayHere server-to-server webhook — no auth, signature verified internally
-router.post('/pay/notify', handlePayhereNotification);
+// Stripe server-to-server webhook — no auth, signature verified internally via rawBody
+router.post('/pay/notify', handleStripeWebhook);
 
 module.exports = router;

@@ -1,36 +1,43 @@
-const crypto = require('crypto');
+const Stripe = require('stripe');
 
-/**
- * PayHere Payment Gateway Utility
- */
 class PaymentService {
-    /**
-     * Generate PayHere MD5 Signature
-     * @param {string} merchantId
-     * @param {string} orderId
-     * @param {number} amount
-     * @param {string} currency
-     * @param {string} merchantSecret
-     */
-    static generateSignature(merchantId, orderId, amount, currency, merchantSecret) {
-        const hashedSecret = crypto.createHash('md5').update(merchantSecret).digest('hex').toUpperCase();
-        const amountFormatted = parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, useGrouping: false });
-
-        const mainStr = merchantId + orderId + amountFormatted + currency + hashedSecret;
-        return crypto.createHash('md5').update(mainStr).digest('hex').toUpperCase();
+    static getStripeInstance() {
+        const secretKey = process.env.STRIPE_SECRET_KEY;
+        if (!secretKey) {
+            throw new Error('STRIPE_SECRET_KEY is not configured in environment variables');
+        }
+        return Stripe(secretKey);
     }
 
     /**
-     * Verify PayHere Notification
+     * Create a Stripe PaymentIntent
      */
-    static verifyNotification(body, merchantSecret) {
-        const { merchant_id, order_id, payhere_amount, payhere_currency, status_code, md5sig } = body;
+    static async createPaymentIntent(amountStr, currency, orderId) {
+        const stripe = this.getStripeInstance();
+        
+        // Stripe expects amount in smallest currency unit (e.g., cents)
+        // LKR has 2 decimal places, so multiply by 100 and round to int
+        const amountInCents = Math.round(parseFloat(amountStr) * 100);
 
-        const hashedSecret = crypto.createHash('md5').update(merchantSecret).digest('hex').toUpperCase();
-        const mainStr = merchant_id + order_id + payhere_amount + payhere_currency + status_code + hashedSecret;
-        const expectedSig = crypto.createHash('md5').update(mainStr).digest('hex').toUpperCase();
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: amountInCents,
+            currency: currency.toLowerCase(),
+            metadata: {
+                orderId: orderId,
+            },
+        });
 
-        return expectedSig === md5sig;
+        return paymentIntent;
+    }
+
+    /**
+     * Verify Stripe Webhook Signature
+     */
+    static verifyWebhook(payload, signature) {
+        const stripe = this.getStripeInstance();
+        const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+        return stripe.webhooks.constructEvent(payload, signature, endpointSecret);
     }
 }
 
