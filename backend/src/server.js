@@ -768,6 +768,13 @@ app.get('/api/v1/channeling-sessions/public/:doctorId', async (req, res) => {
 const emergencyCenterRoutes = require('./routes/emergencyCenterRoutes');
 app.use('/api/emergency-centers', emergencyCenterRoutes);
 
+// ── EMR & Prescription routes ─────────────────────────────────────────────────
+const emrRoutes = require('./routes/emr.routes');
+app.use('/api/emr', emrRoutes);
+
+const prescriptionRoutes = require('./routes/prescription.routes');
+app.use('/api/prescriptions', prescriptionRoutes);
+
 // ── User / Auth / Forgot-password routes ─────────────────────────────────────
 app.use("/api/admin",               adminRoutes);
 app.use("/api/admin",               adminManagementRoutes);

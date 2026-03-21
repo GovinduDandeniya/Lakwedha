@@ -2,32 +2,45 @@ const mongoose = require('mongoose');
 
 const prescriptionSchema = new mongoose.Schema(
     {
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        imageUrl: { type: String, required: true },
-
-        doctorStatus: {
-            type: String,
-            enum: ['pending', 'approved', 'rejected'],
-            default: 'pending',
+        patientId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
         },
-
-        pharmacyStatus: {
-            type: String,
-            enum: ['pending', 'approved', 'rejected'],
-            default: 'pending',
+        doctorId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
         },
-
-        medicines: [
+        medications: [
             {
-                name: String,
-                quantity: Number,
-                price: Number
+                name: { type: String, required: true },
+                dosage: { type: String, required: true },
+                duration: { type: String, required: true },
             }
         ],
-
-        pharmacyNote: { type: String },
+        notes: {
+            type: String,
+            trim: true,
+        },
+        fileUrl: {
+            type: String,
+        },
+        issuedDate: {
+            type: Date,
+            default: Date.now,
+        },
     },
-    { timestamps: true }
+    {
+        timestamps: true,
+        collection: 'prescriptions'
+    }
 );
+
+prescriptionSchema.index({ patientId: 1, doctorId: 1 });
+
+prescriptionSchema.methods.isOwnedByDoctor = function (doctorId) {
+    return this.doctorId.toString() === doctorId.toString();
+};
 
 module.exports = mongoose.model('Prescription', prescriptionSchema);
