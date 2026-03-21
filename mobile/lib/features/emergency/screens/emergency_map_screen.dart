@@ -330,18 +330,18 @@ class _EmergencyMapScreenState extends State<EmergencyMapScreen>
                     label: Text(type['label']!),
                     selected: isSelected,
                     onSelected: (_) => _onFilterTypeChanged(type['value']),
-                    selectedColor: AppColors.secondaryGreen.withValues(alpha: 0.2),
-                    checkmarkColor: AppColors.secondaryGreen,
+                    selectedColor: AppColors.accentLight.withValues(alpha: 0.2),
+                    checkmarkColor: AppColors.accentLight,
                     backgroundColor: Colors.white,
                     labelStyle: TextStyle(
-                      color: isSelected ? AppColors.secondaryGreen : AppColors.textMedium,
+                      color: isSelected ? AppColors.accentLight : AppColors.textMedium,
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                       fontSize: 12,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                       side: BorderSide(
-                        color: isSelected ? AppColors.secondaryGreen : Colors.grey.shade300,
+                        color: isSelected ? AppColors.accentLight : Colors.grey.shade300,
                       ),
                     ),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
