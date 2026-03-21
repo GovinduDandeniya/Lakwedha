@@ -8,6 +8,7 @@ const {
     getAllOrders,
     getOrderById,
     initiatePayment,
+    confirmPayment,
     handleStripeWebhook
 } = require('../controllers/orderController');
 
@@ -20,16 +21,19 @@ router.get('/:id', auth, getOrderById);
 // Create order from prescription - Protected
 router.post('/from-prescription/:prescriptionId', auth, createOrderFromPrescription);
 
-// Update payment status - Protected
+// Update payment status (Pharmacist / Admin) - Protected
 router.put('/:id/payment', auth, updatePaymentStatus);
 
 // Update order status (lifecycle) - Protected
 router.put('/:id/status', auth, updateOrderStatus);
 
-// Initiate PayHere payment — returns hash and all params for mobile SDK - Protected
+// Initiate Payment - Protected
 router.post('/:id/pay/initiate', auth, initiatePayment);
 
-// Stripe server-to-server webhook — no auth, signature verified internally via rawBody
+// Confirm Payment - Protected
+router.post('/:id/pay/confirm', auth, confirmPayment);
+
+// Stripe server-to-server webhook
 router.post('/pay/notify', handleStripeWebhook);
 
 module.exports = router;
