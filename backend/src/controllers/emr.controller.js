@@ -107,3 +107,118 @@ exports.getEMRs = async (req, res) => {
         res.status(500).json({ message: 'Failed to fetch EMR', error: error.message });
     }
 };
+
+/**
+ * Handle new AES Uploads
+ */
+exports.uploadEMRRecord = async (req, res) => {
+    try {
+        const { patientId, type, title, diagnosis, notes } = req.body;
+        const doctorId = req.user.id;
+
+        if (!patientId || !type) {
+            return res.status(400).json({ error: 'patientId and type are strictly required.' });
+        }
+
+        let fileUrl = '';
+
+        // Use memory buffer from multer to encrypt on the fly!
+        if (req.file) {
+            const fs = require('fs');
+            const path = require('path');
+            const crypto = require('crypto');
+
+            const rawBuffer = req.file.buffer;
+
+            // Generate deterministic IV for symmetric file blob storage
+            const iv = crypto.randomBytes(16);
+            const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(process.env.AES_SECRET_KEY, 'utf-8'), iv);
+            let encryptedBuffer = Buffer.concat([iv, cipher.update(rawBuffer), cipher.final()]);
+
+            const uploadDir = path.join(__dirname, '../../uploads/emr');
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+
+            const filename = `emr-${Date.now()}-${Math.floor(Math.random() * 1000000000)}.${req.file.originalname.split('.').pop()}`;
+            const filePath = path.join(uploadDir, filename);
+
+            fs.writeFileSync(filePath, encryptedBuffer);
+            fileUrl = `/api/emr/files/${filename}`;
+        }
+
+        const emrPayload = {
+            patientId,
+            doctorId,
+            type,
+            title: title || 'Patient Vault Upload',
+            fileUrl,   // Saves the encrypted relative route!
+            encryptedDiagnosis: diagnosis ? encrypt(diagnosis) : undefined,
+            encryptedNotes: notes ? encrypt(notes) : undefined,
+            createdAt: new Date().toISOString()
+        };
+
+        const newEmr = new EMR(emrPayload);
+        const record = await newEmr.save();
+
+        res.status(201).json({ message: 'High-Sec Record Uploaded.', record });
+    } catch (err) {
+        logger.error(`Upload error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * Fetch patient specifically directly 
+ */
+exports.getEMRsByPatientId = async (req, res) => {
+    try {
+        const emrs = await EMR.find({ patientId: req.params.id })
+            .populate('doctorId', 'name email')
+            .sort({ createdAt: -1 });
+
+        const decryptedEMRs = emrs.map(decryptEMR);
+        res.status(200).json(decryptedEMRs);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * High-Security File Decryption Streamer!
+ */
+exports.getEMRFile = (req, res) => {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const crypto = require('crypto');
+
+        const filename = req.params.filename;
+        const filePath = path.join(__dirname, '../../uploads/emr', filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Vault file missing entirely.' });
+        }
+
+        const encryptedData = fs.readFileSync(filePath);
+        const iv = encryptedData.slice(0, 16);
+        const content = encryptedData.slice(16);
+
+        const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(process.env.AES_SECRET_KEY, 'utf-8'), iv);
+        let decrypted = Buffer.concat([decipher.update(content), decipher.final()]);
+
+        // Guess mime type roughly from extension
+        let ext = filename.split('.').pop().toLowerCase();
+        let mime = 'application/octet-stream';
+        if (['jpg', 'jpeg'].includes(ext)) mime = 'image/jpeg';
+        else if (ext === 'png') mime = 'image/png';
+        else if (ext === 'pdf') mime = 'application/pdf';
+        else if (ext === 'txt') mime = 'text/plain';
+
+        res.setHeader('Content-Type', mime);
+        res.send(decrypted);
+    } catch (err) {
+        logger.error(`Decrypt Stream Error: ${err.message}`);
+        res.status(500).json({ error: 'Decryption failed locally.' });
+    }
+};
