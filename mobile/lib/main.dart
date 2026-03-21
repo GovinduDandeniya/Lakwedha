@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ravana_app/src/screens/pharmacy_hub_screen.dart';
 import 'package:ravana_app/src/screens/pharmacy_finder_screen.dart';
 import 'package:ravana_app/src/screens/patient_orders_screen.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
@@ -11,6 +10,11 @@ import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:flutter/foundation.dart';
 
+/**
+ * Lakwedha Mobile Application
+ * Strictly Patient-Facing UI.
+ * Pharmacists must use the official Web Dashboard Hub.
+ */
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -38,7 +42,7 @@ class LakwedhaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        fontFamily: 'Outfit', // Modern font if you have it, else fallback
+        fontFamily: 'Outfit',
       ),
       home: const HomeScreen(),
     );
@@ -54,7 +58,7 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: AppTheme.backgroundColor,
       body: Stack(
         children: [
-          // Background Gradient decoration
+          // Background Decoration
           Positioned(
             top: -100,
             right: -100,
@@ -65,7 +69,7 @@ class HomeScreen extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppTheme.primaryColor.withValues(alpha: 0.2),
+                    AppTheme.primaryColor.withOpacity(0.2),
                     Colors.transparent,
                   ],
                 ),
@@ -81,7 +85,7 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   const Spacer(),
                   
-                  // Logo / Icon
+                  // Brand Icon
                   Container(
                     width: 120,
                     height: 120,
@@ -90,7 +94,7 @@ class HomeScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(40),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                          color: AppTheme.primaryColor.withOpacity(0.15),
                           blurRadius: 40,
                           offset: const Offset(0, 10),
                         ),
@@ -103,7 +107,6 @@ class HomeScreen extends StatelessWidget {
 
                   const SizedBox(height: 32),
                   
-                  // App Name
                   const Text(
                     'Lakwedha',
                     style: TextStyle(
@@ -116,9 +119,8 @@ class HomeScreen extends StatelessWidget {
                   
                   const SizedBox(height: 8),
                   
-                  // Slogan
                   const Text(
-                    'Purity in every drop. Healing in every breath.',
+                    'Pure Ayurvedic Healing.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -130,8 +132,8 @@ class HomeScreen extends StatelessWidget {
                   const Spacer(),
 
                   _HomeButton(
-                    title: 'Find a Pharmacy',
-                    subtitle: 'Search nearby Ayurvedic pharmacies',
+                    title: 'Find Pharmacies',
+                    subtitle: 'Locate nearby Ayurvedic experts',
                     icon: Icons.location_on_rounded,
                     color: AppTheme.primaryColor,
                     onPressed: () {
@@ -146,8 +148,8 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   _HomeButton(
-                    title: 'My Orders & Prescriptions',
-                    subtitle: 'Track your medicines & make payments',
+                    title: 'Orders & Payments',
+                    subtitle: 'Track and pay for your medicines',
                     icon: Icons.receipt_long_rounded,
                     color: AppTheme.accentColor,
                     onPressed: () {
@@ -159,26 +161,10 @@ class HomeScreen extends StatelessWidget {
                     },
                   ).animate(delay: 650.ms).fadeIn().slideY(begin: 0.2, end: 0),
 
-                  const SizedBox(height: 16),
-
-                  _HomeButton(
-                    title: 'Pharmacy Login',
-                    subtitle: 'Manage dispensary hub',
-                    icon: Icons.local_pharmacy_rounded,
-                    color: AppTheme.secondaryColor,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const PharmacyHubScreen()),
-                      );
-                    },
-                  ).animate(delay: 700.ms).fadeIn().slideY(begin: 0.2, end: 0),
-
-                  const SizedBox(height: 60),
+                  const Spacer(),
 
                   const Text(
-                    'SECURE • AYURVEDIC • RELIABLE',
+                    'SECURE • AYURVEDIC • MOBILE',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -228,7 +214,7 @@ class _HomeButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.2),
+              color: color.withOpacity(0.2),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -239,7 +225,7 @@ class _HomeButton extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(icon, color: Colors.white, size: 28),
@@ -253,21 +239,21 @@ class _HomeButton extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 12,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 20),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
           ],
         ),
       ),
