@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -6,19 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ravana_app/src/screens/pharmacy_finder_screen.dart';
 import 'package:ravana_app/src/screens/patient_orders_screen.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 /// Lakwedha Mobile Application
 /// Strictly Patient-Facing UI.
 /// Pharmacists must use the official Web Dashboard Hub.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Stripe initialization with robust cross-platform safety
-  if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
-    // Standard Lakwedha test credentials
-    Stripe.publishableKey = 'pk_test_51TD60sAKmmVI8wbJk2zah53I30D0zadI4wAnaBSEtqWzAHLaIpPlUfM8PTTWD5aff9CnEU61i4xUt0VnIzMEcT10002jnqLI8Q';
-    await Stripe.instance.applySettings();
-  }
 
   runApp(
     const ProviderScope(
