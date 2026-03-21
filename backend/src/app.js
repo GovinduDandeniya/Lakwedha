@@ -19,6 +19,7 @@ app.use(express.json({
     req.rawBody = buf;
   }
 }));
+app.use(express.urlencoded({ extended: true }));
 app.use(morgan('combined')); // Request logging
 
 app.get('/', (req, res) => res.json({ success: true, data: null, message: 'Ayurveda Hub API is Live' }));
