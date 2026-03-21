@@ -1,0 +1,8 @@
+?? backend/audit.js
+?? backend/audit_out.txt
+?? backend/uploads/
+?? "et --hard HEAD~1"
+?? git_log.txt
+?? gitlog.txt
+?? web/src/app/emr/
+?? web/src/components/emr/
