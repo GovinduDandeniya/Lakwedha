@@ -70,13 +70,13 @@ class CenterDetailsSheet extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.secondaryGreen.withValues(alpha: 0.15),
+                  color: AppColors.accentLight.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   center.typeLabel,
                   style: TextStyle(
-                    color: AppColors.secondaryGreen,
+                    color: AppColors.accentLight,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -169,11 +169,11 @@ class CenterDetailsSheet extends StatelessWidget {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.secondaryGreen,
+                backgroundColor: AppColors.accentLight,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 elevation: 2,
-                shadowColor: AppColors.secondaryGreen.withValues(alpha: 0.4),
+                shadowColor: AppColors.accentLight.withValues(alpha: 0.4),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
