@@ -1,16 +1,22 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ravana_app/src/screens/pharmacy_hub_screen.dart';
 import 'package:ravana_app/src/screens/pharmacy_finder_screen.dart';
+import 'package:ravana_app/src/screens/patient_orders_screen.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Stripe.publishableKey = 'pk_test_YourPublishableStripeKeyGoesHere';
-  await Stripe.instance.applySettings();
+  // flutter_stripe uses Platform.isIOS which crashes on web — skip on web
+  if (!kIsWeb) {
+    Stripe.publishableKey = 'pk_test_YourPublishableStripeKeyGoesHere';
+    await Stripe.instance.applySettings();
+  }
+
 
   runApp(
     const ProviderScope(
@@ -133,6 +139,22 @@ class HomeScreen extends StatelessWidget {
                       );
                     },
                   ).animate(delay: 600.ms).fadeIn().slideY(begin: 0.2, end: 0),
+
+                  const SizedBox(height: 16),
+
+                  _HomeButton(
+                    title: 'My Orders & Prescriptions',
+                    subtitle: 'Track your medicines & make payments',
+                    icon: Icons.receipt_long_rounded,
+                    color: AppTheme.accentColor,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const PatientOrdersScreen()),
+                      );
+                    },
+                  ).animate(delay: 650.ms).fadeIn().slideY(begin: 0.2, end: 0),
 
                   const SizedBox(height: 16),
 
