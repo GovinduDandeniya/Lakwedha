@@ -40,6 +40,8 @@ class _SignInScreenState extends State<SignInScreen> {
       if (!mounted) return;
       if (success) {
         Navigator.pushReplacementNamed(context, '/home');
+      } else if (auth.isSuspended) {
+        Navigator.pushReplacementNamed(context, '/suspended');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

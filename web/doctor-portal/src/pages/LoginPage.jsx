@@ -101,9 +101,8 @@ const LoginPage = () => {
         try {
             const response = await axios.post('http://localhost:5000/api/admin/login', { email, password });
             const { token, admin } = response.data;
-            localStorage.setItem('admin_token', token);
-            localStorage.setItem('admin_user', JSON.stringify(admin || { email }));
-            navigate('/admin/welcome');
+            const adminUser = { _id: admin?.id, name: admin?.name, email: admin?.email || email, role: 'admin', status: 'active' };
+            window.location.href = `http://localhost:3000/auth/callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(adminUser))}`;
         } catch (err) {
             const msg =
                 err?.response?.data?.message ||
@@ -298,17 +297,19 @@ const LoginPage = () => {
 
                     <Divider sx={{ my: 2.5 }} />
 
-                    <Box sx={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 0.8 }}>
-                        <Typography variant="body2" color="text.secondary">
-                            {accountType === 'admin' ? 'Need an admin account?' : 'New here?'}{' '}
-                            <Link
-                                to={accountType === 'admin' ? '/admin/register' : '/register'}
-                                style={{ color: activeTab.color, textDecoration: 'none', fontWeight: 600 }}
-                            >
-                                {accountType === 'admin' ? 'Register here' : 'Create an account'}
-                            </Link>
-                        </Typography>
-                    </Box>
+                    {accountType !== 'admin' && (
+                        <Box sx={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+                            <Typography variant="body2" color="text.secondary">
+                                New here?{' '}
+                                <Link
+                                    to="/register"
+                                    style={{ color: activeTab.color, textDecoration: 'none', fontWeight: 600 }}
+                                >
+                                    Create an account
+                                </Link>
+                            </Typography>
+                        </Box>
+                    )}
                 </Paper>
             </Box>
         </Container>

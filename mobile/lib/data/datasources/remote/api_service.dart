@@ -44,7 +44,7 @@ class ApiService {
 
     final data = json.decode(response.body);
     if (response.statusCode == 200) return data;
-    throw Exception(data['error'] ?? 'Login failed');
+    throw Exception(data['message'] ?? data['error'] ?? 'Login failed');
   }
 
   // ===================== AUTH - VALIDATE TOKEN =====================
