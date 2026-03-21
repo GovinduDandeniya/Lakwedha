@@ -1,0 +1,56 @@
+﻿diff --git a/backend/src/server.js b/backend/src/server.js
+index e6dfb10..a597130 100644
+--- a/backend/src/server.js
++++ b/backend/src/server.js
+@@ -2,29 +2,34 @@ require('dotenv').config({ path: __dirname + '/../.env' }); // Adjust path if ne
+ const app = require('./app');
+ const mongoose = require('mongoose');
+ 
++const getMongoUri = require('./config/getMongoUri');
++
+ const PORT = process.env.PORT || 5000;
+-const MONGO_URI = process.env.MONGO_URI;
++const MONGODB_URI = process.env.MONGODB_URI;
+ 
+-if (!MONGO_URI) {
+-  console.error('FATAL ERROR: MONGO_URI is not defined in .env');
++if (!MONGODB_URI) {
++  console.error('FATAL ERROR: MONGODB_URI is not defined in .env');
+   process.exit(1);
+ }
+ 
+-// Connect to MongoDB
+-mongoose
+-  .connect(MONGO_URI)
+-  .then(() => {
+-    console.log('Connected to MongoDB successfully.');
++// Connect to MongoDB using the SRV DNS Resolver bypass
++getMongoUri().then(resolvedUri => {
++    mongoose
++      .connect(resolvedUri)
++      .then(() => {
++        console.log('Connected to MongoDB successfully.');
+ 
+-    // Start the server
+-    app.listen(PORT, () => {
+-      console.log(`Server running on port ${PORT}`);
+-    });
+-  })
+-  .catch((err) => {
+-    console.error('Failed to connect to MongoDB', err);
+-    process.exit(1);
+-  });
++        app.listen(PORT, () => {
++          console.log(`Server is running on port ${PORT}`);
++        });
++      })
++      .catch((error) => {
++        console.error('Database connection failed:', error.message);
++        process.exit(1);
++      });
++}).catch(err => {
++    console.error('Failed to resolve MONGO URI:', err);
++});
+ 
+ // Handle unhandled promise rejections
+ process.on('unhandledRejection', (err) => {

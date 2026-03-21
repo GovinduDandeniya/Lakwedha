@@ -12,6 +12,7 @@ export interface EMRSecureViewerProps {
 export default function EMRSecureViewer({ records, onClose }: EMRSecureViewerProps) {
   const [activeRecord, setActiveRecord] = useState<any>(null);
   const [secureObjectUrl, setSecureObjectUrl] = useState<string>('');
+  const [isBlurred, setIsBlurred] = useState(false);
   
   // Whenever the active record changes, if it has a fileUrl, we MUST explicitly fetch it with the JWT token
   useEffect(() => {
@@ -54,31 +55,68 @@ export default function EMRSecureViewer({ records, onClose }: EMRSecureViewerPro
     };
   }, [activeRecord]);
 
-  // Hardcode Anti-Screenshot / Anti-Download features
+  // ── Multi-layer Anti-Screenshot Protection ──
   useEffect(() => {
+    // 1. Disable right-click
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      return false; // Disable right-click completely inside the viewer!
+      return false;
     };
-    
+
+    // 2. Block keyboard shortcuts used to screenshot / save / inspect
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "PrintScreen") {
-        navigator.clipboard.writeText("");
-        alert("Screenshot prevention active! This medical record is secured.");
+      // PrintScreen key → wipe clipboard immediately
+      if (e.key === 'PrintScreen') {
+        navigator.clipboard.writeText('');
+        setIsBlurred(true);
+        setTimeout(() => setIsBlurred(false), 1500);
+        return;
       }
-      // Block common command+P (mac) or ctrl+P (windows) save hooks 
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 's')) {
-         e.preventDefault();
-         alert("Saving or Printing is strictly disabled for Patient Confidentiality.");
+      // Windows Snipping Tool: Win+Shift+S (fires as Meta+Shift+s)
+      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        return;
+      }
+      // Ctrl/Cmd combinations: P (print), S (save), U (view source), Shift+I (devtools), Shift+J, F12
+      if ((e.ctrlKey || e.metaKey) && ['p', 's', 'u'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'j', 'c'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        return;
+      }
+      if (e.key === 'F12') {
+        e.preventDefault();
+        return;
       }
     };
-    
-    document.addEventListener("contextmenu", handleContextMenu);
-    document.addEventListener("keydown", handleKeyDown);
-    
+
+    // 3. Blur content when window loses focus (catches Snipping Tool, Alt+Tab screenshots)
+    const handleBlur = () => setIsBlurred(true);
+    const handleFocus = () => setIsBlurred(false);
+
+    // 4. Blur content when browser tab is hidden
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        setIsBlurred(true);
+      } else {
+        setIsBlurred(false);
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
-      document.removeEventListener("contextmenu", handleContextMenu);
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -149,18 +187,21 @@ export default function EMRSecureViewer({ records, onClose }: EMRSecureViewerPro
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-2xl max-w-6xl w-full flex flex-col md:flex-row overflow-hidden border border-gray-100 min-h-[600px] text-[#333]">
+    <div
+      className="bg-white rounded-3xl shadow-2xl max-w-6xl w-full flex flex-col md:flex-row overflow-hidden border border-gray-100 min-h-[600px] max-h-[85vh] text-[#333] select-none"
+      style={{ filter: isBlurred ? 'blur(20px)' : 'none', transition: 'filter 0.2s ease' }}
+    >
       
       {/* Sidebar - Historical Records List */}
-      <div className="w-full md:w-1/3 bg-gray-50 border-r border-gray-200 flex flex-col hide-scrollbar">
+      <div className="w-full md:w-1/3 bg-gray-50 border-r border-gray-200 flex flex-col overflow-hidden">
         <div className="p-6 bg-white border-b border-gray-200">
            <h2 className="text-2xl font-bold text-green-900 flex items-center">
-             Medical History
+             View Records
            </h2>
            <p className="text-sm text-gray-500 mt-1">Select a record to securely preview it.</p>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-green-200 scrollbar-track-transparent">
           {records.length === 0 ? (
              <div className="text-center py-10 text-gray-400">
                <DownloadCloud className="w-10 h-10 mx-auto text-gray-300 mb-3" />
@@ -178,7 +219,6 @@ export default function EMRSecureViewer({ records, onClose }: EMRSecureViewerPro
                   <span className="font-bold text-gray-800 text-sm">{rec.title || 'Extracted Record'}</span>
                   <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider bg-green-100 px-2 py-0.5 rounded-full">{rec.type}</span>
                 </div>
-                <p className="text-xs text-gray-500 line-clamp-2">{rec.diagnosis || 'No diagnosis logged'}</p>
                 <div className="mt-3 text-[10px] text-gray-400 flex justify-between">
                   <span>{new Date(rec.createdAt).toLocaleDateString()}</span>
                   <span>{new Date(rec.createdAt).toLocaleTimeString()}</span>
@@ -188,46 +228,54 @@ export default function EMRSecureViewer({ records, onClose }: EMRSecureViewerPro
           )}
         </div>
         
-        <div className="p-4 border-t border-gray-200 bg-white">
-          <button 
-             onClick={onClose}
-             className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 font-semibold rounded-xl transition-all"
-          >
-             Close Secure Viewer
-          </button>
-        </div>
+
       </div>
 
       {/* Main Secure Viewing Stage */}
-      <div className="w-full md:w-2/3 p-6 flex flex-col bg-white">
+      <div className="w-full md:w-2/3 p-6 flex flex-col bg-white overflow-y-auto">
         {activeRecord ? (
           <>
             <div className="mb-4 flex justify-between items-end border-b border-gray-100 pb-4">
               <div>
                 <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">{activeRecord.title}</h3>
-                <div className="flex space-x-3 mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  <span className="flex items-center"><FileText className="w-4 h-4 mr-1"/> Authored by {activeRecord.doctorId?.name || 'System Doctor'}</span>
-                  <span>&bull;</span>
-                  <span>{new Date(activeRecord.createdAt).toLocaleString()}</span>
-                </div>
               </div>
             </div>
             
             <div className="flex-1 rounded-2xl overflow-hidden shadow-inner p-2 bg-gray-50 border border-gray-200 relative group">
               {renderFilePreview(activeRecord)}
-              
-              {/* Optional: Add a large faint watermark so doctors cannot screenshot cleanly */}
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-5 rotate-[-30deg]">
-                <h1 className="text-6xl font-black text-gray-900 text-center uppercase tracking-widest leading-loose">
-                  CONFIDENTIAL<br/>Lakwedha System<br/>NO DOWNLOAD
-                </h1>
+
+              {/* Dense tiled watermark — makes screenshots clearly identifiable */}
+              <div
+                className="pointer-events-none absolute inset-0 overflow-hidden"
+                style={{ zIndex: 10 }}
+              >
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: `repeating-linear-gradient(
+                      -45deg,
+                      transparent,
+                      transparent 60px,
+                      rgba(0,0,0,0.03) 60px,
+                      rgba(0,0,0,0.03) 61px
+                    )`,
+                  }}
+                />
+                {/* Repeating text watermark grid */}
+                <div className="absolute inset-0 flex flex-wrap content-start gap-x-8 gap-y-10 p-4 overflow-hidden">
+                  {Array.from({ length: 30 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className="text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap opacity-20 rotate-[-30deg] select-none"
+                    >
+                      CONFIDENTIAL · LAKWEDHA
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
             
-            <div className="mt-4 p-5 bg-green-50 rounded-2xl flex flex-col text-sm border border-green-100">
-              <strong className="text-green-900 uppercase font-bold tracking-wider mb-1 text-xs">Official Diagnosis Notes:</strong>
-              <span className="text-green-800 leading-relaxed">{activeRecord.diagnosis || 'None provided'}</span>
-            </div>
+
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center h-full text-center p-12">
