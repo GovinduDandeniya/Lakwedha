@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Sidebar from "@/components/admin/Sidebar";
 import Topbar from "@/components/admin/Topbar";
+import { LayoutLoadingScreen } from "@/components/admin/LoadingSkeleton";
 
 export default function AdminLayout({
   children,
@@ -21,11 +22,7 @@ export default function AdminLayout({
   }, [user, loading, router]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-green-50">
-        <p className="text-gray-500">Loading…</p>
-      </div>
-    );
+    return <LayoutLoadingScreen />;
   }
 
   if (!user || user.role !== 'admin') return null;

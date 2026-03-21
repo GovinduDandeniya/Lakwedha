@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { pharmacyApi } from '@/lib/api';
+import { PageSkeleton } from '@/components/admin/LoadingSkeleton';
 import { CheckCircle, XCircle, Pill } from 'lucide-react';
 
 interface Pharmacy {
@@ -50,7 +51,7 @@ export default function PharmaciesPage() {
     const active = pharmacies.filter((p) => p.status === 'active').length;
     const rejected = pharmacies.filter((p) => p.status === 'rejected').length;
 
-    if (loading) return <p className="text-gray-500">Loading pharmacies…</p>;
+    if (loading) return <PageSkeleton statCount={3} statGridClass="sm:grid-cols-3" tableRows={7} tableCols={5} />;
 
     const statusBadge = (status: string) => {
         const map: Record<string, string> = {

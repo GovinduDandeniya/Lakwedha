@@ -22,9 +22,12 @@ router.put('/pharmacies/:id/reject', admin.rejectPharmacy);
 router.get('/patients', admin.getPatients);
 router.put('/users/:id/suspend', admin.suspendUser);
 router.put('/users/:id/activate', admin.activateUser);
+router.delete('/users/:id', admin.deleteUser);
 
 /* ── Appointments ── */
 router.get('/appointments', admin.getAppointments);
+router.put('/appointments/:id/cancel', admin.cancelAppointment);
+router.get('/channeling-sessions', admin.getChannelingSessions);
 
 /* ── Orders ── */
 router.get('/orders', admin.getOrders);
