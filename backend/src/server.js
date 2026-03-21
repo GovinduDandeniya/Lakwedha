@@ -5,6 +5,11 @@ const mongoose = require('mongoose');
 
 const PORT = process.env.PORT || 5000;
 
+if (!process.env.PAYHERE_MERCHANT_SECRET) {
+    console.error('PAYHERE_MERCHANT_SECRET is missing from .env');
+    process.exit(1);
+}
+
 
 mongoose
     .connect(process.env.MONGODB_URI || process.env.MONGO_URI, {
