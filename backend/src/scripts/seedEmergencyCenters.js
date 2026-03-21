@@ -12,6 +12,13 @@ const centers = [
         address: 'Cotta Road, Borella, Colombo 08',
         phone: '+94112695438',
         location: { type: 'Point', coordinates: [79.8783, 6.9147] },
+        emergencyTypes: [
+            'Snake Bite', 'Fractures (Hand / Leg Broken)', 'Joint Dislocation',
+            'Burn Injuries', 'Wounds & Cuts', 'Poisoning (Herbal First Aid)',
+            'Fever & Infection', 'Allergic Reactions', 'Paralysis (Initial Care)',
+            'Head Injury (Mild)',
+        ],
+        country: 'Sri Lanka',
         is24Hours: true,
     },
     {
@@ -20,6 +27,11 @@ const centers = [
         address: 'Navinna, Maharagama',
         phone: '+94112850333',
         location: { type: 'Point', coordinates: [79.9264, 6.8489] },
+        emergencyTypes: [
+            'Snake Bite', 'Fractures (Hand / Leg Broken)', 'Poisoning (Herbal First Aid)',
+            'Fever & Infection', 'Allergic Reactions', 'Skin Diseases (Severe)',
+        ],
+        country: 'Sri Lanka',
         is24Hours: false,
     },
     {
@@ -28,6 +40,11 @@ const centers = [
         address: 'Mount Lavinia, Colombo',
         phone: '+94112738622',
         location: { type: 'Point', coordinates: [79.8658, 6.8390] },
+        emergencyTypes: [
+            'Snake Bite', 'Fractures (Hand / Leg Broken)', 'Joint Dislocation',
+            'Burn Injuries', 'Wounds & Cuts', 'Fever & Infection', 'Head Injury (Mild)',
+        ],
+        country: 'Sri Lanka',
         is24Hours: true,
     },
     {
@@ -36,6 +53,11 @@ const centers = [
         address: 'No. 2, Galle Road, Ratmalana',
         phone: '+94112636774',
         location: { type: 'Point', coordinates: [79.8722, 6.8218] },
+        emergencyTypes: [
+            'Wounds & Cuts', 'Fever & Infection', 'Allergic Reactions',
+            'Insect Bites & Stings', 'Skin Diseases (Severe)',
+        ],
+        country: 'Sri Lanka',
         is24Hours: false,
     },
     {
@@ -44,6 +66,11 @@ const centers = [
         address: '56 Peradeniya Road, Kandy',
         phone: '+94812233456',
         location: { type: 'Point', coordinates: [80.6350, 7.2906] },
+        emergencyTypes: [
+            'Muscle Sprain / Ligament Injury', 'Joint Dislocation',
+            'Paralysis (Initial Care)', 'Fractures (Hand / Leg Broken)',
+        ],
+        country: 'Sri Lanka',
         is24Hours: false,
     },
     {
@@ -52,6 +79,11 @@ const centers = [
         address: 'Weligama, Southern Province',
         phone: '+94412250572',
         location: { type: 'Point', coordinates: [80.4297, 5.9745] },
+        emergencyTypes: [
+            'Fever & Infection', 'Muscle Sprain / Ligament Injury',
+            'Digestive Emergencies', 'Respiratory Distress (Asthma)', 'Skin Diseases (Severe)',
+        ],
+        country: 'Sri Lanka',
         is24Hours: false,
     },
     {
@@ -60,6 +92,11 @@ const centers = [
         address: '44 Bauddhaloka Mawatha, Colombo 04',
         phone: '+94112508969',
         location: { type: 'Point', coordinates: [79.8612, 6.8940] },
+        emergencyTypes: [
+            'Allergic Reactions', 'Insect Bites & Stings',
+            'Skin Diseases (Severe)', 'Fever & Infection', 'Wounds & Cuts',
+        ],
+        country: 'Sri Lanka',
         is24Hours: false,
     },
     {
@@ -68,6 +105,12 @@ const centers = [
         address: 'Navinna Road, Maharagama',
         phone: '+94112853500',
         location: { type: 'Point', coordinates: [79.9280, 6.8505] },
+        emergencyTypes: [
+            'Snake Bite', 'Fractures (Hand / Leg Broken)', 'Poisoning (Herbal First Aid)',
+            'Fever & Infection', 'Head Injury (Mild)', 'Paralysis (Initial Care)',
+            'Burn Injuries', 'Allergic Reactions',
+        ],
+        country: 'Sri Lanka',
         is24Hours: true,
     },
     {
@@ -76,6 +119,11 @@ const centers = [
         address: '12 Church Street, Galle Fort',
         phone: '+94912234567',
         location: { type: 'Point', coordinates: [80.2170, 6.0267] },
+        emergencyTypes: [
+            'Fever & Infection', 'Wounds & Cuts', 'Insect Bites & Stings',
+            'Skin Diseases (Severe)', 'Allergic Reactions',
+        ],
+        country: 'Sri Lanka',
         is24Hours: false,
     },
     {
@@ -84,6 +132,11 @@ const centers = [
         address: 'Negombo Road, Chilaw',
         phone: '+94322255789',
         location: { type: 'Point', coordinates: [79.7953, 7.5758] },
+        emergencyTypes: [
+            'Muscle Sprain / Ligament Injury', 'Joint Dislocation',
+            'Digestive Emergencies', 'Paralysis (Initial Care)',
+        ],
+        country: 'Sri Lanka',
         is24Hours: false,
     },
     {
@@ -92,6 +145,11 @@ const centers = [
         address: '108 High Level Road, Nugegoda',
         phone: '+94112814567',
         location: { type: 'Point', coordinates: [79.8862, 6.8728] },
+        emergencyTypes: [
+            'Insect Bites & Stings', 'Allergic Reactions',
+            'Skin Diseases (Severe)', 'Wounds & Cuts',
+        ],
+        country: 'Sri Lanka',
         is24Hours: false,
     },
     {
@@ -100,6 +158,11 @@ const centers = [
         address: 'Kotte, Sri Jayawardenepura',
         phone: '+94112865432',
         location: { type: 'Point', coordinates: [79.9000, 6.8868] },
+        emergencyTypes: [
+            'Fever & Infection', 'Digestive Emergencies',
+            'Respiratory Distress (Asthma)', 'Muscle Sprain / Ligament Injury',
+        ],
+        country: 'Sri Lanka',
         is24Hours: true,
     },
 ];

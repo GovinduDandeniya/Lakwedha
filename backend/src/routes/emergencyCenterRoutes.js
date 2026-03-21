@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
+    getEmergencyTypes,
     getAllCenters,
     getNearbyCenters,
     getCenterById,
@@ -8,6 +9,7 @@ const {
 } = require('../controllers/emergencyCenterController');
 
 // Public endpoints
+router.get('/types', getEmergencyTypes);
 router.get('/', getAllCenters);
 router.get('/nearby', getNearbyCenters);
 router.get('/:id', getCenterById);
