@@ -6,6 +6,11 @@ const extraAppointmentRequestSchema = new mongoose.Schema({
         unique: true,
         default: () => 'EAR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase()
     },
+    sessionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ChannelingSession',
+        default: null,
+    },
     doctorId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

@@ -6,7 +6,7 @@ import { PageSkeleton } from '@/components/admin/LoadingSkeleton';
 import {
     CalendarCheck, Clock, CheckCircle2, XCircle,
     RefreshCw, AlertCircle, Search, Users,
-    Building2, Hash, PhoneCall, ReceiptText, X,
+    Building2, Hash, PhoneCall, ReceiptText, X, DollarSign,
 } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -36,12 +36,13 @@ interface CancelResult {
 
 interface ChannelingSession {
     _id: string;
-    doctorId?: { _id: string; name: string; specialization?: string };
+    doctorId?: { _id: string; name: string; specialization?: string; consultationFee?: number };
     hospitalName: string;
     date: string;
     startTime: string;
     totalAppointments: number;
     bookedCount: number;
+    hospitalCharge?: number;
     status: string;
     note?: string;
     createdAt: string;
@@ -466,13 +467,27 @@ function AppointmentsTab() {
 
 /* ─── Channeling Sessions Tab ─── */
 
+interface FeeBreakdown {
+    doctorFee: number;
+    hospitalCharge: number;
+    channelingFee: number;
+    totalAmount: number;
+}
+
 function ChannelingSessionsTab() {
     const [sessions, setSessions]         = useState<ChannelingSession[]>([]);
     const [loading, setLoading]           = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
     const [search, setSearch]             = useState('');
 
-    useEffect(() => {
+    // Hospital charge dialog state
+    const [chargeTarget, setChargeTarget]     = useState<ChannelingSession | null>(null);
+    const [chargeInput, setChargeInput]       = useState('');
+    const [chargeSaving, setChargeSaving]     = useState(false);
+    const [chargeResult, setChargeResult]     = useState<FeeBreakdown | null>(null);
+    const [chargeError, setChargeError]       = useState('');
+
+    const fetchSessions = () => {
         channelingSessionApi
             .getAll()
             .then((res) => {
@@ -481,7 +496,40 @@ function ChannelingSessionsTab() {
             })
             .catch(() => {})
             .finally(() => setLoading(false));
-    }, []);
+    };
+
+    useEffect(() => { fetchSessions(); }, []);
+
+    const openChargeDialog = (e: React.MouseEvent, s: ChannelingSession) => {
+        e.stopPropagation();
+        setChargeTarget(s);
+        setChargeInput(String(s.hospitalCharge ?? 0));
+        setChargeResult(null);
+        setChargeError('');
+    };
+
+    const closeChargeDialog = () => {
+        setChargeTarget(null);
+        setChargeResult(null);
+        setChargeError('');
+    };
+
+    const handleSaveCharge = async () => {
+        if (!chargeTarget) return;
+        const val = Number(chargeInput);
+        if (isNaN(val) || val < 0) { setChargeError('Enter a valid amount (≥ 0)'); return; }
+        setChargeSaving(true);
+        setChargeError('');
+        try {
+            const res = await channelingSessionApi.setHospitalCharge(chargeTarget._id, val);
+            setChargeResult(res.feeBreakdown);
+            fetchSessions();
+        } catch (err) {
+            setChargeError((err as Error).message || 'Failed to save');
+        } finally {
+            setChargeSaving(false);
+        }
+    };
 
     const open = sessions.filter((s) => s.status === 'open').length;
     const full = sessions.filter((s) => s.status === 'full').length;
@@ -496,7 +544,7 @@ function ChannelingSessionsTab() {
         );
     }
 
-    if (loading) return <PageSkeleton statCount={3} statGridClass="sm:grid-cols-3" tableRows={7} tableCols={8} />;
+    if (loading) return <PageSkeleton statCount={3} statGridClass="sm:grid-cols-3" tableRows={7} tableCols={9} />;
 
     return (
         <div className="space-y-6">
@@ -551,14 +599,15 @@ function ChannelingSessionsTab() {
                             <th className="px-6 py-3">Start Time</th>
                             <th className="px-6 py-3">Slots</th>
                             <th className="px-6 py-3">Booked</th>
+                            <th className="px-6 py-3">Hospital Charge</th>
                             <th className="px-6 py-3">Status</th>
-                            <th className="px-6 py-3">Note</th>
+                            <th className="px-6 py-3 text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y">
                         {filtered.length === 0 && (
                             <tr>
-                                <td colSpan={8} className="px-6 py-10 text-center text-gray-400">
+                                <td colSpan={9} className="px-6 py-10 text-center text-gray-400">
                                     <CalendarCheck className="mx-auto mb-2 h-8 w-8" />
                                     No channeling sessions found
                                 </td>
@@ -603,15 +652,140 @@ function ChannelingSessionsTab() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
+                                        {s.hospitalCharge != null && s.hospitalCharge > 0 ? (
+                                            <span className="font-medium text-gray-800">LKR {s.hospitalCharge.toLocaleString()}</span>
+                                        ) : (
+                                            <span className="text-xs text-amber-600 font-medium">Not set</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4">
                                         <StatusBadge status={s.status} map={SESSION_STATUS} />
                                     </td>
-                                    <td className="px-6 py-4 text-xs text-gray-500">{s.note || '—'}</td>
+                                    <td className="px-6 py-4 text-right">
+                                        <button
+                                            onClick={(e) => openChargeDialog(e, s)}
+                                            className="inline-flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100 transition"
+                                        >
+                                            <DollarSign className="h-3.5 w-3.5" />
+                                            Set Charge
+                                        </button>
+                                    </td>
                                 </tr>
                             );
                         })}
                     </tbody>
                 </table>
             </div>
+
+            {/* ── Set Hospital Charge Dialog ── */}
+            {chargeTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+
+                        {/* Header */}
+                        <div className="flex items-center justify-between border-b px-6 py-4">
+                            <div className="flex items-center gap-2">
+                                <DollarSign className="h-5 w-5 text-green-600" />
+                                <h2 className="font-semibold text-gray-800">Set Hospital Charge</h2>
+                            </div>
+                            <button onClick={closeChargeDialog} className="rounded-full p-1 hover:bg-gray-100">
+                                <X className="h-4 w-4 text-gray-500" />
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-5 space-y-5">
+                            {chargeResult ? (
+                                /* ── Success state ── */
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 text-green-700">
+                                        <CheckCircle2 className="h-5 w-5" />
+                                        <span className="font-medium">Hospital charge saved successfully</span>
+                                    </div>
+
+                                    <div className="rounded-xl bg-gray-50 p-4 space-y-2 text-sm">
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Fee Breakdown</p>
+                                        <div className="flex justify-between text-gray-600">
+                                            <span>Doctor Fee</span>
+                                            <span className="font-medium">LKR {chargeResult.doctorFee.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-gray-600">
+                                            <span>Hospital Charge</span>
+                                            <span className="font-medium">LKR {chargeResult.hospitalCharge.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-blue-600">
+                                            <span>Channeling Fee (10%)</span>
+                                            <span className="font-medium">LKR {chargeResult.channelingFee.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between border-t pt-2 text-green-700 font-semibold">
+                                            <span>Total Patient Amount</span>
+                                            <span>LKR {chargeResult.totalAmount.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={closeChargeDialog}
+                                        className="w-full rounded-xl bg-green-600 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition"
+                                    >
+                                        Done
+                                    </button>
+                                </div>
+                            ) : (
+                                /* ── Input state ── */
+                                <>
+                                    {/* Session summary */}
+                                    <div className="rounded-xl bg-gray-50 p-4 space-y-1.5 text-sm">
+                                        <p className="font-medium text-gray-800">{chargeTarget.doctorId?.name || '—'}</p>
+                                        <p className="text-xs text-gray-400">{chargeTarget.doctorId?.specialization}</p>
+                                        <p className="text-gray-600">{chargeTarget.hospitalName} · {fmtDate(chargeTarget.date)} at {chargeTarget.startTime}</p>
+                                        {chargeTarget.doctorId?.consultationFee != null && (
+                                            <p className="text-gray-500 text-xs">Doctor fee: LKR {chargeTarget.doctorId.consultationFee.toLocaleString()}</p>
+                                        )}
+                                    </div>
+
+                                    {/* Input */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                                            Hospital Charge (LKR)
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">LKR</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={chargeInput}
+                                                onChange={(e) => { setChargeInput(e.target.value); setChargeError(''); }}
+                                                placeholder="0"
+                                                className="w-full rounded-lg border pl-12 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"
+                                            />
+                                        </div>
+                                        {chargeError && <p className="mt-1 text-xs text-red-500">{chargeError}</p>}
+                                        <p className="mt-1.5 text-xs text-gray-400">
+                                            A 10% channeling fee will be automatically added on top of doctor fee + hospital charge.
+                                        </p>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={closeChargeDialog}
+                                            className="flex-1 rounded-xl border py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleSaveCharge}
+                                            disabled={chargeSaving}
+                                            className="flex-1 rounded-xl bg-green-600 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition disabled:opacity-50"
+                                        >
+                                            {chargeSaving ? 'Saving…' : 'Save Charge'}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

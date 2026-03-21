@@ -113,7 +113,7 @@ exports.getEMRs = async (req, res) => {
  */
 exports.uploadEMRRecord = async (req, res) => {
     try {
-        const { patientId, type, title, diagnosis, notes } = req.body;
+        const { patientId, type, title, diagnosis, notes, appointmentId, uploadedDate } = req.body;
         const doctorId = req.user.id;
 
         if (!patientId || !type) {
@@ -122,28 +122,22 @@ exports.uploadEMRRecord = async (req, res) => {
 
         let fileUrl = '';
 
-        // Use memory buffer from multer to encrypt on the fly!
         if (req.file) {
-            const fs = require('fs');
-            const path = require('path');
+            const fs     = require('fs');
+            const path   = require('path');
             const crypto = require('crypto');
 
             const rawBuffer = req.file.buffer;
-
-            // Generate deterministic IV for symmetric file blob storage
-            const iv = crypto.randomBytes(16);
-            const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(process.env.AES_SECRET_KEY, 'utf-8'), iv);
-            let encryptedBuffer = Buffer.concat([iv, cipher.update(rawBuffer), cipher.final()]);
+            const iv        = crypto.randomBytes(16);
+            const cipher    = crypto.createCipheriv('aes-256-cbc', Buffer.from(process.env.AES_SECRET_KEY, 'utf-8'), iv);
+            const encryptedBuffer = Buffer.concat([iv, cipher.update(rawBuffer), cipher.final()]);
 
             const uploadDir = path.join(__dirname, '../../uploads/emr');
-            if (!fs.existsSync(uploadDir)) {
-                fs.mkdirSync(uploadDir, { recursive: true });
-            }
+            if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-            const filename = `emr-${Date.now()}-${Math.floor(Math.random() * 1000000000)}.${req.file.originalname.split('.').pop()}`;
-            const filePath = path.join(uploadDir, filename);
-
-            fs.writeFileSync(filePath, encryptedBuffer);
+            const ext      = req.file.originalname.split('.').pop();
+            const filename = `emr-${Date.now()}-${Math.floor(Math.random() * 1e9)}.${ext}`;
+            fs.writeFileSync(path.join(uploadDir, filename), encryptedBuffer);
             fileUrl = `/api/emr/files/${filename}`;
         }
 
@@ -151,17 +145,21 @@ exports.uploadEMRRecord = async (req, res) => {
             patientId,
             doctorId,
             type,
-            title: title || 'Patient Vault Upload',
-            fileUrl,   // Saves the encrypted relative route!
+            title:        title || 'Medical Record',
+            fileUrl,
+            uploadedDate: uploadedDate || new Date().toISOString().slice(0, 10),
             encryptedDiagnosis: diagnosis ? encrypt(diagnosis) : undefined,
-            encryptedNotes: notes ? encrypt(notes) : undefined,
-            createdAt: new Date().toISOString()
+            encryptedNotes:     notes     ? encrypt(notes)     : undefined,
         };
 
-        const newEmr = new EMR(emrPayload);
-        const record = await newEmr.save();
+        // Link to appointment if provided and it's a valid ObjectId
+        if (appointmentId && /^[a-f\d]{24}$/i.test(appointmentId)) {
+            emrPayload.appointmentId = appointmentId;
+        }
 
-        res.status(201).json({ message: 'High-Sec Record Uploaded.', record });
+        const record = await new EMR(emrPayload).save();
+        logger.info(`EMR uploaded for patient ${patientId} by doctor ${doctorId}${appointmentId ? ` (apt: ${appointmentId})` : ''}`);
+        res.status(201).json({ message: 'Record uploaded successfully.', record });
     } catch (err) {
         logger.error(`Upload error: ${err.message}`);
         res.status(500).json({ error: err.message });
