@@ -830,6 +830,17 @@ app.post("/api/v1/save-token", requireAuth, async (req, res) => {
 // Global error handler — must be last middleware
 app.use(errorHandler);
 
+// ── Test email route ───────────────────────────────────────────────────────────
+const { sendEmail } = require("./services/emailService");
+app.get("/test-email", async (_req, res) => {
+  const result = await sendEmail(
+    "thepremiumict@gmail.com",
+    "Lakwedha Test",
+    "Email working 🚀"
+  );
+  res.json(result);
+});
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
