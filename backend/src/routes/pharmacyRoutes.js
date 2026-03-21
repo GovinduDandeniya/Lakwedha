@@ -6,7 +6,11 @@ const {
     reviewPrescription,
     updatePrescriptionMedicines,
     uploadPrescription,
+    getNearbyPharmacies,
 } = require('../controllers/pharmacyController');
+
+// GET nearby pharmacies - Protected
+router.get('/nearby', auth, getNearbyPharmacies);
 
 // POST upload prescription - Protected
 router.post('/prescriptions', auth, uploadPrescription);
@@ -21,3 +25,4 @@ router.put('/prescriptions/:id/review', auth, reviewPrescription);
 router.put('/prescriptions/:id/medicines', auth, updatePrescriptionMedicines);
 
 module.exports = router;
+

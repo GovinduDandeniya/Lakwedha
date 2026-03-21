@@ -5,6 +5,28 @@ const User = require('../models/user');
 const asyncHandler = require('../utils/asyncHandler');
 const { ORDER_STATUSES } = require('../utils/orderStateMachine');
 
+// GET /api/pharmacy/nearby — filter pharmacists by province, district, city
+exports.getNearbyPharmacies = asyncHandler(async (req, res) => {
+    const { province, district, city } = req.query;
+
+    const filter = { role: 'pharmacist' };
+    if (province) filter.province = { $regex: new RegExp(`^${province}$`, 'i') };
+    if (district) filter.district = { $regex: new RegExp(`^${district}$`, 'i') };
+    if (city)     filter.city     = { $regex: new RegExp(city, 'i') };
+
+    const pharmacies = await User.find(filter)
+        .select('name address phone province district city')
+        .lean();
+
+    res.json({
+        success: true,
+        data: pharmacies,
+        message: 'Pharmacies fetched successfully',
+    });
+});
+
+
+
 // GET all prescriptions
 exports.getAllPrescriptions = asyncHandler(async (req, res) => {
     // Filter by the logged-in pharmacy's user ID if they are a pharmacist
