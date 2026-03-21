@@ -6,8 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
-// Swapped PayHere for Stripe
-import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:ravana_app/src/core/api_client.dart';
 import 'order_tracking_screen.dart';
@@ -110,7 +109,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
     }
   }
 
-  // Updated to use Stripe Payment Sheet
+  // Updated to use Stripe Web Checkout Session securely
   Future<void> _processStripePayment() async {
     if (_isPaying) return;
     setState(() {
@@ -121,54 +120,23 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
     try {
       final dio = ref.read(dioProvider);
 
-      // Step 1: Get PaymentIntent client_secret from backend
+      // Step 1: Get Checkout Session URL from backend
       final response = await dio.post('/orders/${widget.orderId}/pay/initiate');
       final data = response.data['data'];
-      final clientSecret = data['clientSecret'];
+      final paymentUrl = data['paymentUrl'];
 
-      if (kIsWeb) {
-         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Stripe mobile SDK not available on web — simulating success')),
-          );
-        }
-        _showSuccessSheet();
-        return;
+      if (paymentUrl == null || paymentUrl.isEmpty) {
+        throw Exception('Did not receive a valid Stripe checkout URL');
       }
 
-      // Step 2: Initialize Payment Sheet
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'Lakwedha Ayurvedic',
-          style: ThemeMode.light,
-          appearance: const PaymentSheetAppearance(
-            colors: PaymentSheetAppearanceColors(
-              primary: AppTheme.primaryColor,
-            ),
-          ),
-        ),
-      );
-
-      // Step 3: Present Payment Sheet
-      await Stripe.instance.presentPaymentSheet();
-
-      // Step 4: If we get here, payment was successful or at least confirmed on UI
-      // Backend webhook will handle the final status update, but we show success UI
-      if (mounted) {
-        _showSuccessSheet();
+      // Step 2: Open the Stripe Web Gateway securely via browser
+      if (!await launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication)) {
+        throw Exception('Could not securely open the Stripe gateway browser window.');
       }
 
-    } on StripeException catch (e) {
+      // Step 3: Successfully launched browser. Show the confirmation UI locally.
       if (mounted) {
-        setState(() {
-          // Check if cancelled
-          if (e.error.code == FailureCode.Canceled) {
-            _paymentError = 'Payment cancelled.';
-          } else {
-            _paymentError = e.error.localizedMessage ?? 'Stripe error occurred.';
-          }
-        });
+        _showSuccessSheet();
       }
     } on DioException catch (e) {
       if (mounted) {
@@ -613,7 +581,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
                     curve: Curves.elasticOut),
             const SizedBox(height: 24),
             const Text(
-              'Order Placed Successfully!',
+              'Gateway Triggered',
               style: TextStyle(
                 color: AppTheme.secondaryColor,
                 fontSize: 26,
@@ -622,7 +590,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
             ).animate(delay: 300.ms).fadeIn(duration: 400.ms),
             const SizedBox(height: 10),
             Text(
-              'Your order is now being packaged.\nTrack its progress in real-time.',
+              'Please complete the transaction securely on the external Stripe portal.\nOnce paid, track your fulfillment dynamically.',
               textAlign: TextAlign.center,
               style: TextStyle(
                   color: AppTheme.secondaryColor.withValues(alpha: 0.5),

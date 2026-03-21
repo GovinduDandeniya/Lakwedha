@@ -12,22 +12,41 @@ class PaymentService {
     /**
      * Create a Stripe PaymentIntent
      */
-    static async createPaymentIntent(amountStr, currency, orderId) {
+    static async createCheckoutSession(amountStr, currency, orderId) {
         const stripe = this.getStripeInstance();
         
-        // Stripe expects amount in smallest currency unit (e.g., cents)
-        // LKR has 2 decimal places, so multiply by 100 and round to int
         const amountInCents = Math.round(parseFloat(amountStr) * 100);
 
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: amountInCents,
-            currency: currency.toLowerCase(),
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price_data: {
+                        currency: currency.toLowerCase(),
+                        product_data: {
+                            name: 'Lakwedha E-Channeling Prescription Order',
+                            images: ['https://cdn-icons-png.flaticon.com/512/883/883407.png'],
+                        },
+                        unit_amount: amountInCents,
+                    },
+                    quantity: 1,
+                },
+            ],
+            mode: 'payment',
+            // Return URLs will just kick us back to the app domain (e.g. localhost for testing)
+            success_url: process.env.BACKEND_BASE_URL || 'http://localhost:8080/#/success',
+            cancel_url: process.env.BACKEND_BASE_URL || 'http://localhost:8080/#/cancel',
             metadata: {
                 orderId: orderId,
             },
+            payment_intent_data: {
+                metadata: {
+                    orderId: orderId,
+                }
+            }
         });
 
-        return paymentIntent;
+        return session;
     }
 
     /**
