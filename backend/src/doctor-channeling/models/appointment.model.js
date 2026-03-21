@@ -43,7 +43,7 @@ const appointmentSchema = new mongoose.Schema({
 
 // Indexes for faster queries
 appointmentSchema.index({ doctorId: 1, status: 1 });
-appointmentSchema.index({ patientId: 1, date: -1 });
+appointmentSchema.index({ patientId: 1, slotTime: -1 });
 appointmentSchema.index({ slotTime: 1 });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);

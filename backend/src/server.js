@@ -427,7 +427,7 @@ app.post("/api/v1/dashboard/cancel-session", async (req, res) => {
             .toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
           return res.status(400).json({
             success: false,
-            error: `Cannot cancel ${hName} — less than 10 hours until session starts (${startTimeStr}).`,
+            error: `Cannot cancel ${hName} — less than 12 hours until session starts (${startTimeStr}).`,
           });
         }
       }

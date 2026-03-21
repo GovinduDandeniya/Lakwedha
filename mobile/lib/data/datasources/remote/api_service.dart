@@ -47,6 +47,41 @@ class ApiService {
     throw Exception(data['error'] ?? 'Login failed');
   }
 
+  // ===================== AUTH - VALIDATE TOKEN =====================
+  /// Returns true if the stored token is still valid on the backend.
+  /// Times out after 5 seconds so the splash screen never hangs.
+  Future<bool> validateToken() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConstants.baseUrl}/api/v1/users/profile'),
+            headers: await _getHeaders(),
+          )
+          .timeout(const Duration(seconds: 5));
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ===================== AUTH - FETCH FULL PROFILE =====================
+  /// Fetches the full user document from the backend (includes birthday, nic_number, etc.)
+  Future<Map<String, dynamic>?> fetchProfile() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConstants.baseUrl}/api/v1/users/profile'),
+            headers: await _getHeaders(),
+          )
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['user'] as Map<String, dynamic>?;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // ===================== AUTH - CHANGE PASSWORD =====================
   Future<void> changePassword({
     required String currentPassword,
