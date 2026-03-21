@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -9,11 +8,9 @@ import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:ravana_app/src/core/api_client.dart';
 import 'order_tracking_screen.dart';
 
-/**
- * Stripe Payment Selection Screen
- * Strictly Patient-Facing.
- * Orchestrates the full Stripe Mobile Payment Sheet flow.
- */
+/// Stripe Payment Selection Screen
+/// Strictly Patient-Facing.
+/// Orchestrates the full Stripe Mobile Payment Sheet flow.
 
 final orderProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, orderId) async {
   final dio = ref.watch(dioProvider);
@@ -178,7 +175,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
               color: AppTheme.primaryColor,
               borderRadius: BorderRadius.circular(32),
               boxShadow: [
-                BoxShadow(color: AppTheme.primaryColor.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
+                BoxShadow(color: AppTheme.primaryColor.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10)),
               ],
             ),
             child: Row(
@@ -255,7 +252,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 elevation: 10,
-                shadowColor: AppTheme.secondaryColor.withOpacity(0.4),
+                shadowColor: AppTheme.secondaryColor.withValues(alpha: 0.4),
               ),
               child: _isProcessing 
                 ? const CircularProgressIndicator(color: Colors.white)
@@ -285,7 +282,7 @@ class _MethodTile extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         decoration: BoxDecoration(
-          color: selected ? AppTheme.primaryColor.withOpacity(0.05) : Colors.white,
+          color: selected ? AppTheme.primaryColor.withValues(alpha: 0.05) : Colors.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: selected ? AppTheme.primaryColor : Colors.grey[200]!, width: 2),
         ),
