@@ -23,6 +23,9 @@ app.use('/api/pharmacy-registration', pharmacyRegistrationRoutes);
 const orderRoutes = require('./routes/orderRoutes');
 app.use('/api/orders', orderRoutes);
 
+const adminRoutes = require('./routes/adminRoutes');
+app.use('/api/admin', adminRoutes);
+
 const emergencyCenterRoutes = require('./routes/emergencyCenterRoutes');
 app.use('/api/emergency-centers', emergencyCenterRoutes);
 

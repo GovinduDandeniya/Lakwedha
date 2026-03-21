@@ -8,23 +8,26 @@ import {
   Leaf,
   Users,
   Package,
-  Clock,
-  DollarSign,
+  ShoppingCart,
+  CreditCard,
   BarChart3,
   Settings,
+  MapPin,
+  Pill,
 } from "lucide-react";
 import LakwedhaLogo from "@/components/LakwedhaLogo";
 
 const menu = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { name: "Appointments", href: "/admin/appointments", icon: CalendarCheck },
-  { name: "Practitioners", href: "/admin/doctors", icon: Leaf },
+  { name: "Doctors", href: "/admin/doctors", icon: Leaf },
+  { name: "Pharmacies", href: "/admin/pharmacies", icon: Pill },
   { name: "Patients", href: "/admin/patients", icon: Users },
-  { name: "Treatments", href: "#", icon: Package },
-  { name: "Schedule", href: "#", icon: Clock },
-  { name: "Payments", href: "#", icon: DollarSign },
-  { name: "Analytics", href: "#", icon: BarChart3 },
-  { name: "Settings", href: "#", icon: Settings },
+  { name: "Appointments", href: "/admin/appointments", icon: CalendarCheck },
+  { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { name: "Payments", href: "/admin/payments", icon: CreditCard },
+  { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  { name: "Emergency Centers", href: "/admin/emergency-centers", icon: MapPin },
+  { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
 export default function Sidebar() {
