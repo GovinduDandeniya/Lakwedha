@@ -172,15 +172,13 @@ export default function EMRFileUploader({ onUpload, onCancel, isUploading = fals
 
         {/* Action Buttons */}
         <div className="mt-8 flex justify-between space-x-4">
-           {selectedFiles.length > 0 && (
-             <button 
-               onClick={handleUploadSubmit}
-               disabled={isUploading}
-               className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/30 text-white rounded-full font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-             >
-               {isUploading ? "Uploading Securely..." : "Upload"}
-             </button>
-           )}
+           <button 
+             onClick={handleUploadSubmit}
+             disabled={isUploading || selectedFiles.length === 0}
+             className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/30 text-white rounded-full font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+           >
+             {isUploading ? "Uploading Securely..." : "Upload Records"}
+           </button>
            <button 
              onClick={onCancel}
              className="px-8 py-3 bg-white border-2 border-green-200 hover:border-green-600 text-green-700 rounded-full font-medium transition-all"

@@ -14,25 +14,44 @@ export default function EMRSecureViewer({ records, onClose }: EMRSecureViewerPro
   const [secureObjectUrl, setSecureObjectUrl] = useState<string>('');
   
   // Whenever the active record changes, if it has a fileUrl, we MUST explicitly fetch it with the JWT token
-  // because standard <img src> or <object data> DOES NOT append your secure JWT header!
   useEffect(() => {
-    if (!activeRecord || (!activeRecord.fileUrl && !activeRecord.fileData)) {
-       setSecureObjectUrl('');
-       return;
-    }
+    let objectUrl: string = '';
     
-    let source = activeRecord.fileUrl || activeRecord.fileData;
-    if (source && source.startsWith('/api/emr/files/')) source = `http://localhost:5000${source}`;
+    const fetchSecureFile = async () => {
+      if (!activeRecord || !activeRecord.fileUrl) {
+        setSecureObjectUrl('');
+        return;
+      }
+      
+      let source = activeRecord.fileUrl;
+      if (source.startsWith('/api/emr/files/')) {
+        source = `http://localhost:5000${source}`;
+      }
+      
+      if (source.startsWith('http')) {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch(source, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!res.ok) throw new Error("Failed to fetch secure file");
+          const blob = await res.blob();
+          objectUrl = URL.createObjectURL(blob);
+          setSecureObjectUrl(objectUrl);
+        } catch (err) {
+          console.error("Secure fetch failed:", err);
+          setSecureObjectUrl('');
+        }
+      } else {
+        setSecureObjectUrl(source); // data url
+      }
+    };
+
+    fetchSecureFile();
     
-    // Attempt authenticated secure fetch if it isn't an outright external data URI yet
-    if (source.startsWith('http')) {
-       // We MUST retrieve the active token from window or localStorage to decrypt it natively.
-       // Because this is a dummy component, we will scrape it from cookie/local if possible, or assume public testing 
-       // For a robust system, you'd pass token as a prop.
-       setSecureObjectUrl(source); // Using direct source for mock-compatibility, assuming token is sent via cookie, OR
-    } else {
-       setSecureObjectUrl(source); // data url natively
-    }
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [activeRecord]);
 
   // Hardcode Anti-Screenshot / Anti-Download features
@@ -76,11 +95,12 @@ export default function EMRSecureViewer({ records, onClose }: EMRSecureViewerPro
     }
     
     // Determine base file URL, since backend stores relative '/api/emr/files/...' strings
-    let fileSource = record.fileUrl || record.fileData;
-    if (fileSource && fileSource.startsWith('/api/emr/files/')) {
-        fileSource = `http://localhost:5000${fileSource}`;
-    }
-    const extension = fileSource?.split('.').pop()?.toLowerCase() || '';
+    const fileSource = secureObjectUrl || record.fileData;
+    if (!fileSource) return null;
+    
+    // Original path to guess extension
+    const originalPath = record.fileUrl || "";
+    const extension = originalPath?.split('.').pop()?.toLowerCase() || '';
 
     // Is it an image?
     if (['jpg','jpeg','png','gif','webp'].includes(extension) || fileSource.startsWith("data:image")) {
@@ -101,11 +121,12 @@ export default function EMRSecureViewer({ records, onClose }: EMRSecureViewerPro
     }
     
     // Is it a Text or PDF?
-    if (['txt', 'pdf'].includes(extension) || fileSource.startsWith("data:application/pdf")) {
+    if (['txt', 'pdf'].includes(extension) || fileSource.startsWith("data:application/pdf") || fileSource.startsWith("blob:")) {
       return (
         <div className="w-full h-full bg-gray-100 rounded-xl overflow-hidden relative">
             <object 
               data={`${fileSource}#toolbar=0&navpanes=0&scrollbar=0`} // Disables native PDF toolbars which have download buttons!
+              type="application/pdf"
               className="w-full h-full"
             >
               <p className="p-4 text-gray-600">Your browser does not support rendering this secure file natively without downloading. Viewing restricted.</p>

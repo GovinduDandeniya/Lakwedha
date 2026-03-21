@@ -14,16 +14,16 @@ const emrSchema = new mongoose.Schema(
         },
         encryptedDiagnosis: {
             type: String,
-            required: true,
         },
         encryptedTreatment: {
             type: String,
-            required: true,
         },
         encryptedNotes: {
             type: String,
-            required: true,
         },
+        title: String,
+        type: String,
+        fileUrl: String,
     },
     {
         timestamps: true,

@@ -13,7 +13,7 @@ export default function EMRIsolatedTestPage() {
   // 1. Automatically fetch the Doctor's JWT Token for this component test
   useEffect(() => {
     const autoLogin = async () => {
-      const credentials = { name: 'Dr. isolated', email: 'doctor_isolated@lakwedha.com', password: 'password123', role: 'DOCTOR' };
+      const credentials = { name: 'Dr. isolated', email: 'doctor_v2@lakwedha.com', password: 'password123', role: 'DOCTOR' };
       try {
         await fetch("http://localhost:5000/api/users/register", {
           method: 'POST',
