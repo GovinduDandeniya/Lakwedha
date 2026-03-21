@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import EMRFileUploader from "@/components/emr/EMRFileUploader";
 import EMRSecureViewer from "@/components/emr/EMRSecureViewer";
@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { emrApi } from "@/lib/api";
 import { FolderOpen, UploadCloud, X } from "lucide-react";
 
-export default function EMRPage() {
+function EMRContent() {
   const { user, token, loading } = useAuth();
   const searchParams = useSearchParams();
 
@@ -149,5 +149,13 @@ export default function EMRPage() {
         </div>
       )}
     </>
+  );
+}
+
+export default function EMRPage() {
+  return (
+    <Suspense>
+      <EMRContent />
+    </Suspense>
   );
 }
