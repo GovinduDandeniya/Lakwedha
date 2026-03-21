@@ -723,6 +723,10 @@ app.get('/api/v1/channeling-sessions/public/:doctorId', async (req, res) => {
   }
 });
 
+// ── Emergency center routes ───────────────────────────────────────────────────
+const emergencyCenterRoutes = require('./routes/emergencyCenterRoutes');
+app.use('/api/emergency-centers', emergencyCenterRoutes);
+
 // ── User / Auth / Forgot-password routes ─────────────────────────────────────
 app.use("/api/admin",               adminRoutes);
 app.use("/api/v1/users",            userRoutes);

@@ -1,0 +1,614 @@
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../../core/constants/app_colors.dart';
+import '../models/emergency_center.dart';
+import '../services/emergency_api_service.dart';
+import '../services/location_service.dart';
+import '../widgets/center_details_sheet.dart';
+
+class EmergencyMapScreen extends StatefulWidget {
+  const EmergencyMapScreen({super.key});
+
+  @override
+  State<EmergencyMapScreen> createState() => _EmergencyMapScreenState();
+}
+
+class _EmergencyMapScreenState extends State<EmergencyMapScreen>
+    with TickerProviderStateMixin {
+  GoogleMapController? _mapController;
+  late final AnimationController _stateAnimController;
+  late final Animation<double> _fadeAnimation;
+  final LocationService _locationService = LocationService();
+  final EmergencyApiService _apiService = EmergencyApiService();
+
+  // Default to Sri Lanka center
+  static const LatLng _defaultCenter = LatLng(7.8731, 80.7718);
+  static const double _defaultZoom = 8.0;
+
+  Position? _currentPosition;
+  bool _isLoadingLocation = true;
+  String? _locationError;
+
+  List<EmergencyCenter> _centers = [];
+  Set<Marker> _markers = {};
+  bool _isLoadingCenters = false;
+  String? _centersError;
+  String _searchQuery = '';
+  String? _selectedType;
+  final TextEditingController _searchController = TextEditingController();
+
+  static const List<Map<String, String>> _centerTypes = [
+    {'value': 'ayurvedic_hospital', 'label': 'Hospitals'},
+    {'value': 'ayurvedic_clinic', 'label': 'Clinics'},
+    {'value': 'panchakarma_center', 'label': 'Panchakarma'},
+    {'value': 'herbal_pharmacy', 'label': 'Herbal Pharmacy'},
+    {'value': 'wellness_center', 'label': 'Wellness'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _stateAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _stateAnimController,
+      curve: Curves.easeOut,
+    );
+    _stateAnimController.forward();
+    _fetchUserLocation();
+    _fetchEmergencyCenters();
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    _searchController.dispose();
+    _stateAnimController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchUserLocation() async {
+    try {
+      final position = await _locationService.getCurrentLocation();
+      setState(() {
+        _currentPosition = position;
+        _isLoadingLocation = false;
+      });
+      _animateToUserLocation();
+    } on LocationServiceException catch (e) {
+      setState(() {
+        _locationError = e.message;
+        _isLoadingLocation = false;
+      });
+    }
+  }
+
+  void _animateToUserLocation() {
+    if (_currentPosition != null && _mapController != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(
+              _currentPosition!.latitude,
+              _currentPosition!.longitude,
+            ),
+            zoom: 14.0,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
+    // If location was fetched before map was ready, animate now
+    if (_currentPosition != null) {
+      _animateToUserLocation();
+    }
+  }
+
+  Future<void> _fetchEmergencyCenters() async {
+    setState(() {
+      _isLoadingCenters = true;
+      _centersError = null;
+    });
+    try {
+      final centers = await _apiService.fetchEmergencyCenters();
+      setState(() {
+        _centers = centers;
+        _isLoadingCenters = false;
+      });
+      _buildMarkers();
+    } catch (e) {
+      setState(() {
+        _isLoadingCenters = false;
+        _centersError = 'Failed to load emergency centers. Please try again.';
+      });
+    }
+  }
+
+  /// Returns a color-coded marker hue based on Ayurvedic center type
+  double _getMarkerHue(String type) {
+    switch (type) {
+      case 'ayurvedic_hospital':
+        return BitmapDescriptor.hueGreen;
+      case 'ayurvedic_clinic':
+        return BitmapDescriptor.hueOrange;
+      case 'panchakarma_center':
+        return BitmapDescriptor.hueCyan;
+      case 'herbal_pharmacy':
+        return BitmapDescriptor.hueViolet;
+      case 'wellness_center':
+        return BitmapDescriptor.hueYellow;
+      default:
+        return BitmapDescriptor.hueGreen;
+    }
+  }
+
+  void _buildMarkers() {
+    final markers = <Marker>{};
+    for (final center in _filteredCenters) {
+      markers.add(
+        Marker(
+          markerId: MarkerId(center.id),
+          position: LatLng(center.latitude, center.longitude),
+          icon: BitmapDescriptor.defaultMarkerWithHue(_getMarkerHue(center.type)),
+          onTap: () => _showCenterDetails(center),
+        ),
+      );
+    }
+    setState(() => _markers = markers);
+  }
+
+  void _showCenterDetails(EmergencyCenter center) {
+    String? distanceText;
+    if (_currentPosition != null) {
+      distanceText = _formatDistance(
+        _locationService.calculateDistance(
+          startLat: _currentPosition!.latitude,
+          startLng: _currentPosition!.longitude,
+          endLat: center.latitude,
+          endLng: center.longitude,
+        ),
+      );
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => CenterDetailsSheet(
+        center: center,
+        formattedDistance: distanceText,
+      ),
+    );
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() => _searchQuery = query.trim().toLowerCase());
+    _buildMarkers();
+  }
+
+  List<EmergencyCenter> get _filteredCenters {
+    var filtered = _centers;
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((c) {
+        return c.name.toLowerCase().contains(_searchQuery) ||
+            c.address.toLowerCase().contains(_searchQuery) ||
+            c.typeLabel.toLowerCase().contains(_searchQuery);
+      }).toList();
+    }
+    if (_selectedType != null) {
+      filtered = filtered.where((c) => c.type == _selectedType).toList();
+    }
+    return filtered;
+  }
+
+  void _onFilterTypeChanged(String? type) {
+    setState(() {
+      _selectedType = _selectedType == type ? null : type;
+    });
+    _buildMarkers();
+  }
+
+  String _formatDistance(double km) {
+    if (km < 1) {
+      return '${(km * 1000).round()} m away';
+    }
+    return '${km.toStringAsFixed(1)} km away';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Ayurvedic Emergency Centers',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 0.3,
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primaryDark, AppColors.primary],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 2,
+        shadowColor: AppColors.primary.withValues(alpha: 0.4),
+      ),
+      body: Stack(
+        children: [
+          GoogleMap(
+            onMapCreated: _onMapCreated,
+            initialCameraPosition: const CameraPosition(
+              target: _defaultCenter,
+              zoom: _defaultZoom,
+            ),
+            markers: _markers,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: true,
+            mapToolbarEnabled: false,
+            compassEnabled: true,
+          ),
+          // Search bar with gradient scrim
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.only(top: 8, left: 16, right: 16, bottom: 44),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.9),
+                    Colors.white.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+              child: Material(
+                elevation: 4,
+                shadowColor: Colors.black26,
+                borderRadius: BorderRadius.circular(12),
+              child: TextField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: 'Search Ayurvedic centers...',
+                  hintStyle: TextStyle(color: AppColors.textLight),
+                  prefixIcon: Icon(Icons.search, color: AppColors.textMedium),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.clear, color: AppColors.textMedium),
+                          onPressed: () {
+                            _searchController.clear();
+                            _onSearchChanged('');
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+            ),
+          ),
+          // Filter chips
+          Positioned(
+            top: 64,
+            left: 0,
+            right: 0,
+            child: SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _centerTypes.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final type = _centerTypes[index];
+                  final isSelected = _selectedType == type['value'];
+                  return FilterChip(
+                    label: Text(type['label']!),
+                    selected: isSelected,
+                    onSelected: (_) => _onFilterTypeChanged(type['value']),
+                    selectedColor: AppColors.secondaryGreen.withValues(alpha: 0.2),
+                    checkmarkColor: AppColors.secondaryGreen,
+                    backgroundColor: Colors.white,
+                    labelStyle: TextStyle(
+                      color: isSelected ? AppColors.secondaryGreen : AppColors.textMedium,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontSize: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: isSelected ? AppColors.secondaryGreen : Colors.grey.shade300,
+                      ),
+                    ),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  );
+                },
+              ),
+            ),
+          ),
+          // Location error banner
+          if (_locationError != null)
+            Positioned(
+              top: 112,
+              left: 16,
+              right: 16,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_off, color: Colors.orange.shade700),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _locationError!,
+                          style: TextStyle(
+                            color: Colors.orange.shade900,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          // My location FAB
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: Tooltip(
+              message: 'Go to my location',
+              child: Material(
+                elevation: 6,
+                shadowColor: AppColors.primary.withValues(alpha: 0.3),
+                shape: const CircleBorder(),
+                child: FloatingActionButton(
+                  mini: true,
+                  backgroundColor: Colors.white,
+                  elevation: 0,
+                  onPressed: _isLoadingLocation ? null : _fetchUserLocation,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _isLoadingLocation
+                        ? const SizedBox(
+                            key: ValueKey('loading'),
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            key: const ValueKey('icon'),
+                            Icons.my_location,
+                            color: AppColors.primary,
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Loading overlay
+          if (_isLoadingCenters)
+            Positioned(
+              bottom: 80,
+              left: 0,
+              right: 0,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Center(
+                  child: Material(
+                    elevation: 6,
+                    shadowColor: Colors.black26,
+                    borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Loading centers...',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              ),
+            ),
+          // Error card with retry
+          if (_centersError != null && !_isLoadingCenters)
+            Positioned(
+              bottom: 80,
+              left: 24,
+              right: 24,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red.shade700),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _centersError!,
+                          style: TextStyle(
+                            color: Colors.red.shade900,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: _fetchEmergencyCenters,
+                        child: Text(
+                          'Retry',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          // No results from search/filter
+          if (!_isLoadingCenters && _centersError == null && _centers.isNotEmpty && _filteredCenters.isEmpty)
+            Positioned(
+              bottom: 80,
+              left: 24,
+              right: 24,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.search_off, size: 40, color: AppColors.textLight),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No matching centers',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Try a different search or clear filters',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textMedium,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                          setState(() => _selectedType = null);
+                          _buildMarkers();
+                        },
+                        child: Text(
+                          'Clear All Filters',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          // Empty state — API returned no centers
+          if (!_isLoadingCenters && _centersError == null && _centers.isEmpty)
+            Positioned(
+              bottom: 80,
+              left: 24,
+              right: 24,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.local_hospital_outlined, size: 40, color: AppColors.textLight),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No emergency centers available',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Centers will appear here once added by the admin',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
