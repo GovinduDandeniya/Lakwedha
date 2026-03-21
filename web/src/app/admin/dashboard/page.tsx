@@ -29,7 +29,7 @@ export default function DashboardPage() {
   useEffect(() => {
     analyticsApi
       .getOverview()
-      .then((res) => setData(res as Analytics))
+      .then((res) => setData(res as unknown as Analytics))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
