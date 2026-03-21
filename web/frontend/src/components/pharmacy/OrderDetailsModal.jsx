@@ -1,13 +1,29 @@
 'use client';
 
 import React from 'react';
-import { X, Save, Clock, Package, Truck, CheckCircle, CreditCard, AlertCircle } from 'lucide-react';
+import { 
+  X, 
+  Save, 
+  Clock, 
+  Package, 
+  Truck, 
+  CheckCircle, 
+  CreditCard, 
+  AlertCircle,
+  User,
+  History
+} from 'lucide-react';
 import { clsx } from 'clsx';
 import api from '../../utils/api';
 
+/**
+ * Order Details Modal
+ * Strictly for Pharmacist Admin use.
+ * Shows Full Order Info and complete Lifecycle History.
+ */
 export default function OrderDetailsModal({ order, isOpen, onClose, onRefresh }) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [selectedStatus, setSelectedStatus] = React.useState(order?.status || 'pending');
+  const [selectedStatus, setSelectedStatus] = React.useState(order?.status || 'approved');
   const [selectedPaymentStatus, setSelectedPaymentStatus] = React.useState(order?.paymentStatus || 'pending');
 
   React.useEffect(() => {
@@ -23,151 +39,189 @@ export default function OrderDetailsModal({ order, isOpen, onClose, onRefresh })
     try {
       setIsSubmitting(true);
 
-      // Update Order Status
-      if (selectedStatus !== order.status) {
-        await api.put(`/orders/${order._id}/status`, { status: selectedStatus });
-      }
-
-      // Update Payment Status
+      // 1. Update Payment Status if changed (Manual/COD)
       if (selectedPaymentStatus !== order.paymentStatus) {
         await api.put(`/orders/${order._id}/payment`, { paymentStatus: selectedPaymentStatus });
+      }
+
+      // 2. Update Order Lifecycle Status if changed
+      if (selectedStatus !== order.status) {
+        await api.put(`/orders/${order._id}/status`, { 
+          status: selectedStatus,
+          reason: `Manual status transition by pharmacist`
+        });
       }
 
       onRefresh?.();
       onClose();
     } catch (error) {
-      console.error('Failed to update order:', error);
-      alert('Update failed. Check console.');
+      console.error('Failed to sync order update:', error);
+      alert('Update failed. Ensure the status transition is valid.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const statusSteps = [
-    { key: 'pending', icon: Clock, label: 'Pending' },
-    { key: 'approved', icon: CheckCircle, label: 'Approved' },
-    { key: 'processing', icon: Package, label: 'Processing' },
-    { key: 'shipped', icon: Truck, label: 'Shipped' },
-    { key: 'completed', icon: CheckCircle, label: 'Delivered' },
+  const statusOptions = [
+    { key: 'approved', label: 'Approved', color: 'bg-blue-500' },
+    { key: 'processing', label: 'Processing', color: 'bg-orange-500' },
+    { key: 'shipped', label: 'Shipped', color: 'bg-purple-500' },
+    { key: 'completed', label: 'Completed', color: 'bg-green-500' },
+    { key: 'cancelled', label: 'Cancelled', color: 'bg-red-500' },
   ];
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-secondary/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-primary/60 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
-        <header className="px-8 py-6 border-b border-background flex justify-between items-center bg-background">
+      <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-[40px] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-300 border-2 border-secondary/20">
+        
+        {/* Header */}
+        <header className="px-10 py-8 border-b border-background flex justify-between items-center bg-background/50">
           <div>
-            <h2 className="text-2xl font-bold text-secondary">Order #{order._id.slice(-8).toUpperCase()}</h2>
-            <p className="text-sm text-secondary/60">Manage fulfillment and payments</p>
+            <div className="flex items-center gap-2 mb-1">
+               <span className="bg-secondary text-primary px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Order Receipt</span>
+               <span className="text-secondary/40 font-mono text-xs">#{order._id.slice(-12).toUpperCase()}</span>
+            </div>
+            <h2 className="text-3xl font-black text-primary">Patient: {order.patientName || order.customerName || 'LAK Patient'}</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-secondary/10 rounded-full transition-colors">
-            <X size={24} />
+          <button onClick={onClose} className="p-3 hover:bg-red-50 text-primary hover:text-red-500 rounded-2xl transition-all">
+            <X size={28} />
           </button>
         </header>
 
-        <div className="p-8 space-y-8 overflow-y-auto max-h-[70vh]">
-          {/* Status Tracker */}
-          <section className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-secondary/40">Fulfillment Lifecycle</h3>
-            <div className="flex justify-between items-start">
-              {statusSteps.map((step, idx) => {
-                const Icon = step.icon;
-                const isActive = selectedStatus === step.key;
-                const isPast = statusSteps.findIndex(s => s.key === selectedStatus) >= idx;
-
-                return (
-                  <button
-                    key={step.key}
-                    onClick={() => setSelectedStatus(step.key)}
-                    className="flex flex-col items-center gap-2 group flex-1"
+        <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            
+            {/* Left: General Info & Actions */}
+            <div className="space-y-8">
+              
+              {/* Payment Control */}
+              <section className="bg-background rounded-3xl p-6 border border-secondary/10 space-y-4">
+                <div className="flex items-center gap-3 mb-2">
+                   <CreditCard className="text-secondary" />
+                   <h3 className="font-bold text-primary text-sm uppercase tracking-widest">Financial Status</h3>
+                </div>
+                <div className="flex items-center gap-4">
+                  <select
+                    value={selectedPaymentStatus}
+                    onChange={(e) => setSelectedPaymentStatus(e.target.value)}
+                    className="flex-1 bg-white border border-secondary/20 rounded-xl px-4 py-3 font-bold text-primary outline-none focus:ring-2 focus:ring-secondary/20"
                   >
-                    <div className={clsx(
-                      "w-10 h-10 rounded-full flex items-center justify-center transition-all border-2",
-                      isActive ? "bg-secondary text-white border-secondary scale-110 shadow-lg shadow-secondary/20" :
-                      isPast ? "bg-secondary/10 text-secondary border-secondary/20" : "bg-background text-background border-background/30"
-                    )}>
-                      <Icon size={18} />
-                    </div>
-                    <span className={clsx(
-                      "text-[10px] font-bold uppercase transition-colors",
-                      isActive ? "text-secondary" : "text-background group-hover:text-secondary"
-                    )}>
-                      {step.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Payment Section */}
-          <section className="bg-background/30 p-6 rounded-2xl border border-background/50 space-y-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="bg-white p-2 rounded-lg shadow-sm">
-                  <CreditCard className="text-secondary" size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-secondary">Payment Status</h4>
-                  <p className="text-xs text-secondary/40">Select the current financial state</p>
-                </div>
-              </div>
-              <select
-                value={selectedPaymentStatus}
-                onChange={(e) => setSelectedPaymentStatus(e.target.value)}
-                className="bg-white border border-background rounded-xl px-4 py-2 text-sm font-bold text-secondary outline-none focus:ring-2 focus:ring-secondary/10"
-              >
-                <option value="pending">⏳ Pending</option>
-                <option value="paid">✅ Paid</option>
-                <option value="failed">❌ Failed</option>
-              </select>
-            </div>
-            <div className="flex justify-between items-center pt-4 border-t border-background/30">
-              <span className="text-xs font-bold text-secondary/60 uppercase">Payment Method</span>
-              <span className="px-3 py-1 bg-white border border-background rounded-lg text-xs font-black text-secondary uppercase tracking-widest">
-                {order.paymentMethod || 'Online Payment'}
-              </span>
-            </div>
-          </section>
-
-          {/* Order Summary */}
-          <section className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-secondary/40">Items in Order</h3>
-            <div className="bg-white border border-background rounded-2xl overflow-hidden divide-y divide-background/30">
-              {order.medicines?.map((item, i) => (
-                <div key={i} className="px-5 py-3 flex justify-between items-center bg-background/10">
-                  <div>
-                    <p className="text-sm font-bold text-secondary">{item.name}</p>
-                    <p className="text-[10px] text-secondary/40">Qty: {item.quantity}</p>
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                  <div className={clsx(
+                    "px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest",
+                    selectedPaymentStatus === 'paid' ? "bg-accent/10 text-accent" : 
+                    selectedPaymentStatus === 'failed' ? "bg-red-50 text-red-500" : "bg-secondary/10 text-secondary"
+                  )}>
+                    {selectedPaymentStatus}
                   </div>
-                  <p className="text-sm font-mono font-bold text-secondary">
-                    LKR {(item.price * item.quantity).toLocaleString()}
-                  </p>
                 </div>
-              ))}
-              <div className="px-5 py-4 bg-secondary text-white flex justify-between items-baseline">
-                <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Total Billable</span>
-                <span className="text-2xl font-black">LKR {Number(order.totalAmount).toLocaleString()}</span>
+                <p className="text-[10px] text-primary/40 italic">* Pharmacists should only manually mark COD orders as paid after collection.</p>
+              </section>
+
+              {/* Status Advancement */}
+              <section className="bg-primary/5 rounded-3xl p-6 border border-primary/10 space-y-4">
+                <div className="flex items-center gap-3 mb-2">
+                   <Package className="text-primary" />
+                   <h3 className="font-bold text-primary text-sm uppercase tracking-widest">Advance Lifecycle</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {statusOptions.map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setSelectedStatus(opt.key)}
+                      className={clsx(
+                        "py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2",
+                        selectedStatus === opt.key 
+                          ? `${opt.color} text-white border-transparent shadow-lg scale-105` 
+                          : "bg-white text-primary/40 border-secondary/10 hover:border-primary/20"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* Items List */}
+              <section className="space-y-4">
+                <h3 className="font-bold text-primary text-xs uppercase tracking-[0.2em] px-2">Dispensed Medicines</h3>
+                <div className="bg-white rounded-3xl border border-secondary/10 overflow-hidden divide-y divide-secondary/5">
+                  {order.medicines?.map((med, i) => (
+                    <div key={i} className="px-6 py-4 flex justify-between items-center group hover:bg-background/40 transition-colors">
+                      <div>
+                        <p className="font-bold text-primary text-sm">{med.name}</p>
+                        <p className="text-[10px] font-medium text-secondary">Box of {med.quantity}</p>
+                      </div>
+                      <p className="font-black text-primary text-sm">LKR {Number(med.price * med.quantity).toLocaleString()}</p>
+                    </div>
+                  ))}
+                  <div className="px-6 py-6 bg-primary text-secondary flex justify-between items-baseline">
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em]">Total Billable</span>
+                    <span className="text-2xl font-black italic">LKR {Number(order.totalAmount).toLocaleString()}</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            {/* Right: History Timeline */}
+            <div className="flex flex-col h-full space-y-4">
+              <div className="flex items-center gap-3 px-2">
+                 <History className="text-secondary" />
+                 <h3 className="font-bold text-primary text-sm uppercase tracking-widest">Audit Trail & History</h3>
+              </div>
+              
+              <div className="flex-1 bg-background/50 rounded-[40px] border border-secondary/10 p-8 space-y-8 overflow-y-auto max-h-[500px] relative">
+                 {order.statusHistory?.length === 0 ? (
+                   <p className="text-center text-primary/30 italic text-sm mt-10">No history records found for this order.</p>
+                 ) : (
+                   <div className="space-y-8 border-l-2 border-primary/10 ml-4 pb-4">
+                     {order.statusHistory?.map((entry, idx) => (
+                       <div key={idx} className="relative pl-8">
+                         {/* Bullet */}
+                         <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-primary border-4 border-white shadow-sm" />
+                         
+                         <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                               <span className="text-[11px] font-black text-primary uppercase tracking-wider">{entry.to}</span>
+                               <span className="text-[9px] text-primary/40 font-bold">{new Date(entry.changedAt).toLocaleString()}</span>
+                            </div>
+                            <p className="text-xs text-primary/60 font-medium italic">"{entry.reason || 'Status updated by system'}"</p>
+                            <div className="flex items-center gap-1.5 mt-2 opacity-40">
+                               <User size={10} className="text-primary" />
+                               <span className="text-[9px] font-black uppercase tracking-tighter">By: {entry.changedBy?.name || entry.changedBy || 'System/Auth'}</span>
+                            </div>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 )}
               </div>
             </div>
-          </section>
+
+          </div>
         </div>
 
-        <footer className="p-6 border-t border-background bg-background/20 flex gap-4">
+        {/* Footer */}
+        <footer className="p-8 border-t border-background bg-white flex gap-4">
           <button
             onClick={onClose}
-            className="flex-1 py-3 text-secondary font-bold text-sm uppercase tracking-widest rounded-xl hover:bg-secondary/5 transition-colors"
+            className="flex-1 py-4 text-primary font-bold text-xs uppercase tracking-widest rounded-2xl hover:bg-secondary/10 transition-colors"
           >
             Cancel
           </button>
           <button
             disabled={isSubmitting}
             onClick={handleUpdate}
-            className="flex-[2] py-4 bg-secondary text-white font-bold text-sm uppercase tracking-widest rounded-xl shadow-xl shadow-secondary/10 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            className="flex-[2] py-4 bg-primary text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
           >
-            {isSubmitting ? <Clock className="animate-spin" size={18} /> : <Save size={18} />}
-            {isSubmitting ? 'Updating...' : 'Save Changes'}
+            {isSubmitting ? <Clock className="animate-spin" /> : <Save size={20} />}
+            {isSubmitting ? 'Syncing Ledger...' : 'Commit Changes to Database'}
           </button>
         </footer>
       </div>
