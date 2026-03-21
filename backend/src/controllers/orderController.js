@@ -198,18 +198,20 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
         const amount = parseFloat(order.totalAmount).toFixed(2);
         const currency = 'LKR';
 
-        // Creates a Checkout Session and returns the browser URL to Stripe's hosted gateway
+        // DUAL STRATEGY: Create both a Checkout Session (for Web/External) and a PaymentIntent (for Native Mobile Sheet)
         const session = await PaymentService.createCheckoutSession(amount, currency, order._id.toString());
+        const paymentIntent = await PaymentService.createPaymentIntent(amount, currency, order._id.toString());
 
         res.json({
             success: true,
             data: {
                 paymentUrl: session.url,
                 sessionId: session.id,
+                clientSecret: paymentIntent.client_secret,
                 amount: amount,
                 currency: currency
             },
-            message: 'Stripe Checkout Session created successfully'
+            message: 'Stripe Payment Gateway Initialized (Dual Mode: Native + Web)'
         });
     } catch (error) {
         res.status(500).json({ success: false, data: null, message: error.message });
