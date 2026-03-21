@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const User   = require('../models/user');
+const { sendSMS }    = require('../services/smsService');
+const formatLKNumber = require('../utils/phone');
 
 /* ═══════════════════════════════════════════════════════════════
    HELPERS
@@ -80,10 +82,13 @@ async function sendOtpEmail(to, otp) {
     });
 }
 
-/** SMS OTP delivery is handled by the SMS gateway module (separate team member). */
+/** Send OTP via Notify.lk SMS gateway */
 async function sendOtpSms(phone, otp) {
-    // TODO: SMS gateway integration handled externally
-    console.log(`[SMS OTP] To: ${phone} | OTP: ${otp}`);
+    const message = `Your Lakwedha password reset OTP is ${otp}. Valid for 30 minutes. Do not share this code.`;
+    const result = await sendSMS(phone, message);
+    if (!result.success) {
+        throw new Error(result.error || 'SMS delivery failed');
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -107,10 +112,15 @@ exports.sendOtp = async (req, res) => {
             return res.status(400).json({ message: 'Please enter a valid phone number.' });
         }
 
-        // ── Find user ─────────────────────────────────────────
+        // ── Normalise + find user ─────────────────────────────
+        // Phone is stored as E.164 (+94XXXXXXXXX) — normalise input before lookup
+        const normalisedPhone = method === 'phone'
+            ? '+' + formatLKNumber(value.trim())
+            : null;
+
         const query = method === 'email'
             ? { email: value.toLowerCase().trim() }
-            : { phone: value.trim() };
+            : { phone: normalisedPhone };
 
         const user = await User.findOne(query);
         if (!user) {
@@ -133,16 +143,32 @@ exports.sendOtp = async (req, res) => {
         // ── Generate + hash OTP ───────────────────────────────
         const otp       = generateOTP();
         const hashedOtp = await bcrypt.hash(otp, 10);
+        const expiry    = new Date(Date.now() + 30 * 60 * 1000); // 30 min from now
 
-        user.otp_code     = hashedOtp;
-        user.otp_expiry   = new Date(Date.now() + 30 * 60 * 1000); // 30 min from now
-        user.otp_attempts = 0;
-        user.otp_last_sent = new Date();
-        await user.save();
+        // Use updateOne so otp_code (select:false) is reliably written to DB
+        await User.updateOne({ _id: user._id }, {
+            $set: {
+                otp_code:      hashedOtp,
+                otp_expiry:    expiry,
+                otp_attempts:  0,
+                otp_last_sent: new Date(),
+            },
+        });
 
         // ── Deliver OTP ───────────────────────────────────────
         if (method === 'email') {
-            await sendOtpEmail(user.email, otp);
+            try {
+                await sendOtpEmail(user.email, otp);
+            } catch (emailErr) {
+                console.error('[sendOtp] Email delivery failed:', emailErr.message);
+                await User.updateOne({ _id: user._id }, {
+                    $unset: { otp_code: '', otp_expiry: '', otp_last_sent: '' },
+                    $set:   { otp_attempts: 0 },
+                });
+                return res.status(503).json({
+                    message: 'Email delivery is currently unavailable. Please try with your mobile number instead.',
+                });
+            }
             return res.json({
                 success: true,
                 method: 'email',
@@ -150,7 +176,18 @@ exports.sendOtp = async (req, res) => {
                 message: 'OTP sent to your email address.',
             });
         } else {
-            await sendOtpSms(user.phone, otp);
+            try {
+                await sendOtpSms(normalisedPhone, otp);
+            } catch (smsErr) {
+                console.error('[sendOtp] SMS delivery failed:', smsErr.message);
+                await User.updateOne({ _id: user._id }, {
+                    $unset: { otp_code: '', otp_expiry: '', otp_last_sent: '' },
+                    $set:   { otp_attempts: 0 },
+                });
+                return res.status(503).json({
+                    message: 'SMS delivery failed. Please try again or use your email instead.',
+                });
+            }
             return res.json({
                 success: true,
                 method: 'phone',
@@ -160,7 +197,7 @@ exports.sendOtp = async (req, res) => {
         }
     } catch (err) {
         console.error('[sendOtp]', err);
-        res.status(500).json({ error: 'Failed to send OTP. Please try again.' });
+        res.status(500).json({ message: 'Failed to send OTP. Please try again.' });
     }
 };
 
@@ -175,9 +212,13 @@ exports.verifyOtp = async (req, res) => {
             return res.status(400).json({ message: 'Method, value, and OTP are required.' });
         }
 
+        const normalisedPhone = method === 'phone'
+            ? '+' + formatLKNumber(value.trim())
+            : null;
+
         const query = method === 'email'
             ? { email: value.toLowerCase().trim() }
-            : { phone: value.trim() };
+            : { phone: normalisedPhone };
 
         const user = await User.findOne(query).select('+otp_code');
         if (!user || !user.otp_code) {
@@ -233,7 +274,7 @@ exports.verifyOtp = async (req, res) => {
         });
     } catch (err) {
         console.error('[verifyOtp]', err);
-        res.status(500).json({ error: 'Verification failed. Please try again.' });
+        res.status(500).json({ message: 'Verification failed. Please try again.' });
     }
 };
 
@@ -297,6 +338,6 @@ exports.resetPassword = async (req, res) => {
         });
     } catch (err) {
         console.error('[resetPassword]', err);
-        res.status(500).json({ error: 'Reset failed. Please try again.' });
+        res.status(500).json({ message: 'Reset failed. Please try again.' });
     }
 };

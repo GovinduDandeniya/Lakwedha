@@ -7,11 +7,7 @@ import 'package:provider/provider.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/booking_provider.dart';
 import 'presentation/providers/appointment_provider.dart';
-import 'presentation/screens/splash/splash_screen.dart';
-import 'features/auth/screens/sign_in_screen.dart';
-import 'features/auth/screens/sign_up_screen.dart';
-import 'features/auth/screens/forgot_password_screen.dart';
-import 'presentation/screens/shell/main_shell.dart';
+import 'presentation/routes/app_router.dart';
 
 /// Top-level background message handler — must be outside any class.
 @pragma('vm:entry-point')
@@ -76,14 +72,8 @@ class RavanaApp extends StatelessWidget {
             ),
           ),
         ),
-        initialRoute: '/',
-        routes: {
-          '/':                    (context) => const SplashScreen(),
-          '/sign-in':             (context) => const SignInScreen(),
-          '/sign-up':             (context) => const SignUpScreen(),
-          '/forgot-password':     (context) => const ForgotPasswordScreen(),
-          '/home':                (context) => const MainShell(),
-        },
+        initialRoute: AppRouter.splash,
+        onGenerateRoute: AppRouter.generateRoute,
       ),
     );
   }

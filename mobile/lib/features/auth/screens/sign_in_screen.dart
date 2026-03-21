@@ -153,7 +153,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           label: AppStrings.credentialLabel,
                           hint: AppStrings.credentialHint,
                           controller: _credentialController,
-                          keyboardType: TextInputType.emailAddress,
+                          keyboardType: TextInputType.text,
                           validator: (v) =>
                               (v == null || v.trim().isEmpty) ? AppStrings.fieldRequired : null,
                         ),
