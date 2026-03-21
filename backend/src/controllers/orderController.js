@@ -1,10 +1,10 @@
 const Order = require('../models/Order');
 const Prescription = require('../models/Prescription');
 const Medicine = require('../models/Medicine');
+const crypto = require('crypto');
 
 const asyncHandler = require('../utils/asyncHandler');
 const { OrderStateMachine, ORDER_STATUSES } = require('../utils/orderStateMachine');
-const PaymentService = require('../utils/PaymentService');
 
 /**
  * Handle Order Lifecycle and Payments
@@ -176,113 +176,145 @@ exports.getOrderById = asyncHandler(async (req, res) => {
     res.json({ success: true, data: order, message: 'Order retrieved' });
 });
 
-// Part 3: Fix initiatePayment exact flow
 exports.initiatePayment = asyncHandler(async (req, res) => {
-    const { id } = req.params;
+  const order = await Order.findById(req.params.id);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+  if (order.paymentStatus === 'paid') {
+    return res.status(400).json({ success: false, message: 'This order has already been paid' });
+  }
 
-    // 1. Find order by ID — 404 if not found
-    const order = await Order.findById(id);
-    if (!order) {
-        return res.status(404).json({ success: false, data: null, message: 'Order not found' });
-    }
+  const merchantId = process.env.PAYHERE_MERCHANT_ID;
+  const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
+  const orderId = order._id.toString();
+  const amount = order.totalAmount.toFixed(2);
+  const currency = 'LKR';
 
-    // 2. Check order is not already paid — 400 if already paid
-    if (order.paymentStatus === 'paid') {
-        return res.status(400).json({ success: false, data: null, message: 'This order has already been paid.' });
-    }
+  // Generate hash exactly as PayHere docs specify
+  const hashedSecret = crypto
+    .createHash('md5')
+    .update(merchantSecret)
+    .digest('hex')
+    .toUpperCase();
 
-    try {
-        const amount = parseFloat(order.totalAmount).toFixed(2);
-        const currency = 'LKR';
+  const hash = crypto
+    .createHash('md5')
+    .update(merchantId + orderId + amount + currency + hashedSecret)
+    .digest('hex')
+    .toUpperCase();
 
-        // 3. Create Stripe Payment Intent with correct amount
-        const paymentIntent = await PaymentService.createPaymentIntent(amount, currency, order._id.toString());
-
-        // 4. Store paymentIntentId on order and save to database
-        order.paymentIntentId = paymentIntent.id;
-        await order.save();
-
-        // 5. Return clientSecret and publishableKey to the app
-        res.json({
-            success: true,
-            data: {
-                clientSecret: paymentIntent.client_secret,
-                publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-                amount: amount,
-                currency: currency
-            },
-            message: 'Payment intent created successfully'
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, data: null, message: error.message });
-    }
+  res.json({
+    success: true,
+    data: {
+      sandbox: process.env.PAYHERE_SANDBOX === 'true',
+      merchant_id: merchantId,
+      return_url: undefined,
+      cancel_url: undefined,
+      notify_url: `${process.env.BACKEND_URL}/api/orders/pay/notify`,
+      order_id: orderId,
+      items: 'Ayurvedic Medicines',
+      amount: amount,
+      currency: currency,
+      hash: hash,
+      first_name: 'Patient',
+      last_name: '',
+      email: 'patient@lakwedha.com',
+      phone: '0771234567',
+      address: 'Sri Lanka',
+      city: 'Colombo',
+      country: 'Sri Lanka'
+    },
+    message: 'Payment parameters generated'
+  });
 });
 
-// Part 3: Fix confirmPayment exact flow
 exports.confirmPayment = asyncHandler(async (req, res) => {
-    const { id } = req.params;
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+  if (order.paymentStatus === 'paid') return res.status(400).json({ success: false, message: 'This order has already been paid' });
 
-    // 1. Find order by ID — 404 if not found
-    const order = await Order.findById(id);
-    if (!order) {
-        return res.status(404).json({ success: false, data: null, message: 'Order not found' });
-    }
+  const previousStatus = order.status;
+  OrderStateMachine.assertValidTransition(previousStatus, 'processing');
 
-    // 2. Check order.paymentIntentId exists — 400 if not
-    if (!order.paymentIntentId) {
-        return res.status(400).json({ success: false, data: null, message: 'No payment intent associated with this order' });
-    }
+  order.paymentStatus = 'paid';
+  order.paidAt = new Date();
+  order.status = 'processing';
+  order.statusHistory.push({
+    from: previousStatus,
+    to: 'processing',
+    changedBy: 'payhere_confirmation',
+    changedAt: new Date(),
+    reason: 'Payment confirmed via PayHere callback'
+  });
 
-    // 3. Call stripe.paymentIntents.retrieve to get real Stripe status
-    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-    const paymentIntent = await stripe.paymentIntents.retrieve(order.paymentIntentId);
+  await order.save();
 
-    // 4. If status is not succeeded return 400
-    if (paymentIntent.status !== 'succeeded') {
-        return res.status(400).json({ success: false, data: null, message: 'Payment has not been completed' });
-    }
-
-    // 5. If order.paymentStatus is already paid return 400
-    if (order.paymentStatus === 'paid') {
-        return res.status(400).json({ success: false, data: null, message: 'This order has already been paid' });
-    }
-
-    // 6. Run state machine transition
-    const oldStatus = order.status;
-    const nextStatus = ORDER_STATUSES.PROCESSING;
-    try {
-        OrderStateMachine.assertValidTransition(oldStatus, nextStatus);
-    } catch (err) {
-        // If state machine fails, we still record payment but don't advance status
-        // However, user specifically asked to advance status
-    }
-
-    // 7. Set order.paymentStatus = 'paid' and order.paidAt = new Date()
-    order.paymentStatus = 'paid';
-    order.paidAt = new Date();
-    order.status = nextStatus;
-
-    // 8. Push to statusHistory
-    order.statusHistory.push({
-        from: oldStatus,
-        to: nextStatus,
-        changedBy: req.user.id,
-        changedAt: new Date(),
-        reason: 'Payment confirmed via Stripe'
-    });
-
-    // 9. Call save once
-    await order.save();
-
-    // 10. Return full updated order
-    res.json({
-        success: true,
-        data: order,
-        message: 'Payment confirmed and order advanced to processing'
-    });
+  res.json({
+    success: true,
+    data: order,
+    message: 'Payment confirmed successfully'
+  });
 });
 
-exports.handleStripeWebhook = asyncHandler(async (req, res) => {
-    // Legacy support or redundancy
-    res.status(200).send('OK');
+exports.handlePayhereNotification = asyncHandler(async (req, res) => {
+  const {
+    merchant_id,
+    order_id,
+    payhere_amount,
+    payhere_currency,
+    status_code,
+    md5sig
+  } = req.body;
+
+  const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
+
+  // Verify signature exactly as PayHere docs specify
+  const hashedSecret = crypto
+    .createHash('md5')
+    .update(merchantSecret)
+    .digest('hex')
+    .toUpperCase();
+
+  const localMd5sig = crypto
+    .createHash('md5')
+    .update(
+      merchant_id +
+      order_id +
+      payhere_amount +
+      payhere_currency +
+      status_code +
+      hashedSecret
+    )
+    .digest('hex')
+    .toUpperCase();
+
+  if (localMd5sig !== md5sig) {
+    return res.status(400).json({ success: false, message: 'Invalid signature' });
+  }
+
+  if (status_code != 2) {
+    return res.status(200).json({ success: true, message: 'Notification received' });
+  }
+
+  const order = await Order.findById(order_id);
+  if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+  if (order.paymentStatus === 'paid') return res.status(200).json({ success: true, message: 'Already paid' });
+
+  const previousStatus = order.status;
+  OrderStateMachine.assertValidTransition(previousStatus, 'processing');
+
+  order.paymentStatus = 'paid';
+  order.paidAt = new Date();
+  order.status = 'processing';
+  order.statusHistory.push({
+    from: previousStatus,
+    to: 'processing',
+    changedBy: 'payhere_notification',
+    changedAt: new Date(),
+    reason: 'Payment confirmed via PayHere notification'
+  });
+
+  await order.save();
+  res.status(200).json({ success: true, message: 'Payment confirmed' });
 });
