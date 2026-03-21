@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+/* ─── Skeleton shimmer animation ─── */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.skeleton-bone {
+  position: relative;
+  overflow: hidden;
+  background-color: #e5e7eb;
+  border-radius: 0.5rem;
+}
+.skeleton-bone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.65) 50%, transparent 100%);
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
 /* FORCE LIGHT MODE – NO VARIABLES */
 html,
 body {

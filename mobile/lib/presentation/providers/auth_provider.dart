@@ -13,6 +13,7 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _user;
   String? _profileImagePath;
   bool _isGuest = false;
+  bool _isSuspended = false;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -20,6 +21,7 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? get user => _user;
   bool get isAuthenticated => _token != null;
   bool get isGuest => _isGuest;
+  bool get isSuspended => _isSuspended;
   String? get profileImagePath => _profileImagePath;
 
   static const String _profileImageKey = 'profile_image_path';
@@ -38,6 +40,7 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     _error = null;
+    _isSuspended = false;
     notifyListeners();
 
     try {
@@ -71,6 +74,7 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       _isLoading = false;
       _error = e.toString();
+      _isSuspended = _error!.toLowerCase().contains('suspended');
       notifyListeners();
       return false;
     }
@@ -158,8 +162,15 @@ class AuthProvider extends ChangeNotifier {
         if (fullProfile != null) {
           _user ??= {};
           _user!.addAll(fullProfile);
+          if (fullProfile['status'] == 'suspended') {
+            _isSuspended = true;
+            _token = null;
+            await prefs.remove(AppConstants.tokenKey);
+            await prefs.remove(AppConstants.userIdKey);
+            await prefs.remove(AppConstants.userRoleKey);
+          }
         }
-        await _loadLocalOverrides(prefs);
+        if (!_isSuspended) await _loadLocalOverrides(prefs);
       } else {
         // Token expired or invalid — clear everything
         _token = null;

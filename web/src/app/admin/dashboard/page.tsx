@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { analyticsApi } from '@/lib/api';
 import StatCard from '@/components/admin/StatCard';
 import SectionCard from '@/components/admin/SectionCard';
+import { DashboardSkeleton } from '@/components/admin/LoadingSkeleton';
 import { Users, Leaf, ShoppingCart, CalendarCheck, Pill, TrendingUp } from 'lucide-react';
 
 interface Analytics {
@@ -33,9 +34,7 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return <p className="text-gray-500">Loading dashboard…</p>;
-  }
+  if (loading) return <DashboardSkeleton />;
 
   if (!data) {
     return <p className="text-red-500">Failed to load analytics. Is the backend running?</p>;
