@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ravana_app/src/screens/pharmacy_hub_screen.dart';
+import 'package:ravana_app/src/screens/pharmacy_finder_screen.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
@@ -118,6 +119,20 @@ class HomeScreen extends StatelessWidget {
                   ).animate(delay: 400.ms).fadeIn(),
 
                   const Spacer(),
+
+                  _HomeButton(
+                    title: 'Find a Pharmacy',
+                    subtitle: 'Search nearby Ayurvedic pharmacies',
+                    icon: Icons.location_on_rounded,
+                    color: AppTheme.primaryColor,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const PharmacyFinderScreen()),
+                      );
+                    },
+                  ).animate(delay: 600.ms).fadeIn().slideY(begin: 0.2, end: 0),
 
                   const SizedBox(height: 16),
 
