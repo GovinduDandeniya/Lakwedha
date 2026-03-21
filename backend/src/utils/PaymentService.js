@@ -50,6 +50,25 @@ class PaymentService {
     }
 
     /**
+     * Create a direct PaymentIntent (for Native Mobile SDKs)
+     */
+    static async createPaymentIntent(amountStr, currency, orderId) {
+        const stripe = this.getStripeInstance();
+        
+        const amountInCents = Math.round(parseFloat(amountStr) * 100);
+
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: amountInCents,
+            currency: currency.toLowerCase(),
+            metadata: {
+                orderId: orderId,
+            },
+        });
+
+        return paymentIntent;
+    }
+
+    /**
      * Verify Stripe Webhook Signature
      */
     static verifyWebhook(payload, signature) {

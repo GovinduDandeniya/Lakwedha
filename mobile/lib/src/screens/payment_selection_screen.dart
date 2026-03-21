@@ -7,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:ravana_app/src/core/api_client.dart';
 import 'order_tracking_screen.dart';
@@ -109,7 +110,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
     }
   }
 
-  // Updated to use Stripe Web Checkout Session securely
+  // Ultimate Smart Gateway: Native PaymentSheet on Mobile, Hosted Checkout for Web
   Future<void> _processStripePayment() async {
     if (_isPaying) return;
     setState(() {
@@ -120,23 +121,61 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
     try {
       final dio = ref.read(dioProvider);
 
-      // Step 1: Get Checkout Session URL from backend
+      // Step 1: Initialize dual-mode session from backend
       final response = await dio.post('/orders/${widget.orderId}/pay/initiate');
       final data = response.data['data'];
       final paymentUrl = data['paymentUrl'];
+      final clientSecret = data['clientSecret'];
 
-      if (paymentUrl == null || paymentUrl.isEmpty) {
-        throw Exception('Did not receive a valid Stripe checkout URL');
+      // Strategy A: Web or Desktop - Use Hosted checkout (External Browser)
+      if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) {
+        if (paymentUrl == null || paymentUrl.isEmpty) {
+          throw Exception('Backend did not return a valid Stripe Web Checkout URL');
+        }
+
+        if (!await launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication)) {
+          throw Exception('Could not securely open the Stripe gateway browser window.');
+        }
+
+        if (mounted) {
+           _showSuccessSheet();
+        }
+        return;
       }
 
-      // Step 2: Open the Stripe Web Gateway securely via browser
-      if (!await launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication)) {
-        throw Exception('Could not securely open the Stripe gateway browser window.');
+      // Strategy B: Native Mobile (iOS/Android) - Use Premium Native Payment Sheet
+      if (clientSecret == null || clientSecret.isEmpty) {
+        throw Exception('Backend did not return a valid Stripe client secret for native sheet');
       }
 
-      // Step 3: Successfully launched browser. Show the confirmation UI locally.
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'Lakwedha Ayurvedic',
+          style: ThemeMode.light,
+          appearance: const PaymentSheetAppearance(
+            colors: PaymentSheetAppearanceColors(
+              primary: AppTheme.primaryColor,
+            ),
+          ),
+        ),
+      );
+
+      await Stripe.instance.presentPaymentSheet();
+
       if (mounted) {
         _showSuccessSheet();
+      }
+
+    } on StripeException catch (e) {
+      if (mounted) {
+        setState(() {
+          if (e.error.code == FailureCode.Canceled) {
+            _paymentError = 'Payment cancelled.';
+          } else {
+            _paymentError = e.error.localizedMessage ?? 'Stripe error occurred.';
+          }
+        });
       }
     } on DioException catch (e) {
       if (mounted) {
