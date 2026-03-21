@@ -65,9 +65,49 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
     );
   }
 
+  Timer? _pollingTimer;
+  int _pollCount = 0;
+
+  void _startPaymentPolling() {
+    _pollCount = 0;
+    _pollingTimer?.cancel();
+    
+    // Check every 3 seconds for up to 3 minutes
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      _pollCount++;
+      if (_pollCount > 60) {
+        timer.cancel();
+        if (mounted) {
+          setState(() {
+            _isPaying = false;
+            _paymentError = 'Payment verification timeout. If you paid, please check "Track Order" in a moment.';
+          });
+        }
+        return;
+      }
+
+      try {
+        final dio = ref.read(dioProvider);
+        final response = await dio.get('/orders/${widget.orderId}');
+        final orderData = response.data['data'];
+        
+        if (orderData['paymentStatus'] == 'paid') {
+          timer.cancel();
+          if (mounted) {
+            _showSuccessSheet();
+            setState(() => _isPaying = false);
+          }
+        }
+      } catch (e) {
+        // Silently continue polling on network hiccups
+      }
+    });
+  }
+
   @override
   void dispose() {
     _pulseController.dispose();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
@@ -137,9 +177,8 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
           throw Exception('Could not securely open the Stripe gateway browser window.');
         }
 
-        if (mounted) {
-           _showSuccessSheet();
-        }
+        // Instead of immediate success, start polling backend to confirm order is 'paid'
+        _startPaymentPolling();
         return;
       }
 
@@ -553,11 +592,13 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
                 const SizedBox(width: 10),
                 Text(
                   _isPaying
-                      ? 'Confirming your order...'
+                      ? (_pollingTimer != null && _pollingTimer!.isActive 
+                          ? 'Waiting for payment confirmation...' 
+                          : 'Confirming your order...')
                       : 'PAY NOW — LKR $total',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.bold,
                     fontSize: 15,
                     letterSpacing: 0.3,
                   ),
