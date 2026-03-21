@@ -353,8 +353,11 @@ export default function AvailabilityPage() {
     setSaving(true);
     try {
       if (type === 'cancel') {
-        await api.patch(`/channeling-sessions/${session._id}/cancel`, {});
-        toast.success('Session cancelled');
+        const res = await api.patch(`/channeling-sessions/${session._id}/cancel`, {});
+        const affected = res?.data?.affectedAppointments ?? 0;
+        toast.success(affected > 0
+          ? `Session cancelled. ${affected} patient appointment(s) cancelled and notified.`
+          : 'Session cancelled.');
       } else {
         await api.patch(`/channeling-sessions/${session._id}/close`, {});
         toast.success('Booking closed');

@@ -55,11 +55,34 @@ export const patientApi = {
     getAll: () => request<unknown[]>('/admin/patients'),
     suspend: (id: string) => request<unknown>(`/admin/users/${id}/suspend`, { method: 'PUT' }),
     activate: (id: string) => request<unknown>(`/admin/users/${id}/activate`, { method: 'PUT' }),
+    delete: (id: string) => request<unknown>(`/admin/users/${id}`, { method: 'DELETE' }),
 };
 
 /* ── Admin — Appointments ── */
 export const appointmentApi = {
-    getAll: () => request<unknown[]>('/admin/appointments'),
+    getAll: (params?: { status?: string; paymentStatus?: string }) => {
+        const query = new URLSearchParams(params as Record<string, string>).toString();
+        return request<unknown[]>(`/admin/appointments${query ? `?${query}` : ''}`);
+    },
+    cancel: (id: string, reason?: string) =>
+        request<{
+            message: string;
+            cancellationFee: number;
+            refundAmount: number;
+            totalAmount: number;
+            appointment: unknown;
+        }>(`/admin/appointments/${id}/cancel`, {
+            method: 'PUT',
+            body: JSON.stringify({ reason }),
+        }),
+};
+
+/* ── Admin — Channeling Sessions ── */
+export const channelingSessionApi = {
+    getAll: (params?: { status?: string; date?: string }) => {
+        const query = new URLSearchParams(params as Record<string, string>).toString();
+        return request<unknown[]>(`/admin/channeling-sessions${query ? `?${query}` : ''}`);
+    },
 };
 
 /* ── Admin — Orders ── */

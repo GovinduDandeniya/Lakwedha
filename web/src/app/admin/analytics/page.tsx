@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { analyticsApi } from '@/lib/api';
+import { AnalyticsSkeleton } from '@/components/admin/LoadingSkeleton';
 import {
     Users,
     Leaf,
@@ -35,12 +36,12 @@ export default function AnalyticsPage() {
     useEffect(() => {
         analyticsApi
             .getOverview()
-            .then((res) => setData(res as Analytics))
+            .then((res) => setData(res as unknown as Analytics))
             .catch(() => {})
             .finally(() => setLoading(false));
     }, []);
 
-    if (loading) return <p className="text-gray-500">Loading analytics…</p>;
+    if (loading) return <AnalyticsSkeleton />;
 
     if (!data) {
         return (

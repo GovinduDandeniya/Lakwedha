@@ -97,7 +97,9 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
-    if (auth.isAuthenticated) {
+    if (auth.isSuspended) {
+      Navigator.of(context).pushReplacementNamed('/suspended');
+    } else if (auth.isAuthenticated) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => const MainShell(),

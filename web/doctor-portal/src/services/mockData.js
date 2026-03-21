@@ -32,13 +32,7 @@ export const getMockResponse = (url = '', method = 'get') => {
     if (path === '/dashboard/earnings'            && m === 'get') return { data: { doctorFee: 0, channelingFee: 0, totalToday: 0, totalMonth: 0, weeklyTrend: [0, 0, 0, 0, 0, 0, 0], weekDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] } };
     if (/^\/dashboard\/appointments\/[^/]+\/complete$/.test(path) && m === 'patch') return { success: true };
 
-    if (path === '/doctors' && m === 'get') return {
-        data: [
-            { _id: '1', name: 'Dr. Nuwan Perera', specialization: 'Kayachikitsa (General Ayurveda)', qualification: 'BAMS, MD (Ayurveda)', experience: 12, rating: 4.8, reviewCount: 134, clinicName: 'Ayurveda Wellness Center', clinicAddress: 'Colombo 07', consultationFee: 1500, isVerified: true },
-            { _id: '2', name: 'Dr. Sachini Fernando', specialization: 'Panchakarma (Detox Therapy)', qualification: 'BAMS, PG Diploma', experience: 8, rating: 4.6, reviewCount: 89, clinicName: 'Green Herb Clinic', clinicAddress: 'Kandy', consultationFee: 1200, isVerified: true },
-            { _id: '3', name: 'Dr. Kasun Silva', specialization: 'Shalakya Tantra (ENT & Eye)', qualification: 'BAMS', experience: 5, rating: 4.3, reviewCount: 42, clinicName: 'Dhanwanthari Hospital', clinicAddress: 'Gampaha', consultationFee: 1000, isVerified: false },
-        ]
-    };
+    if (path === '/doctors' && m === 'get') return { data: [] };
 
     if (path === '/patients' && m === 'get') return { data: [] };
     if (/^\/patients\/[^/]+\/history$/.test(path) && m === 'get') return { data: [] };

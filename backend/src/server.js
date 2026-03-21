@@ -31,7 +31,8 @@ const doctorRegistrationRoutes    = require("./routes/doctorRegistrationRoutes")
 const pharmacyRegistrationRoutes  = require("./routes/pharmacyRegistrationRoutes");
 const pharmacyOperationsRoutes    = require("./routes/pharmacyRoutes");   // prescription management
 const orderRoutes                 = require("./routes/orderRoutes");       // order lifecycle
-const adminRoutes                 = require("./routes/admin.routes");      // admin auth
+const adminRoutes                 = require("./routes/admin.routes");      // admin auth (login/register)
+const adminManagementRoutes       = require("./routes/adminRoutes");        // admin dashboard (analytics, doctors, etc.)
 const otpRoutes                   = require("./routes/otpRoutes");
 const notificationAppointmentRoutes = require("./routes/notificationAppointmentRoutes");
 const requestLogger               = require("./middleware/requestLogger");
@@ -615,18 +616,58 @@ app.patch('/api/v1/channeling-sessions/:id', requireAuth, async (req, res) => {
   }
 });
 
-// Cancel a session
+// Cancel a session — also cancels all booked appointments for that session
 app.patch('/api/v1/channeling-sessions/:id/cancel', requireAuth, async (req, res) => {
   try {
     const session = await ChannelingSession.findOne({ _id: req.params.id, doctorId: req.user.id });
     if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
     if (session.status === 'cancelled') return res.status(400).json({ success: false, error: 'Session is already cancelled' });
 
+    // Build the slotTime for this session (date + startTime)
+    const [startHour, startMin] = session.startTime.split(':').map(Number);
+    const slotTime = new Date(session.date);
+    slotTime.setHours(startHour, startMin, 0, 0);
+
+    // Cancel all appointments linked to this session
+    const slotWindowStart = new Date(slotTime.getTime() - 60000); // ±1 min tolerance
+    const slotWindowEnd   = new Date(slotTime.getTime() + 60000);
+    const { modifiedCount } = await Appointment.updateMany(
+      {
+        doctorId: session.doctorId,
+        slotTime: { $gte: slotWindowStart, $lte: slotWindowEnd },
+        status: { $in: ['pending', 'confirmed'] },
+      },
+      {
+        $set: {
+          status: 'cancelled',
+          cancellationReason: 'Session cancelled by doctor',
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    // Cancel the session itself
     session.status = 'cancelled';
     session.updatedAt = new Date();
     await session.save();
 
-    res.json({ success: true, data: session, message: 'Session cancelled successfully' });
+    // Notify affected patients (non-blocking)
+    Appointment.find({
+      doctorId: session.doctorId,
+      slotTime: { $gte: slotWindowStart, $lte: slotWindowEnd },
+      status: 'cancelled',
+    }).then(appointments => {
+      appointments.forEach(apt => {
+        notificationService.sendStatusUpdate(apt, 'cancelled').catch(() => {});
+      });
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      data: session,
+      message: `Session cancelled. ${modifiedCount} appointment(s) cancelled and patients notified.`,
+      affectedAppointments: modifiedCount,
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -729,6 +770,7 @@ app.use('/api/emergency-centers', emergencyCenterRoutes);
 
 // ── User / Auth / Forgot-password routes ─────────────────────────────────────
 app.use("/api/admin",               adminRoutes);
+app.use("/api/admin",               adminManagementRoutes);
 app.use("/api/v1/users",            userRoutes);
 app.use("/api/v1/auth",             registrationRoutes);
 app.use("/api/v1/forgot-password",  forgotPasswordRoutes);

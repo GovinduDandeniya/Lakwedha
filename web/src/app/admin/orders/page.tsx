@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { orderApi } from '@/lib/api';
+import { PageSkeleton } from '@/components/admin/LoadingSkeleton';
 import { ShoppingCart, Package, CreditCard, Clock } from 'lucide-react';
 
 interface Order {
@@ -36,7 +37,7 @@ export default function OrdersPage() {
     const paid = orders.filter((o) => o.paymentStatus === 'paid').length;
     const pending = orders.filter((o) => o.paymentStatus === 'pending').length;
 
-    if (loading) return <p className="text-gray-500">Loading orders…</p>;
+    if (loading) return <PageSkeleton statCount={4} statGridClass="sm:grid-cols-2 lg:grid-cols-4" tableRows={7} tableCols={6} />;
 
     const statusBadge = (status: string) => {
         const map: Record<string, string> = {
