@@ -10,10 +10,10 @@ const notificationService = require('../doctor-channeling/services/notification.
 cron.schedule('*/10 * * * *', async () => {
     try {
         const now = new Date();
-        const in12Hours = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+        const in10Hours = new Date(now.getTime() + 10 * 60 * 60 * 1000);
 
         const appointments = await Appointment.find({
-            slotTime: { $gte: now, $lte: in12Hours },
+            slotTime: { $gte: now, $lte: in10Hours },
             status: { $in: ['pending', 'confirmed'] },
             reminderSent: false,
         });
