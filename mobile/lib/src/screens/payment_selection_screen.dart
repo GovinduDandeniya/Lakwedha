@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:ravana_app/src/core/api_client.dart';
+import 'package:ravana_app/src/core/payment_service.dart';
 import 'order_tracking_screen.dart';
 
-/// Stripe Payment Selection Screen
+/// Payment Selection Screen
 /// Strictly Patient-Facing.
-/// Orchestrates the full Stripe Mobile Payment Sheet flow.
+/// Orchestrates the checkout flow.
 
 final orderProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, orderId) async {
   final dio = ref.watch(dioProvider);
@@ -31,64 +31,30 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
   bool _isProcessing = false;
   String? _errorMessage;
 
-  Future<void> _handleStripeFlow() async {
+  Future<void> _handleCardFlow() async {
     setState(() {
       _isProcessing = true;
       _errorMessage = null;
     });
 
-    try {
-      final dio = ref.read(dioProvider);
+    final paymentService = ref.read(paymentServiceProvider);
 
-      // 1. Initiate Payment on Backend
-      final initRes = await dio.post('/orders/${widget.orderId}/pay/initiate');
-      final clientSecret = initRes.data['data']['clientSecret'];
-
-      if (clientSecret == null) {
-        throw Exception('Gateway failed to generate client secret.');
-      }
-
-      // 2. Initialize Payment Sheet
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'Lakwedha Pharmacy',
-          appearance: const PaymentSheetAppearance(
-            colors: PaymentSheetAppearanceColors(
-              primary: AppTheme.primaryColor,
-            ),
-          ),
-        ),
-      );
-
-      // 3. Present Payment Sheet
-      await Stripe.instance.presentPaymentSheet();
-
-      // 4. Confirm Success with Backend Verified Source
-      final confirmRes = await dio.post('/orders/${widget.orderId}/pay/confirm');
-      
-      if (confirmRes.data['success'] == true) {
+    await paymentService.processOrderPayment(
+      orderId: widget.orderId,
+      onSuccess: () {
         if (mounted) {
-           Navigator.pushReplacement(
-             context,
-             MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: widget.orderId)),
-           );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: widget.orderId)),
+          );
         }
-      } else {
-        throw Exception(confirmRes.data['message'] ?? 'Payment verification failed.');
-      }
+      },
+      onError: (err) {
+        setState(() => _errorMessage = err);
+      },
+    );
 
-    } on StripeException catch (e) {
-      if (e.error.code == FailureCode.Canceled) {
-        setState(() => _errorMessage = 'Payment cancelled.');
-      } else {
-        setState(() => _errorMessage = e.error.localizedMessage);
-      }
-    } catch (e) {
-      setState(() => _errorMessage = 'Transaction Error: ${e.toString()}');
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
-    }
+    if (mounted) setState(() => _isProcessing = false);
   }
 
   Future<void> _handleCODFlow() async {
@@ -97,27 +63,24 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
       _errorMessage = null;
     });
 
-    try {
-      final dio = ref.read(dioProvider);
+    final paymentService = ref.read(paymentServiceProvider);
 
-      // For COD, we just notify the backend to update status to 'processing'
-      // and keep payment as 'pending'
-      await dio.put('/orders/${widget.orderId}/status', data: {
-        'status': 'processing',
-        'reason': 'Patient opted for Cash on Delivery'
-      });
+    await paymentService.processCODPayment(
+      orderId: widget.orderId,
+      onSuccess: () {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: widget.orderId)),
+          );
+        }
+      },
+      onError: (err) {
+        setState(() => _errorMessage = err);
+      },
+    );
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: widget.orderId)),
-        );
-      }
-    } catch (e) {
-      setState(() => _errorMessage = 'Failed to process COD request.');
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
-    }
+    if (mounted) setState(() => _isProcessing = false);
   }
 
   @override
@@ -242,7 +205,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
               onPressed: _isProcessing ? null : () {
                 HapticFeedback.heavyImpact();
                 if (_selectedMethod == 'card') {
-                  _handleStripeFlow();
+                  _handleCardFlow();
                 } else {
                   _handleCODFlow();
                 }
