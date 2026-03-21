@@ -266,6 +266,51 @@ exports.getHistory = async (req, res) => {
 };
 
 /**
+ * Get single appointment by ID
+ * GET /api/v1/doctor-channeling/appointments/:appointmentId
+ */
+exports.getAppointmentById = async (req, res) => {
+    try {
+        const { appointmentId } = req.params;
+
+        const appointment = await Appointment.findById(appointmentId)
+            .populate('doctorId', 'name specialization profileImage consultationFee')
+            .populate('patientId', 'name age gender phone');
+
+        if (!appointment) {
+            return res.status(404).json({
+                success: false,
+                error: 'Appointment not found'
+            });
+        }
+
+        // Only the patient, doctor, or admin can view the appointment
+        const userId = req.user.id;
+        const isOwner =
+            userId === appointment.patientId._id.toString() ||
+            userId === appointment.doctorId._id.toString();
+        const isAdmin = req.user.role === 'admin';
+
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({
+                success: false,
+                error: 'Unauthorized'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: appointment
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+};
+
+/**
  * Get queue status for a slot
  * GET /api/v1/doctor-channeling/appointments/queue/:slotId
  */
