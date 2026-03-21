@@ -45,9 +45,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? user['name'].toString().split(' ').last : '');
     final String fullName   = '$firstName $lastName'.trim();
     final String email      = user['email']      ?? '';
-    final String nic        = user['nic']        ?? user['nicPassport'] ?? user['passport'] ?? '—';
-    final String age        = user['age']?.toString() ?? '—';
+    final String nic        = user['nic_number']  ?? user['nic'] ?? '—';
     final String birthday   = user['birthday']   ?? user['dateOfBirth'] ?? '';
+    final String age        = _calculateAge(birthday);
     final String initials   = '${firstName.isNotEmpty ? firstName[0] : ''}${lastName.isNotEmpty ? lastName[0] : ''}'.toUpperCase();
 
     if (auth.isGuest) {
@@ -475,192 +475,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ── My Orders section ────────────────────────────────────────────────────
-  // TODO (Pharmacy dev): Replace _sampleOrders with real data from pharmacy backend
-  static const List<Map<String, dynamic>> _sampleOrders = [
-    {
-      'orderId':  'ORD-2025-001',
-      'items':    'Triphala Churna × 2, Ashwagandha Tablet × 1',
-      'date':     '08 Mar 2026',
-      'total':    'Rs. 2,450',
-      'status':   'Delivered',
-    },
-    {
-      'orderId':  'ORD-2025-002',
-      'items':    'Neem Capsule × 1, Ginger Honey Syrup × 2',
-      'date':     '10 Mar 2026',
-      'total':    'Rs. 1,890',
-      'status':   'Processing',
-    },
-  ];
-
   Widget _buildOrdersSection() {
-    // TODO (Pharmacy dev): Replace with real orders list from backend
-    final orders = _sampleOrders;
-
-    if (orders.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.shopping_bag_outlined,
-        message: 'No orders yet.\nBrowse our Ayurveda pharmacy.',
-      );
-    }
-
-    return Column(
-      children: [
-        for (final order in orders) _buildOrderCard(order),
-        // View all orders button
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-          child: GestureDetector(
-            onTap: () {}, // TODO: navigate to full orders screen
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              decoration: BoxDecoration(
-                color: _cardBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _green.withValues(alpha: 0.35)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.receipt_long_rounded, size: 16, color: _green),
-                  const SizedBox(width: 8),
-                  Text('View All Orders', style: GoogleFonts.poppins(
-                    color: _green, fontSize: 13, fontWeight: FontWeight.w700)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildOrderCard(Map<String, dynamic> order) {
-    final status = order['status'] as String;
-    final Color statusColor;
-    final IconData statusIcon;
-    switch (status) {
-      case 'Delivered':
-        statusColor = const Color(0xFF2E7D32);
-        statusIcon  = Icons.check_circle_rounded;
-        break;
-      case 'Processing':
-        statusColor = const Color(0xFFE65100);
-        statusIcon  = Icons.hourglass_top_rounded;
-        break;
-      case 'Shipped':
-        statusColor = const Color(0xFF1565C0);
-        statusIcon  = Icons.local_shipping_rounded;
-        break;
-      case 'Cancelled':
-        statusColor = const Color(0xFFC62828);
-        statusIcon  = Icons.cancel_rounded;
-        break;
-      default:
-        statusColor = _subText;
-        statusIcon  = Icons.info_rounded;
-    }
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _border),
-        boxShadow: [BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 10, offset: const Offset(0, 2))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top row
-          Row(
-            children: [
-              Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.local_pharmacy_rounded,
-                  color: _green, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(order['orderId'], style: GoogleFonts.poppins(
-                      color: _text, fontSize: 13.5, fontWeight: FontWeight.w700)),
-                    Text(order['date'], style: GoogleFonts.poppins(
-                      color: _subText, fontSize: 11.5)),
-                  ],
-                ),
-              ),
-              // Status badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.35)),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(statusIcon, size: 11, color: statusColor),
-                  const SizedBox(width: 4),
-                  Text(status, style: GoogleFonts.poppins(
-                    color: statusColor, fontSize: 10.5, fontWeight: FontWeight.w700)),
-                ]),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-          Container(height: 1, color: _border),
-          const SizedBox(height: 10),
-
-          // Items
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(Icons.inventory_2_outlined, size: 13, color: _subText),
-            const SizedBox(width: 6),
-            Expanded(child: Text(order['items'], style: GoogleFonts.poppins(
-              color: _subText, fontSize: 11.5, height: 1.4))),
-          ]),
-          const SizedBox(height: 8),
-
-          // Total + action button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(children: [
-                Icon(Icons.payments_outlined, size: 13, color: _subText),
-                const SizedBox(width: 5),
-                Text(order['total'], style: GoogleFonts.poppins(
-                  color: _text, fontSize: 13, fontWeight: FontWeight.w700)),
-              ]),
-              GestureDetector(
-                onTap: () {}, // TODO: navigate to order details / tracking
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF004D40), Color(0xFF00695C)]),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    status == 'Delivered' ? 'Reorder' : 'Track Order',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white, fontSize: 11.5,
-                      fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    return _buildEmptyState(
+      icon: Icons.shopping_bag_outlined,
+      message: 'No orders yet.\nBrowse our Ayurveda pharmacy.',
     );
   }
 
@@ -873,6 +691,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  String _calculateAge(String birthday) {
+    if (birthday.isEmpty) return '—';
+    try {
+      final dob = DateTime.parse(birthday);
+      final now = DateTime.now();
+      int age = now.year - dob.year;
+      if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+        age--;
+      }
+      return age.toString();
+    } catch (_) {
+      return '—';
+    }
+  }
+
   String _formatBirthday(String raw) {
     try {
       final dt = DateTime.parse(raw);
@@ -904,6 +737,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () {
               Navigator.pop(context);
               auth.logout();
+              Navigator.pushReplacementNamed(context, '/sign-in');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFC62828),

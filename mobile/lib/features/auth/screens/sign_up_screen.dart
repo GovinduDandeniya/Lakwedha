@@ -289,11 +289,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final errs = <String, String>{};
     if (_firstNameCtrl.text.trim().isEmpty) errs['firstName'] = 'First name is required.';
     if (_lastNameCtrl.text.trim().isEmpty)  errs['lastName']  = 'Last name is required.';
-    final p = _phoneCtrl.text.trim();
-    if (p.isEmpty) {
+    final rawPhone = _phoneCtrl.text.trim().replaceAll(RegExp(r'\D'), '');
+    final localPhone = rawPhone.startsWith('94') && rawPhone.length >= 11
+        ? rawPhone.substring(2) // strip country code if user typed it
+        : rawPhone.replaceAll(RegExp(r'^0+'), ''); // strip leading zeros
+    if (localPhone.isEmpty) {
       errs['phone'] = 'Mobile number is required.';
-    } else if (!RegExp(r'^\d{5,15}$').hasMatch(p)) {
-      errs['phone'] = 'Enter a valid mobile number (5–15 digits).';
+    } else if (!RegExp(r'^\d{7,13}$').hasMatch(localPhone)) {
+      errs['phone'] = 'Enter a valid mobile number.';
     }
     if (errs.isNotEmpty) {
       setState(() { _fieldErrors.addAll(errs); _error = ''; });
@@ -302,7 +305,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() { _fieldErrors.clear(); _error = ''; _isLoading = true; });
     try {
       final data = await AuthService.sendRegistrationOtp(
-        phone: _phoneCtrl.text.trim(),
+        phone: localPhone,
         countryCode: _countryDial,
       );
       _maskedPhone = data['maskedPhone'] as String? ?? '';
@@ -328,8 +331,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
     setState(() { _error = ''; _isLoading = true; });
     try {
+      final rawP = _phoneCtrl.text.trim().replaceAll(RegExp(r'\D'), '');
+      final localP = rawP.startsWith('94') && rawP.length >= 11
+          ? rawP.substring(2) : rawP.replaceAll(RegExp(r'^0+'), '');
       final token = await AuthService.verifyRegistrationOtp(
-        phone: _phoneCtrl.text.trim(),
+        phone: localP,
         countryCode: _countryDial,
         otp: _otpValue,
       );
@@ -347,8 +353,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (_resendCooldown > 0 || _isLoading) return;
     setState(() { _error = ''; _isLoading = true; });
     try {
+      final rawR = _phoneCtrl.text.trim().replaceAll(RegExp(r'\D'), '');
+      final localR = rawR.startsWith('94') && rawR.length >= 11
+          ? rawR.substring(2) : rawR.replaceAll(RegExp(r'^0+'), '');
       final data = await AuthService.sendRegistrationOtp(
-        phone: _phoneCtrl.text.trim(),
+        phone: localR,
         countryCode: _countryDial,
       );
       _maskedPhone = data['maskedPhone'] as String? ?? '';
@@ -393,13 +402,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final bStr = '${b.year.toString().padLeft(4, '0')}-'
           '${b.month.toString().padLeft(2, '0')}-'
           '${b.day.toString().padLeft(2, '0')}';
+      final rawReg = _phoneCtrl.text.trim().replaceAll(RegExp(r'\D'), '');
+      final localReg = rawReg.startsWith('94') && rawReg.length >= 11
+          ? rawReg.substring(2) : rawReg.replaceAll(RegExp(r'^0+'), '');
       await AuthService.registerWithOtp(
         verifyToken: _verifyToken,
         title: _title,
         firstName: _firstNameCtrl.text.trim(),
         lastName:  _lastNameCtrl.text.trim(),
         nationality: _nationality,
-        phone: _phoneCtrl.text.trim(),
+        phone: localReg,
         countryCode: _countryDial,
         email: email,
         birthday: bStr,
@@ -769,7 +781,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           fontWeight: FontWeight.bold,
                           color: AppColors.textDark)),
                   Text(
-                      'OTP sent to $_countryDial ******$_maskedPhone',
+                      'OTP sent to $_countryDial $_maskedPhone',
                       style: GoogleFonts.inter(
                           fontSize: 12, color: AppColors.textMedium)),
                 ]),
@@ -920,7 +932,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 '${_firstNameCtrl.text} ${_lastNameCtrl.text}'),
             const SizedBox(height: 4),
             _summaryRow('Mobile',
-                '$_countryDial ******$_maskedPhone'),
+                '$_countryDial $_maskedPhone'),
             const SizedBox(height: 4),
             _summaryRow('Nationality', _nationality),
           ]),

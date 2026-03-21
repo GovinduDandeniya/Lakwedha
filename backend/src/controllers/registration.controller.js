@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const RegistrationOtp = require('../models/registrationOtp');
+const { sendSMS } = require('../services/smsService');
 
 /* ── helpers ─────────────────────────────────────────── */
 function generateOtp() {
@@ -14,8 +15,10 @@ function maskPhone(phone) {
 }
 
 async function trySendSms(to, body) {
-    // TODO: SMS gateway integration handled externally
-    console.log(`[SMS OTP] To: ${to} | Body: ${body}`);
+    const result = await sendSMS(to, body);
+    if (!result.success) {
+        console.warn(`[SMS OTP] Delivery failed for ${to}: ${result.error}`);
+    }
 }
 
 /* ── POST /api/auth/send-otp ─────────────────────────── */
@@ -30,7 +33,9 @@ async function sendOtp(req, res) {
         return res.status(400).json({ message: 'Invalid phone number format.' });
     }
 
-    const fullPhone = `${country_code}${phone}`;
+    // Strip leading zero so +94 + 0713316679 doesn't become +940713316679
+    const localPhone = phone.replace(/^0+/, '');
+    const fullPhone = `${country_code}${localPhone}`;
 
     try {
         // Prevent duplicate registrations
@@ -71,7 +76,8 @@ async function verifyOtp(req, res) {
         return res.status(400).json({ message: 'Phone, country code, and OTP are required.' });
     }
 
-    const fullPhone = `${country_code}${phone}`;
+    const localPhone = phone.replace(/^0+/, '');
+    const fullPhone = `${country_code}${localPhone}`;
 
     try {
         const record = await RegistrationOtp.findOne({ phone: fullPhone }).select('+otp_code');
@@ -165,7 +171,7 @@ async function register(req, res) {
             return res.status(401).json({ message: 'Invalid verification token.' });
         }
 
-        const fullPhone = `${country_code}${phone}`;
+        const fullPhone = `${country_code}${phone.replace(/^0+/, '')}`;
         if (decoded.phone !== fullPhone) {
             return res.status(401).json({ message: 'Phone number mismatch. Please re-verify.' });
         }

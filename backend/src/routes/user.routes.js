@@ -8,11 +8,15 @@ router.post('/register', register);
 router.post('/login', login);
 
 // Protected routes
-router.get('/profile', auth, (req, res) => {
-    res.json({
-        message: 'Access granted',
-        user: req.user,
-    });
+router.get('/profile', auth, async (req, res) => {
+    try {
+        const User = require('../models/user');
+        const user = await User.findById(req.user.id).select('-password');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        res.json({ message: 'Access granted', user });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 });
 router.post('/change-password', auth, changePassword);
 
