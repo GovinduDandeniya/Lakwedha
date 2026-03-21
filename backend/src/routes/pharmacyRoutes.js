@@ -8,8 +8,8 @@ const {
     uploadPrescription,
 } = require('../controllers/pharmacyController');
 
-// POST upload prescription - Public for now
-router.post('/prescriptions', uploadPrescription);
+// POST upload prescription - Protected
+router.post('/prescriptions', auth, uploadPrescription);
 
 // GET all prescriptions - Protected
 router.get('/prescriptions', auth, getAllPrescriptions);
