@@ -1,18 +1,20 @@
-import 'dart:async';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shimmer/shimmer.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:ravana_app/src/core/api_client.dart';
 import 'order_tracking_screen.dart';
 
-// Fetch the order object
+/**
+ * Stripe Payment Selection Screen
+ * Strictly Patient-Facing.
+ * Orchestrates the full Stripe Mobile Payment Sheet flow.
+ */
+
 final orderProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, orderId) async {
   final dio = ref.watch(dioProvider);
   final response = await dio.get('/orders/$orderId');
@@ -27,171 +29,33 @@ class PaymentSelectionScreen extends ConsumerStatefulWidget {
   ConsumerState<PaymentSelectionScreen> createState() => _PaymentSelectionScreenState();
 }
 
-class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen> with TickerProviderStateMixin {
-  String _selectedMethod = 'online';
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-  bool _isPaying = false;
-  String? _paymentError;
+class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen> {
+  String _selectedMethod = 'card';
+  bool _isProcessing = false;
+  String? _errorMessage;
 
-  final List<_PaymentOption> _options = [
-    _PaymentOption(
-      id: 'online',
-      title: 'Credit / Debit Card',
-      subtitle: 'Visa, Mastercard, Amex via Stripe',
-      icon: Icons.credit_card_rounded,
-      accentColor: AppTheme.primaryColor,
-      bgColor: const Color(0xFFE8F5E9),
-    ),
-    _PaymentOption(
-      id: 'cod',
-      title: 'Cash on Delivery',
-      subtitle: 'Pay when you receive the medicine',
-      icon: Icons.payments_outlined,
-      accentColor: AppTheme.secondaryColor,
-      bgColor: const Color(0xFFEFEBE9),
-    ),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  Timer? _pollingTimer;
-  int _pollCount = 0;
-
-  void _startPaymentPolling() {
-    _pollCount = 0;
-    _pollingTimer?.cancel();
-    
-    // Check every 3 seconds for up to 3 minutes
-    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
-      _pollCount++;
-      if (_pollCount > 60) {
-        timer.cancel();
-        if (mounted) {
-          setState(() {
-            _isPaying = false;
-            _paymentError = 'Payment verification timeout. If you paid, please check "Track Order" in a moment.';
-          });
-        }
-        return;
-      }
-
-      try {
-        final dio = ref.read(dioProvider);
-        final response = await dio.get('/orders/${widget.orderId}');
-        final orderData = response.data['data'];
-        
-        if (orderData['paymentStatus'] == 'paid') {
-          timer.cancel();
-          if (mounted) {
-            _showSuccessSheet();
-            setState(() => _isPaying = false);
-          }
-        }
-      } catch (e) {
-        // Silently continue polling on network hiccups
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    _pollingTimer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _processCOD() async {
-    if (_isPaying) return;
+  Future<void> _handleStripeFlow() async {
     setState(() {
-      _isPaying = true;
-      _paymentError = null;
+      _isProcessing = true;
+      _errorMessage = null;
     });
 
     try {
       final dio = ref.read(dioProvider);
 
-      await dio.put('/orders/${widget.orderId}/payment', data: {
-        'paymentStatus': 'pending'
-      });
+      // 1. Initiate Payment on Backend
+      final initRes = await dio.post('/orders/${widget.orderId}/pay/initiate');
+      final clientSecret = initRes.data['data']['clientSecret'];
 
-      await dio.put('/orders/${widget.orderId}/status', data: {
-        'status': 'processing',
-        'reason': 'Cash on delivery selected by patient'
-      });
-
-      if (mounted) {
-        _showSuccessSheet();
-      }
-    } on DioException catch (e) {
-      if (mounted) {
-        setState(() {
-          _paymentError = e.response?.data['message'] ?? 'Failed to place order. Please try again.';
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _paymentError = 'An unexpected error occurred. Please try again.';
-        });
-      }
-    } finally {
-      if (mounted) setState(() => _isPaying = false);
-    }
-  }
-
-  // Ultimate Smart Gateway: Native PaymentSheet on Mobile, Hosted Checkout for Web
-  Future<void> _processStripePayment() async {
-    if (_isPaying) return;
-    setState(() {
-      _isPaying = true;
-      _paymentError = null;
-    });
-
-    try {
-      final dio = ref.read(dioProvider);
-
-      // Step 1: Initialize dual-mode session from backend
-      final response = await dio.post('/orders/${widget.orderId}/pay/initiate');
-      final data = response.data['data'];
-      final paymentUrl = data['paymentUrl'];
-      final clientSecret = data['clientSecret'];
-
-      // Strategy A: Web or Desktop - Use Hosted checkout (External Browser)
-      if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) {
-        if (paymentUrl == null || paymentUrl.isEmpty) {
-          throw Exception('Backend did not return a valid Stripe Web Checkout URL');
-        }
-
-        if (!await launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication)) {
-          throw Exception('Could not securely open the Stripe gateway browser window.');
-        }
-
-        // Instead of immediate success, start polling backend to confirm order is 'paid'
-        _startPaymentPolling();
-        return;
+      if (clientSecret == null) {
+        throw Exception('Gateway failed to generate client secret.');
       }
 
-      // Strategy B: Native Mobile (iOS/Android) - Use Premium Native Payment Sheet
-      if (clientSecret == null || clientSecret.isEmpty) {
-        throw Exception('Backend did not return a valid Stripe client secret for native sheet');
-      }
-
+      // 2. Initialize Payment Sheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'Lakwedha Ayurvedic',
-          style: ThemeMode.light,
+          merchantDisplayName: 'Lakwedha Pharmacy',
           appearance: const PaymentSheetAppearance(
             colors: PaymentSheetAppearanceColors(
               primary: AppTheme.primaryColor,
@@ -200,45 +64,62 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
         ),
       );
 
+      // 3. Present Payment Sheet
       await Stripe.instance.presentPaymentSheet();
 
-      if (mounted) {
-        _showSuccessSheet();
+      // 4. Confirm Success with Backend Verified Source
+      final confirmRes = await dio.post('/orders/${widget.orderId}/pay/confirm');
+      
+      if (confirmRes.data['success'] == true) {
+        if (mounted) {
+           Navigator.pushReplacement(
+             context,
+             MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: widget.orderId)),
+           );
+        }
+      } else {
+        throw Exception(confirmRes.data['message'] ?? 'Payment verification failed.');
       }
 
     } on StripeException catch (e) {
-      if (mounted) {
-        setState(() {
-          if (e.error.code == FailureCode.Canceled) {
-            _paymentError = 'Payment cancelled.';
-          } else {
-            _paymentError = e.error.localizedMessage ?? 'Stripe error occurred.';
-          }
-        });
-      }
-    } on DioException catch (e) {
-      if (mounted) {
-        setState(() {
-          _paymentError = e.response?.data['message'] ?? 'Network error. Please try again.';
-        });
+      if (e.error.code == FailureCode.Canceled) {
+        setState(() => _errorMessage = 'Payment cancelled.');
+      } else {
+        setState(() => _errorMessage = e.error.localizedMessage);
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _paymentError = 'Unexpected error: $e';
-        });
-      }
+      setState(() => _errorMessage = 'Transaction Error: ${e.toString()}');
     } finally {
-      if (mounted) setState(() => _isPaying = false);
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
-  void _handlePayNow() {
-    HapticFeedback.heavyImpact();
-    if (_selectedMethod == 'online') {
-      _processStripePayment();
-    } else {
-      _processCOD();
+  Future<void> _handleCODFlow() async {
+     setState(() {
+      _isProcessing = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final dio = ref.read(dioProvider);
+
+      // For COD, we just notify the backend to update status to 'processing'
+      // and keep payment as 'pending'
+      await dio.put('/orders/${widget.orderId}/status', data: {
+        'status': 'processing',
+        'reason': 'Patient opted for Cash on Delivery'
+      });
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: widget.orderId)),
+        );
+      }
+    } catch (e) {
+      setState(() => _errorMessage = 'Failed to process COD request.');
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -249,482 +130,175 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Secure Checkout'),
-        leading: IconButton(
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            Navigator.pop(context);
-          },
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.lock_rounded, color: AppTheme.primaryColor, size: 12),
-                SizedBox(width: 4),
-                Text(
-                  'SSL Secured',
-                  style: TextStyle(
-                    color: AppTheme.primaryColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Checkout', style: TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primaryColor)),
+        centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Confirm & Pay',
-              style: TextStyle(
-                color: AppTheme.secondaryColor,
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
-              ),
-            ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.15, end: 0),
-            const SizedBox(height: 4),
-            Text(
-              'Secure payment powered by Stripe',
-              style: TextStyle(
-                  color: AppTheme.secondaryColor.withValues(alpha: 0.5), fontSize: 14),
-            ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
-
-            const SizedBox(height: 28),
-
-            if (_paymentError != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.red.shade200),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline_rounded, color: Colors.red, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _paymentError!,
-                        style: const TextStyle(color: Colors.red, fontSize: 13),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => setState(() => _paymentError = null),
-                      child: const Icon(Icons.close_rounded, color: Colors.red, size: 18),
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn(duration: 300.ms),
-              const SizedBox(height: 16),
-            ],
-
-            orderAsync.when(
-              data: (order) => _buildAmountCard(order['totalAmount'].toString()),
-              loading: () => _buildShimmerAmountCard(),
-              error: (err, stack) => Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.red.shade200),
-                ),
-                child: const Text(
-                  'Could not load order details. Please go back and try again.',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 36),
-
-            const Text(
-              'SELECT PAYMENT METHOD',
-              style: TextStyle(
-                color: AppTheme.secondaryColor,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-              ),
-            ).animate(delay: 300.ms).fadeIn(duration: 400.ms),
-            const SizedBox(height: 16),
-
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _options.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildPaymentOptionCard(_options[index], index),
-                );
-              },
-            ),
-
-            const SizedBox(height: 36),
-
-            orderAsync.when(
-              data: (order) => _buildPayNowButton(order['totalAmount'].toString()),
-              loading: () => const SizedBox.shrink(),
-              error: (err, stack) => const SizedBox.shrink(),
-            ),
-
-            const SizedBox(height: 40),
-          ],
-        ),
+      body: orderAsync.when(
+        data: (order) => _buildContent(order),
+        loading: () => _buildLoading(),
+        error: (e, s) => Center(child: Text('Error loading order: $e')),
       ),
     );
   }
 
-  Widget _buildAmountCard(String total) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppTheme.secondaryColor, Color(0xFF4E342E)],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.secondaryColor.withValues(alpha: 0.2),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildLoading() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Total Amount Due',
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55), fontSize: 13),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Incl. delivery & taxes',
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
-              ),
-            ],
+          Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(width: 200, height: 20, color: Colors.white),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                'LKR $total',
-                style: const TextStyle(
-                  color: AppTheme.accentColor,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 24,
-                ),
-              ),
-            ],
-          ),
+          const SizedBox(height: 20),
+          const CircularProgressIndicator(color: AppTheme.primaryColor),
         ],
-      ),
-    ).animate(delay: 200.ms).fadeIn(duration: 500.ms).slideY(begin: 0.1, end: 0);
-  }
-
-  Widget _buildShimmerAmountCard() {
-    return Shimmer.fromColors(
-      baseColor: AppTheme.backgroundColor.withValues(alpha: 0.5),
-      highlightColor: AppTheme.backgroundColor,
-      child: Container(
-        height: 100,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
-        ),
       ),
     );
   }
 
-  Widget _buildPaymentOptionCard(_PaymentOption option, int index) {
-    final isSelected = _selectedMethod == option.id;
+  Widget _buildContent(Map<String, dynamic> order) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Secure Payment', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppTheme.primaryColor)),
+          const Text('Complete your Ayurvedic order safely.', style: TextStyle(color: Colors.grey)),
+          
+          const SizedBox(height: 32),
 
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _selectedMethod = option.id);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: isSelected ? option.bgColor : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected
-                ? option.accentColor.withValues(alpha: 0.5)
-                : AppTheme.backgroundColor,
-            width: isSelected ? 1.5 : 1,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: option.accentColor.withValues(alpha: 0.12),
-                    blurRadius: 20,
-                    offset: const Offset(0, 6),
-                  )
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  )
-                ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: option.bgColor,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(option.icon, color: option.accentColor, size: 22),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    option.title,
-                    style: TextStyle(
-                      color: isSelected ? option.accentColor : AppTheme.secondaryColor,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    option.subtitle,
-                    style: TextStyle(
-                      color: AppTheme.secondaryColor.withValues(alpha: 0.45),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected ? option.accentColor : Colors.transparent,
-                border: Border.all(
-                  color: isSelected ? option.accentColor : AppTheme.backgroundColor,
-                  width: 2,
-                ),
-              ),
-              child: isSelected
-                  ? const Icon(Icons.check_rounded,
-                      color: Colors.white, size: 14)
-                  : null,
-            ),
-          ],
-        ),
-      ),
-    )
-        .animate(delay: Duration(milliseconds: 400 + index * 80))
-        .fadeIn(duration: 400.ms)
-        .slideX(begin: 0.08, end: 0);
-  }
-
-  Widget _buildPayNowButton(String total) {
-    return AnimatedBuilder(
-      animation: _pulseAnimation,
-      builder: (context, child) {
-        return GestureDetector(
-          onTap: _isPaying ? null : _handlePayNow,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 20),
+          // Amount Card
+          Container(
+            padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: _isPaying ? AppTheme.secondaryColor.withValues(alpha: 0.6) : AppTheme.secondaryColor,
-              borderRadius: BorderRadius.circular(20),
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(32),
               boxShadow: [
-                BoxShadow(
-                  color: AppTheme.secondaryColor.withValues(alpha: 
-                      _isPaying ? 0.1 : 0.2 + 0.08 * _pulseAnimation.value),
-                  blurRadius: _isPaying ? 8 : 20 + 10 * _pulseAnimation.value,
-                  offset: const Offset(0, 6),
-                ),
+                BoxShadow(color: AppTheme.primaryColor.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
               ],
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (_isPaying)
-                  const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                else
-                  const Icon(Icons.lock_rounded, color: Colors.white, size: 18),
-                const SizedBox(width: 10),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                     Text('Total to Pay', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                     SizedBox(height: 4),
+                     Text('LKR', style: TextStyle(color: AppTheme.secondaryColor, fontWeight: FontWeight.bold)),
+                  ],
+                ),
                 Text(
-                  _isPaying
-                      ? (_pollingTimer != null && _pollingTimer!.isActive 
-                          ? 'Waiting for payment confirmation...' 
-                          : 'Confirming your order...')
-                      : 'PAY NOW — LKR $total',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    letterSpacing: 0.3,
-                  ),
+                  '${order['totalAmount']}',
+                  style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900),
                 ),
               ],
             ),
-          ),
-        );
-      },
-    ).animate(delay: 700.ms).fadeIn(duration: 500.ms).slideY(begin: 0.2, end: 0);
-  }
+          ).animate().slideY(begin: 0.2, end: 0, duration: 600.ms, curve: Curves.easeOut),
 
-  void _showSuccessSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.65,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
+          const SizedBox(height: 48),
+
+          if (_errorMessage != null) ...[
             Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppTheme.backgroundColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const Spacer(),
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppTheme.primaryColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                    blurRadius: 30,
-                    spreadRadius: 5,
-                  ),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.red[200]!)),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 12))),
                 ],
               ),
-              child: const Icon(Icons.check_rounded,
-                  color: Colors.white, size: 52),
-            )
-                .animate()
-                .scale(
-                    begin: const Offset(0, 0),
-                    end: const Offset(1, 1),
-                    duration: 500.ms,
-                    curve: Curves.elasticOut),
+            ).animate().shake(),
             const SizedBox(height: 24),
-            const Text(
-              'Gateway Triggered',
-              style: TextStyle(
-                color: AppTheme.secondaryColor,
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-              ),
-            ).animate(delay: 300.ms).fadeIn(duration: 400.ms),
-            const SizedBox(height: 10),
-            Text(
-              'Please complete the transaction securely on the external Stripe portal.\nOnce paid, track your fulfillment dynamically.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: AppTheme.secondaryColor.withValues(alpha: 0.5),
-                  fontSize: 15,
-                  height: 1.6),
-            ).animate(delay: 400.ms).fadeIn(duration: 400.ms),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ProviderScope(
-                        child: OrderTrackingScreen(orderId: widget.orderId),
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.local_shipping_rounded),
-                label: const Text('VIEW ORDER TRACKING'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.secondaryColor,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 60),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-              ).animate(delay: 500.ms).fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0),
-            ),
           ],
-        ),
+
+          const Text('PAYMENT METHOD', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.grey)),
+          const SizedBox(height: 16),
+
+          _MethodTile(
+            id: 'card', 
+            icon: Icons.credit_card, 
+            label: 'Credit / Debit Card', 
+            selected: _selectedMethod == 'card', 
+            onTap: () => setState(() => _selectedMethod = 'card')
+          ),
+          const SizedBox(height: 12),
+          _MethodTile(
+            id: 'cod', 
+            icon: Icons.delivery_dining, 
+            label: 'Cash on Delivery', 
+            selected: _selectedMethod == 'cod', 
+            onTap: () => setState(() => _selectedMethod = 'cod')
+          ),
+
+          const SizedBox(height: 48),
+
+          SizedBox(
+            width: double.infinity,
+            height: 64,
+            child: ElevatedButton(
+              onPressed: _isProcessing ? null : () {
+                HapticFeedback.heavyImpact();
+                if (_selectedMethod == 'card') {
+                  _handleStripeFlow();
+                } else {
+                  _handleCODFlow();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.secondaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                elevation: 10,
+                shadowColor: AppTheme.secondaryColor.withOpacity(0.4),
+              ),
+              child: _isProcessing 
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text('CONFIRM PAYMENT', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
+            ),
+          ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1, end: 0),
+        ],
       ),
     );
   }
 }
 
-class _PaymentOption {
+class _MethodTile extends StatelessWidget {
   final String id;
-  final String title;
-  final String subtitle;
   final IconData icon;
-  final Color accentColor;
-  final Color bgColor;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
 
-  const _PaymentOption({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.accentColor,
-    required this.bgColor,
-  });
+  const _MethodTile({required this.id, required this.icon, required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.primaryColor.withOpacity(0.05) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: selected ? AppTheme.primaryColor : Colors.grey[200]!, width: 2),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: selected ? AppTheme.primaryColor : Colors.grey),
+            const SizedBox(width: 16),
+            Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: selected ? AppTheme.primaryColor : Colors.grey[700])),
+            const Spacer(),
+            if (selected) const Icon(Icons.check_circle, color: AppTheme.primaryColor),
+          ],
+        ),
+      ),
+    );
+  }
 }
