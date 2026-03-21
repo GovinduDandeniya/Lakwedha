@@ -55,8 +55,21 @@ exports.changePassword = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        const credential = (email || '').trim();
 
-        const user = await User.findOne({ email }).select('+password');
+        // Detect phone vs email: phone contains only digits, spaces, +, -, ()
+        const isPhone = credential.length > 0 && !credential.includes('@') &&
+            /^[\d\s+\-()/]{7,20}$/.test(credential);
+
+        let user;
+        if (isPhone) {
+            const formatLKNumber = require('../utils/phone');
+            const normalisedPhone = '+' + formatLKNumber(credential);
+            user = await User.findOne({ phone: normalisedPhone }).select('+password');
+        } else {
+            user = await User.findOne({ email: credential.toLowerCase() }).select('+password');
+        }
+
         if (!user) return res.status(401).json({ message: 'Invalid credentials' });
 
         const match = await bcrypt.compare(password, user.password);

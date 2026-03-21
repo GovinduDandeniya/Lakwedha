@@ -53,6 +53,12 @@ class AuthProvider extends ChangeNotifier {
       await prefs.setString(AppConstants.userRoleKey, _user!['role'] ?? 'patient');
       await prefs.setString(AppConstants.userKey, _user.toString());
 
+      // Fetch full profile (birthday, nic_number, etc.) and merge
+      final fullProfile = await _apiService.fetchProfile();
+      if (fullProfile != null) {
+        _user!.addAll(fullProfile);
+      }
+
       // Load any locally saved overrides
       await _loadLocalOverrides(prefs);
 
@@ -141,8 +147,28 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> checkAuthStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString(AppConstants.tokenKey);
-    await _loadLocalOverrides(prefs);
+    final savedToken = prefs.getString(AppConstants.tokenKey);
+
+    if (savedToken != null && savedToken.isNotEmpty) {
+      // Temporarily set the token so _getHeaders() includes it for validation
+      _token = savedToken;
+      final isValid = await _apiService.validateToken();
+      if (isValid) {
+        final fullProfile = await _apiService.fetchProfile();
+        if (fullProfile != null) {
+          _user ??= {};
+          _user!.addAll(fullProfile);
+        }
+        await _loadLocalOverrides(prefs);
+      } else {
+        // Token expired or invalid — clear everything
+        _token = null;
+        await prefs.remove(AppConstants.tokenKey);
+        await prefs.remove(AppConstants.userIdKey);
+        await prefs.remove(AppConstants.userRoleKey);
+      }
+    }
+
     notifyListeners();
   }
 
