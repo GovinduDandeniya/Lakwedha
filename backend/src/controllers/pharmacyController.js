@@ -10,51 +10,79 @@ exports.getAllPrescriptions = asyncHandler(async (req, res) => {
     // Filter by the logged-in pharmacy's user ID if they are a pharmacist
     const filter = req.user && req.user.role === 'pharmacist' ? { pharmacyId: req.user.id } : {};
     const prescriptions = await Prescription.find(filter).sort({ createdAt: -1 }).lean();
-    
+
     // Join with Orders to get tracking and payment status
-    const orders = await Order.find({ prescriptionId: { $in: prescriptions.map(p => p._id) } }).lean();
-    
+    const orders = await Order.find({
+        prescriptionId: { $in: prescriptions.map((p) => p._id) },
+    }).lean();
+
     const orderMap = {};
-    orders.forEach(order => {
+    orders.forEach((order) => {
         orderMap[order.prescriptionId.toString()] = order;
     });
 
-    const enrichedPrescriptions = prescriptions.map(p => {
+    const enrichedPrescriptions = prescriptions.map((p) => {
         const order = orderMap[p._id.toString()];
-        return order ? { 
-            ...p, 
-            orderId: order._id.toString(), 
-            orderStatus: order.status, 
-            paymentStatus: order.paymentStatus 
-        } : p;
+        return order
+            ? {
+                  ...p,
+                  orderId: order._id.toString(),
+                  orderStatus: order.status,
+                  paymentStatus: order.paymentStatus,
+              }
+            : p;
     });
 
-    res.json({ success: true, data: enrichedPrescriptions, message: 'Prescriptions fetched successfully' });
+    res.json({
+        success: true,
+        data: enrichedPrescriptions,
+        message: 'Prescriptions fetched successfully',
+    });
 });
 
 // Patient: Upload Prescription
 exports.uploadPrescription = asyncHandler(async (req, res) => {
     const { imageUrl, patientName, pharmacyId } = req.body;
-    
+
     // Fallback logic: Use userId from body (legacy/test) or authenticated id
     const userId = req.body.userId || (req.user ? req.user.id : null);
 
     if (!userId) {
-        return res.status(400).json({ success: false, data: null, message: 'User ID is required context for prescription upload.' });
+        return res
+            .status(400)
+            .json({
+                success: false,
+                data: null,
+                message: 'User ID is required context for prescription upload.',
+            });
     }
 
     if (!imageUrl) {
-        return res.status(400).json({ success: false, data: null, message: 'Prescription image is required.' });
+        return res
+            .status(400)
+            .json({ success: false, data: null, message: 'Prescription image is required.' });
     }
 
     if (!pharmacyId) {
-        return res.status(400).json({ success: false, data: null, message: 'Pharmacy ID is required to route your prescription.' });
+        return res
+            .status(400)
+            .json({
+                success: false,
+                data: null,
+                message: 'Pharmacy ID is required to route your prescription.',
+            });
     }
 
     // Validate Pharmacy Existence & Role
     const pharmacy = await User.findOne({ _id: pharmacyId, role: 'pharmacist' });
     if (!pharmacy) {
-        return res.status(404).json({ success: false, data: null, message: 'Selected pharmacy not found or invalid.' });
+        return res
+            .status(404)
+            .json({
+                success: false,
+                data: null,
+                message: 'Selected pharmacy not found or invalid.',
+            });
     }
 
     const prescription = await Prescription.create({
@@ -62,10 +90,14 @@ exports.uploadPrescription = asyncHandler(async (req, res) => {
         pharmacyId,
         imageUrl,
         patientName: patientName || req.user.name || 'Guest Patient',
-        pharmacyStatus: 'pending'
+        pharmacyStatus: 'pending',
     });
 
-    res.status(201).json({ success: true, data: prescription, message: 'Prescription submitted successfully' });
+    res.status(201).json({
+        success: true,
+        data: prescription,
+        message: 'Prescription submitted successfully',
+    });
 });
 
 // Review prescription (Approve/Reject)
@@ -76,22 +108,47 @@ exports.reviewPrescription = asyncHandler(async (req, res) => {
 
     const prescription = await Prescription.findById(id);
     if (!prescription) {
-        return res.status(404).json({ success: false, data: null, message: 'Prescription not found' });
+        return res
+            .status(404)
+            .json({ success: false, data: null, message: 'Prescription not found' });
     }
 
     // Role-based security: A pharmacist can only review prescriptions assigned to them
-    if (req.user && req.user.role === 'pharmacist' && prescription.pharmacyId.toString() !== req.user.id.toString()) {
-        return res.status(403).json({ success: false, data: null, message: 'Unauthorized: You can only review prescriptions assigned to your pharmacy.' });
+    if (
+        req.user &&
+        req.user.role === 'pharmacist' &&
+        prescription.pharmacyId.toString() !== req.user.id.toString()
+    ) {
+        return res
+            .status(403)
+            .json({
+                success: false,
+                data: null,
+                message:
+                    'Unauthorized: You can only review prescriptions assigned to your pharmacy.',
+            });
     }
 
     // Only allow reviewing if pending
     if (prescription.pharmacyStatus !== 'pending') {
-        return res.status(400).json({ success: false, data: null, message: `Prescription is already ${prescription.pharmacyStatus}` });
+        return res
+            .status(400)
+            .json({
+                success: false,
+                data: null,
+                message: `Prescription is already ${prescription.pharmacyStatus}`,
+            });
     }
 
     if (status === 'rejected') {
         if (!rejectionReason || rejectionReason.trim().length < 10) {
-            return res.status(400).json({ success: false, data: null, message: 'Rejection reason must be at least 10 characters long.' });
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    data: null,
+                    message: 'Rejection reason must be at least 10 characters long.',
+                });
         }
         prescription.pharmacyStatus = 'rejected';
         prescription.rejectionReason = rejectionReason;
@@ -100,27 +157,36 @@ exports.reviewPrescription = asyncHandler(async (req, res) => {
         return res.json({
             success: true,
             data: prescription,
-            message: 'Prescription rejected successfully'
+            message: 'Prescription rejected successfully',
         });
     }
 
     if (status === 'approved') {
         if (!medicines || medicines.length === 0) {
-            return res.status(400).json({ success: false, data: null, message: 'Cannot approve prescription without assigning medicines and prices.' });
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    data: null,
+                    message: 'Cannot approve prescription without assigning medicines and prices.',
+                });
         }
 
         // Format medicines properly
-        prescription.medicines = medicines.map(m => ({
+        prescription.medicines = medicines.map((m) => ({
             name: m.name,
             quantity: Number(m.qty || m.quantity),
-            price: Number(m.unitPrice || m.price)
+            price: Number(m.unitPrice || m.price),
         }));
 
         prescription.pharmacyStatus = 'approved';
         await prescription.save();
 
         // Calculate prices manually
-        const subtotal = prescription.medicines.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+        const subtotal = prescription.medicines.reduce(
+            (sum, item) => sum + item.quantity * item.price,
+            0
+        );
         const tax = subtotal * 0.05; // 5% tax
         const deliveryFee = 350; // Flat fee
         const totalAmount = subtotal + tax + deliveryFee;
@@ -137,18 +203,20 @@ exports.reviewPrescription = asyncHandler(async (req, res) => {
             totalAmount,
             status: ORDER_STATUSES.APPROVED,
             paymentStatus: 'pending',
-            statusHistory: [{
-                from: 'none',
-                to: ORDER_STATUSES.APPROVED,
-                changedBy: req.user ? req.user.id : null,
-                reason: 'Order automatically generated on prescription approval'
-            }]
+            statusHistory: [
+                {
+                    from: 'none',
+                    to: ORDER_STATUSES.APPROVED,
+                    changedBy: req.user ? req.user.id : null,
+                    reason: 'Order automatically generated on prescription approval',
+                },
+            ],
         });
 
         return res.json({
             success: true,
             data: { prescription, order },
-            message: 'Prescription approved and order generated securely'
+            message: 'Prescription approved and order generated securely',
         });
     }
 
@@ -163,23 +231,41 @@ exports.updatePrescriptionMedicines = asyncHandler(async (req, res) => {
 
     const prescription = await Prescription.findById(id);
     if (!prescription) {
-        return res.status(404).json({ success: false, data: null, message: 'Prescription not found' });
+        return res
+            .status(404)
+            .json({ success: false, data: null, message: 'Prescription not found' });
     }
 
     // Role-based security: A pharmacist can only edit prescriptions assigned to them
-    if (req.user && req.user.role === 'pharmacist' && prescription.pharmacyId.toString() !== req.user.id.toString()) {
-        return res.status(403).json({ success: false, data: null, message: 'Unauthorized: You can only edit prescriptions assigned to your pharmacy.' });
+    if (
+        req.user &&
+        req.user.role === 'pharmacist' &&
+        prescription.pharmacyId.toString() !== req.user.id.toString()
+    ) {
+        return res
+            .status(403)
+            .json({
+                success: false,
+                data: null,
+                message: 'Unauthorized: You can only edit prescriptions assigned to your pharmacy.',
+            });
     }
 
     // Only allow editing if pending — once approved/rejected, the quote is fixed.
     if (prescription.pharmacyStatus !== 'pending') {
-        return res.status(400).json({ success: false, data: null, message: 'Denied: Prescription medicines cannot be updated once processed.' });
+        return res
+            .status(400)
+            .json({
+                success: false,
+                data: null,
+                message: 'Denied: Prescription medicines cannot be updated once processed.',
+            });
     }
 
-    prescription.medicines = medicines.map(m => ({
+    prescription.medicines = medicines.map((m) => ({
         name: m.name,
         quantity: Number(m.qty || m.quantity),
-        price: Number(m.unitPrice || m.price)
+        price: Number(m.unitPrice || m.price),
     }));
     await prescription.save();
 
