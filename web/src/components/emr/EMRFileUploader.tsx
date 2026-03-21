@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { UploadCloud, File, FileText, Image as ImageIcon, CheckCircle2, X, Camera, FlipHorizontal, CircleDot } from "lucide-react";
+import { UploadCloud, File as FileIcon, FileText, Image as ImageIcon, CheckCircle2, X, Camera, FlipHorizontal, CircleDot } from "lucide-react";
 
 export interface EMRFileUploaderProps {
   onUpload: (files: File[], title: string) => void;
@@ -163,7 +163,7 @@ export default function EMRFileUploader({ onUpload, onCancel, isUploading = fals
   const getFileIcon = (type: string) => {
     if (type.includes("image")) return <ImageIcon className="w-5 h-5 text-green-600" />;
     if (type.includes("text") || type.includes("pdf")) return <FileText className="w-5 h-5 text-green-600" />;
-    return <File className="w-5 h-5 text-green-600" />;
+    return <FileIcon className="w-5 h-5 text-green-600" />;
   };
 
   const handleUploadSubmit = () => {
