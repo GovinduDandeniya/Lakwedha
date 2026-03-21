@@ -174,9 +174,10 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, data: null, message: 'Order not found' });
     }
 
-    // Order must belong to the requesting user
+    // Order must belong to the requesting user or user must have admin privileges
     const requestingUserId = req.user ? req.user.id : null;
-    if (!requestingUserId || order.userId._id.toString() !== requestingUserId.toString()) {
+    const isAdmin = req.user && req.user.role === 'admin';
+    if (!isAdmin && (!requestingUserId || order.userId._id.toString() !== requestingUserId.toString())) {
         return res.status(403).json({ success: false, data: null, message: 'You do not have permission to pay for this order' });
     }
 
@@ -197,17 +198,18 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
         const amount = parseFloat(order.totalAmount).toFixed(2);
         const currency = 'LKR';
 
-        // Creates a PaymentIntent and returns the client_secret required to complete the payment on the frontend
-        const paymentIntent = await PaymentService.createPaymentIntent(amount, currency, order._id.toString());
+        // Creates a Checkout Session and returns the browser URL to Stripe's hosted gateway
+        const session = await PaymentService.createCheckoutSession(amount, currency, order._id.toString());
 
         res.json({
             success: true,
             data: {
-                clientSecret: paymentIntent.client_secret,
+                paymentUrl: session.url,
+                sessionId: session.id,
                 amount: amount,
                 currency: currency
             },
-            message: 'Stripe PaymentIntent created successfully'
+            message: 'Stripe Checkout Session created successfully'
         });
     } catch (error) {
         res.status(500).json({ success: false, data: null, message: error.message });
