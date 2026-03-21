@@ -20,6 +20,11 @@ router.get('/queue/:slotId',
     appointmentController.getQueueStatus
 );
 
+// Get single appointment
+router.get('/:appointmentId',
+    appointmentController.getAppointmentById
+);
+
 // Doctor and Patient routes
 router.patch('/:appointmentId/status',
     appointmentController.updateStatus
