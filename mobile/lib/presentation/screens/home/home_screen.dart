@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../patient/doctor_search_screen.dart';
+import '../../../features/emergency/screens/emergency_map_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onGoToProfile;
@@ -342,9 +343,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   tag: 'EMERGENCY',
                   title: 'Emergency Help',
                   desc: 'Instant access to emergency contacts, ambulance services, and urgent care.',
-                  buttonLabel: 'Call Emergency',
-                  buttonIcon: Icons.phone_rounded,
-                  onTap: () {},
+                  buttonLabel: 'Find Now',
+                  buttonIcon: Icons.location_on_rounded,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EmergencyMapScreen()),
+                  ),
                 ),
               ],
             ],
