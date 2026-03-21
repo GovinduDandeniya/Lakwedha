@@ -161,7 +161,7 @@ export default function PharmacyDashboard() {
       {isDemoMode && (
         <div className="absolute -top-4 -right-4 bg-accent text-secondary px-4 py-1 rounded-bl-xl font-bold text-xs shadow-lg animate-pulse z-10 flex items-center gap-2">
           <AlertCircle size={14} />
-          ⚠️ DEMO MODE ACTIVE
+          DEMO MODE ACTIVE
         </div>
       )}
 
@@ -219,7 +219,7 @@ export default function PharmacyDashboard() {
                onChange={(e) => setDateFilter(e.target.value)}
                className="bg-background px-4 py-3 rounded-2xl border border-background/50 font-bold text-secondary text-sm outline-none"
              >
-                <option value="all">📅 All Dates</option>
+                <option value="all">All Dates</option>
                 <option value="today">Today</option>
                 <option value="week">This Week</option>
                 <option value="month">This Month</option>
@@ -230,7 +230,7 @@ export default function PharmacyDashboard() {
                onChange={(e) => setSortBy(e.target.value)}
                className="bg-background px-4 py-3 rounded-2xl border border-background/50 font-bold text-secondary text-sm outline-none"
              >
-                <option value="newest">🕒 Newest First</option>
+                <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
                 <option value="alpha-asc">A-Z</option>
                 <option value="alpha-desc">Z-A</option>
