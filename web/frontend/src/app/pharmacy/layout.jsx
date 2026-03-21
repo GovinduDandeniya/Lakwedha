@@ -20,9 +20,7 @@ export default function PharmacyLayout({ children }) {
   const pathname = usePathname();
 
   const navItems = [
-    { name: 'Dashboard', href: '/pharmacy/dashboard', icon: LayoutDashboard },
-    { name: 'Active Orders', href: '/pharmacy/orders', icon: Package },
-    { name: 'Payments', href: '/pharmacy/payments', icon: CreditCard },
+    { name: 'Dashboard Hub', href: '/pharmacy/dashboard', icon: LayoutDashboard },
   ];
 
   return (
