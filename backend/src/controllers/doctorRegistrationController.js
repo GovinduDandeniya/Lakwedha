@@ -13,7 +13,21 @@ exports.getApprovedDoctors = async (req, res) => {
     ];
 
     const doctors = await RegisteredDoctor.find(filter, { password: 0 });
-    res.status(200).json({ success: true, data: doctors });
+    const formatted = doctors.map((d) => ({
+      _id: d._id,
+      name: d.fullName || `${d.title || ''} ${d.firstName || ''} ${d.lastName || ''}`.trim(),
+      specialization: d.specialization,
+      qualification: '',
+      experience: 0,
+      rating: 0,
+      reviewCount: 0,
+      profileImage: null,
+      clinicName: d.hospitals?.[0]?.name || '',
+      clinicAddress: d.hospitals?.[0]?.location || '',
+      consultationFee: 0,
+      isVerified: true,
+    }));
+    res.status(200).json({ success: true, data: formatted });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
