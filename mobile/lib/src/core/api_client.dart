@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -44,7 +44,7 @@ final _tokenStorage = kIsWeb ? _WebTokenStorage() as _TokenStorage : _NativeToke
 // On web (Chrome), use localhost. On device, use local network IP.
 // ---------------------------------------------------------------------------
 String _baseUrl() {
-  if (kIsWeb) {
+  if (kIsWeb || defaultTargetPlatform == TargetPlatform.windows) {
     return 'http://localhost:5000/api';
   }
   // For physical iPhone testing on same WiFi
@@ -74,9 +74,8 @@ final dioProvider = Provider((ref) {
       final token = await _tokenStorage.read('jwt_token');
       if (token != null && token.isNotEmpty) {
         options.headers['Authorization'] = 'Bearer $token';
-      } else if (kIsWeb) {
-        // On web dev, use the backend's built-in dev bypass token
-        // (auth.js passes this when NODE_ENV != 'production')
+      } else {
+        // Fallback for dev environment without actual login
         options.headers['Authorization'] = 'Bearer dummy-jwt-token-for-dev';
       }
 
