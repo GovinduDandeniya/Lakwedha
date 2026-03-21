@@ -19,7 +19,7 @@ exports.register = async (req, res, next) => {
             name,
             email,
             password: hashedPassword,
-            role: role || 'user',
+            role: 'user',
         });
 
         res.status(201).json({
@@ -68,3 +68,18 @@ exports.login = async (req, res, next) => {
         next(err);
     }
 };
+
+// Fetch all registered pharmacists
+exports.getAllPharmacists = async (req, res, next) => {
+    try {
+        const pharmacists = await User.find({ role: 'pharmacist' }).select('name email _id');
+        res.json({
+            success: true,
+            data: pharmacists,
+            message: 'Pharmacists fetched successfully',
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+

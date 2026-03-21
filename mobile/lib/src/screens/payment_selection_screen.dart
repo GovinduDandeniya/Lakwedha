@@ -6,13 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
-// PayHere SDK is mobile-only. Import is conditionally used via kIsWeb guard.
-import 'package:payhere_mobilesdk_flutter/payhere_mobilesdk_flutter.dart';
+// Swapped PayHere for Stripe
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:ravana_app/src/core/api_client.dart';
 import 'order_tracking_screen.dart';
 
-// Fetch the order object — totalAmount is already stored on it
+// Fetch the order object
 final orderProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, orderId) async {
   final dio = ref.watch(dioProvider);
   final response = await dio.get('/orders/$orderId');
@@ -38,7 +38,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
     _PaymentOption(
       id: 'online',
       title: 'Credit / Debit Card',
-      subtitle: 'Visa, Mastercard, Amex via PayHere',
+      subtitle: 'Visa, Mastercard, Amex via Stripe',
       icon: Icons.credit_card_rounded,
       accentColor: AppTheme.primaryColor,
       bgColor: const Color(0xFFE8F5E9),
@@ -71,7 +71,6 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
     super.dispose();
   }
 
-  // Called when user selects Cash on Delivery
   Future<void> _processCOD() async {
     if (_isPaying) return;
     setState(() {
@@ -83,7 +82,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
       final dio = ref.read(dioProvider);
 
       await dio.put('/orders/${widget.orderId}/payment', data: {
-        'paymentStatus': 'pending' // COD stays pending until delivery
+        'paymentStatus': 'pending'
       });
 
       await dio.put('/orders/${widget.orderId}/status', data: {
@@ -111,8 +110,8 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
     }
   }
 
-  // Called when user selects PayHere online payment
-  Future<void> _processPayherePayment() async {
+  // Updated to use Stripe Payment Sheet
+  Future<void> _processStripePayment() async {
     if (_isPaying) return;
     setState(() {
       _isPaying = true;
@@ -122,91 +121,76 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
     try {
       final dio = ref.read(dioProvider);
 
-      // Step 1: Get payment parameters from backend — all credentials come from server
-      final initiateResponse = await dio.post('/orders/${widget.orderId}/pay/initiate');
-      final paymentParams = initiateResponse.data['data'] as Map<String, dynamic>;
-
-      // Step 2: Launch PayHere SDK with params from server
-      final completer = Completer<void>();
+      // Step 1: Get PaymentIntent client_secret from backend
+      final response = await dio.post('/orders/${widget.orderId}/pay/initiate');
+      final data = response.data['data'];
+      final clientSecret = data['clientSecret'];
 
       if (kIsWeb) {
-        // PayHere SDK is not available on web. Simulate a successful payment.
-        if (mounted) {
+         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('PayHere is only available on mobile — for testing purposes this will simulate a successful payment')),
+            const SnackBar(content: Text('Stripe mobile SDK not available on web — simulating success')),
           );
         }
-
-        await dio.put('/orders/${widget.orderId}/payment', data: {
-          'paymentStatus': 'paid'
-        });
-
-        await dio.put('/orders/${widget.orderId}/status', data: {
-          'status': 'processing',
-          'reason': 'Payment successful (Web Simulation)'
-        });
-
-        if (mounted) {
-          _showSuccessSheet();
-        }
-        setState(() => _isPaying = false);
+        _showSuccessSheet();
         return;
       }
 
-      PayHere.startPayment(
-        paymentParams,
-        (paymentId) {
-          // Payment successful — PayHere server-to-server notify will update order status
-          // Navigate to tracking screen right away (optimistic)
-          if (mounted) {
-            _showSuccessSheet();
-          }
-          if (!completer.isCompleted) completer.complete();
-        },
-        (error) {
-          // Payment error from SDK
-          if (mounted) {
-            setState(() {
-              _paymentError = error ?? 'Payment was unsuccessful. Please try again.';
-              _isPaying = false;
-            });
-          }
-          if (!completer.isCompleted) completer.complete();
-        },
-        () {
-          // User dismissed / cancelled the payment sheet
-          if (mounted) {
-            setState(() {
-              _paymentError = 'Payment cancelled. You can try again.';
-              _isPaying = false;
-            });
-          }
-          if (!completer.isCompleted) completer.complete();
-        },
+      // Step 2: Initialize Payment Sheet
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'Lakwedha Ayurvedic',
+          style: ThemeMode.light,
+          appearance: const PaymentSheetAppearance(
+            colors: PaymentSheetAppearanceColors(
+              primary: AppTheme.primaryColor,
+            ),
+          ),
+        ),
       );
 
-      await completer.future;
+      // Step 3: Present Payment Sheet
+      await Stripe.instance.presentPaymentSheet();
+
+      // Step 4: If we get here, payment was successful or at least confirmed on UI
+      // Backend webhook will handle the final status update, but we show success UI
+      if (mounted) {
+        _showSuccessSheet();
+      }
+
+    } on StripeException catch (e) {
+      if (mounted) {
+        setState(() {
+          // Check if cancelled
+          if (e.error.code == FailureCode.Canceled) {
+            _paymentError = 'Payment cancelled.';
+          } else {
+            _paymentError = e.error.localizedMessage ?? 'Stripe error occurred.';
+          }
+        });
+      }
     } on DioException catch (e) {
       if (mounted) {
         setState(() {
-          _paymentError = e.response?.data['message'] ?? 'Could not reach payment server. Please try again.';
-          _isPaying = false;
+          _paymentError = e.response?.data['message'] ?? 'Network error. Please try again.';
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _paymentError = 'An unexpected error occurred. Please try again.';
-          _isPaying = false;
+          _paymentError = 'Unexpected error: $e';
         });
       }
+    } finally {
+      if (mounted) setState(() => _isPaying = false);
     }
   }
 
   void _handlePayNow() {
     HapticFeedback.heavyImpact();
     if (_selectedMethod == 'online') {
-      _processPayherePayment();
+      _processStripePayment();
     } else {
       _processCOD();
     }
@@ -232,9 +216,9 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+              border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
             ),
             child: const Row(
               children: [
@@ -270,14 +254,13 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
             ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.15, end: 0),
             const SizedBox(height: 4),
             Text(
-              'Prescription verified by Standard Pharmacy',
+              'Secure payment powered by Stripe',
               style: TextStyle(
-                  color: AppTheme.secondaryColor.withOpacity(0.5), fontSize: 14),
+                  color: AppTheme.secondaryColor.withValues(alpha: 0.5), fontSize: 14),
             ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
 
             const SizedBox(height: 28),
 
-            // Error banner — shown when payment fails
             if (_paymentError != null) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -306,7 +289,6 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
               const SizedBox(height: 16),
             ],
 
-            // Amount card — reads totalAmount directly from the order object
             orderAsync.when(
               data: (order) => _buildAmountCard(order['totalAmount'].toString()),
               loading: () => _buildShimmerAmountCard(),
@@ -351,7 +333,6 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
 
             const SizedBox(height: 36),
 
-            // Pay button only shown when order is loaded
             orderAsync.when(
               data: (order) => _buildPayNowButton(order['totalAmount'].toString()),
               loading: () => const SizedBox.shrink(),
@@ -377,7 +358,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.secondaryColor.withOpacity(0.2),
+            color: AppTheme.secondaryColor.withValues(alpha: 0.2),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -392,13 +373,13 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
               Text(
                 'Total Amount Due',
                 style: TextStyle(
-                    color: Colors.white.withOpacity(0.55), fontSize: 13),
+                    color: Colors.white.withValues(alpha: 0.55), fontSize: 13),
               ),
               const SizedBox(height: 4),
               Text(
                 'Incl. delivery & taxes',
                 style: TextStyle(
-                    color: Colors.white.withOpacity(0.35), fontSize: 11),
+                    color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
               ),
             ],
           ),
@@ -422,7 +403,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
 
   Widget _buildShimmerAmountCard() {
     return Shimmer.fromColors(
-      baseColor: AppTheme.backgroundColor.withOpacity(0.5),
+      baseColor: AppTheme.backgroundColor.withValues(alpha: 0.5),
       highlightColor: AppTheme.backgroundColor,
       child: Container(
         height: 100,
@@ -451,21 +432,21 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
-                ? option.accentColor.withOpacity(0.5)
+                ? option.accentColor.withValues(alpha: 0.5)
                 : AppTheme.backgroundColor,
             width: isSelected ? 1.5 : 1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: option.accentColor.withOpacity(0.12),
+                    color: option.accentColor.withValues(alpha: 0.12),
                     blurRadius: 20,
                     offset: const Offset(0, 6),
                   )
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   )
@@ -498,7 +479,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
                   Text(
                     option.subtitle,
                     style: TextStyle(
-                      color: AppTheme.secondaryColor.withOpacity(0.45),
+                      color: AppTheme.secondaryColor.withValues(alpha: 0.45),
                       fontSize: 12,
                     ),
                   ),
@@ -541,11 +522,11 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 20),
             decoration: BoxDecoration(
-              color: _isPaying ? AppTheme.secondaryColor.withOpacity(0.6) : AppTheme.secondaryColor,
+              color: _isPaying ? AppTheme.secondaryColor.withValues(alpha: 0.6) : AppTheme.secondaryColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.secondaryColor.withOpacity(
+                  color: AppTheme.secondaryColor.withValues(alpha: 
                       _isPaying ? 0.1 : 0.2 + 0.08 * _pulseAnimation.value),
                   blurRadius: _isPaying ? 8 : 20 + 10 * _pulseAnimation.value,
                   offset: const Offset(0, 6),
@@ -615,7 +596,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
                 color: AppTheme.primaryColor,
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withOpacity(0.3),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
                     blurRadius: 30,
                     spreadRadius: 5,
                   ),
@@ -632,7 +613,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
                     curve: Curves.elasticOut),
             const SizedBox(height: 24),
             const Text(
-              'Payment Successful!',
+              'Order Placed Successfully!',
               style: TextStyle(
                 color: AppTheme.secondaryColor,
                 fontSize: 26,
@@ -644,7 +625,7 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
               'Your order is now being packaged.\nTrack its progress in real-time.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: AppTheme.secondaryColor.withOpacity(0.5),
+                  color: AppTheme.secondaryColor.withValues(alpha: 0.5),
                   fontSize: 15,
                   height: 1.6),
             ).animate(delay: 400.ms).fadeIn(duration: 400.ms),
@@ -665,6 +646,14 @@ class _PaymentSelectionScreenState extends ConsumerState<PaymentSelectionScreen>
                 },
                 icon: const Icon(Icons.local_shipping_rounded),
                 label: const Text('VIEW ORDER TRACKING'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.secondaryColor,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 60),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
               ).animate(delay: 500.ms).fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0),
             ),
           ],

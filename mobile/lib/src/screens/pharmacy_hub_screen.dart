@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:ravana_app/src/core/api_client.dart';
+import 'package:ravana_app/src/screens/payment_selection_screen.dart';
+import 'package:ravana_app/src/screens/order_tracking_screen.dart';
 
 final prescriptionsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final dio = ref.watch(dioProvider);
@@ -155,40 +157,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
     );
   }
 
-  void _showReviewOptions(String id) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Review Prescription', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: const Icon(Icons.check_circle, color: AppTheme.primaryColor),
-                title: const Text('Approve'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showApproveModal(id);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.cancel, color: Colors.red),
-                title: const Text('Reject'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showRejectModal(id);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +213,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            AppTheme.accentColor.withOpacity(0.15),
+                            AppTheme.accentColor.withValues(alpha: 0.15),
                             Colors.transparent,
                           ],
                         ),
@@ -262,10 +231,10 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppTheme.accentColor.withOpacity(0.2),
+                            color: AppTheme.accentColor.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                                color: AppTheme.accentColor.withOpacity(0.4)),
+                                color: AppTheme.accentColor.withValues(alpha: 0.4)),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
@@ -371,16 +340,16 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                       padding: const EdgeInsets.all(40.0),
                       child: Column(
                         children: [
-                          Icon(Icons.check_circle_outline, size: 60, color: AppTheme.secondaryColor.withOpacity(0.3)),
+                          Icon(Icons.check_circle_outline, size: 60, color: AppTheme.secondaryColor.withValues(alpha: 0.3)),
                           const SizedBox(height: 16),
                           Text(
                             'All caught up!',
-                            style: TextStyle(color: AppTheme.secondaryColor.withOpacity(0.5), fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: AppTheme.secondaryColor.withValues(alpha: 0.5), fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'No prescriptions found.',
-                            style: TextStyle(color: AppTheme.secondaryColor.withOpacity(0.4)),
+                            style: TextStyle(color: AppTheme.secondaryColor.withValues(alpha: 0.4)),
                           )
                         ],
                       ),
@@ -416,21 +385,60 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
     final date = DateTime.parse(request['createdAt'].toString());
     final timeStr = "${date.day}/${date.month}  ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
     final status = request['pharmacyStatus'] as String? ?? 'pending';
+    final String? orderId = request['orderId'];
+    final String? orderStatus = request['orderStatus'];
+    final String? paymentStatus = request['paymentStatus'];
 
     Color statusColor;
-    if (status == 'approved') statusColor = AppTheme.primaryColor;
-    else if (status == 'rejected') statusColor = Colors.red;
-    else statusColor = AppTheme.accentColor;
+    if (status == 'approved') {
+      statusColor = AppTheme.primaryColor;
+    } else if (status == 'rejected') {
+      statusColor = Colors.red;
+    } else {
+      statusColor = AppTheme.accentColor;
+    }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.backgroundColor),
+    return GestureDetector(
+      onTap: () {
+        if (status == 'rejected') {
+          HapticFeedback.lightImpact();
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Rejection Reason'),
+              content: Text(request['rejectionReason'] ?? 'No reason provided.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          );
+        } else if (status == 'approved' && orderId != null) {
+          HapticFeedback.selectionClick();
+          if (paymentStatus == 'paid' || (orderStatus != null && orderStatus != 'approved' && orderStatus != 'pending')) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => OrderTrackingScreen(orderId: orderId)),
+            );
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => PaymentSelectionScreen(orderId: orderId)),
+            );
+          }
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.backgroundColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -445,7 +453,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(Icons.description_outlined, color: statusColor, size: 20),
@@ -467,7 +475,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
                     Text(
                       'ID: ${request['_id'].toString().substring(0, 8)} • $timeStr',
                       style: TextStyle(
-                        color: AppTheme.secondaryColor.withOpacity(0.5),
+                        color: AppTheme.secondaryColor.withValues(alpha: 0.5),
                         fontSize: 12,
                       ),
                     ),
@@ -477,9 +485,9 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusColor.withOpacity(0.3)),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   status.toUpperCase(),
@@ -526,9 +534,96 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
               ],
             )
           ]
+          else if (status == 'approved' && orderId != null) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1),
+            ),
+            if (paymentStatus == 'paid' || (orderStatus != null && orderStatus != 'approved' && orderStatus != 'pending'))
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => OrderTrackingScreen(orderId: orderId),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: const Icon(Icons.local_shipping_rounded, size: 18),
+                  label: const Text('Track Order', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PaymentSelectionScreen(orderId: orderId),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.secondaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: const Icon(Icons.payment_rounded, size: 18),
+                  label: const Text('Proceed to Payment', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              )
+          ]
+          else if (status == 'rejected') ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1),
+            ),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Rejection Reason'),
+                      content: Text(request['rejectionReason'] ?? 'No reason provided.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Close'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.visibility_rounded, size: 18),
+                label: const Text('Preview Reason'),
+              ),
+            )
+          ]
         ],
       ),
-    ).animate(delay: Duration(milliseconds: 50 * index)).fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0);
+    )).animate(delay: Duration(milliseconds: 50 * index)).fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0);
   }
 
   Widget _buildStatsGrid(int pending, int approved) {
@@ -577,7 +672,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
 
   Widget _buildShimmerStats() {
     return Shimmer.fromColors(
-      baseColor: AppTheme.backgroundColor.withOpacity(0.5),
+      baseColor: AppTheme.backgroundColor.withValues(alpha: 0.5),
       highlightColor: AppTheme.backgroundColor,
       child: GridView.count(
         shrinkWrap: true,
@@ -601,7 +696,7 @@ class _PharmacyHubScreenState extends ConsumerState<PharmacyHubScreen> with Tick
 
   Widget _buildShimmerList() {
     return Shimmer.fromColors(
-      baseColor: AppTheme.backgroundColor.withOpacity(0.5),
+      baseColor: AppTheme.backgroundColor.withValues(alpha: 0.5),
       highlightColor: AppTheme.backgroundColor,
       child: Column(
         children: List.generate(
@@ -645,7 +740,7 @@ class _StatCard extends StatelessWidget {
         border: Border.all(color: AppTheme.backgroundColor, width: 1),
         boxShadow: [
           BoxShadow(
-            color: accentColor.withOpacity(0.08),
+            color: accentColor.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -675,7 +770,7 @@ class _StatCard extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: AppTheme.secondaryColor.withOpacity(0.5),
+              color: AppTheme.secondaryColor.withValues(alpha: 0.5),
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),

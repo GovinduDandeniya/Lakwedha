@@ -23,6 +23,7 @@ exports.createOrderFromPrescription = asyncHandler(async (req, res) => {
     const order = await Order.create({
         userId: prescription.userId,
         prescriptionId: prescription._id,
+        pharmacyId: prescription.pharmacyId, // Added for audit/security queries
         medicines: prescription.medicines,
         subtotal: prescription.subtotal,
         tax: prescription.tax,
@@ -48,6 +49,14 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
     const order = await Order.findById(id);
     if (!order) {
         return res.status(404).json({ success: false, data: null, message: 'Order not found' });
+    }
+
+    // Role Security: Only Pharmacists assigned to this order or Admin can change status
+    const isPharmacy = order.pharmacyId && order.pharmacyId.toString() === req.user.id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isPharmacy && !isAdmin) {
+        return res.status(403).json({ success: false, data: null, message: 'Restricted Action: Only the fulfilling pharmacist can update order status.' });
     }
 
     const currentStatus = order.status;
@@ -95,10 +104,15 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
     res.json({ success: true, data: order, message: `Order transitioned securely from ${currentStatus} to ${status}` });
 });
 
-// Update the payment status of an order
+// Update the payment status of an order (Admin only)
 exports.updatePaymentStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { paymentStatus } = req.body;
+
+    // Security check: only admin can force-update payment status
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, data: null, message: 'Only administrators can manually update payment status records.' });
+    }
 
     const order = await Order.findById(id);
     if (!order) {
@@ -111,27 +125,51 @@ exports.updatePaymentStatus = asyncHandler(async (req, res) => {
     res.json({ success: true, data: order, message: 'Payment status updated securely' });
 });
 
-// Retrieve all orders
+// Retrieve orders (Filtered by role: Users see theirs, Pharmacists see theirs)
 exports.getAllOrders = asyncHandler(async (req, res) => {
-    const orders = await Order.find().sort({ createdAt: -1 });
+    let query = {};
+
+    // Privacy Logic: Filter by role
+    if (req.user.role === 'pharmacist') {
+        query = { pharmacyId: req.user.id };
+    } else if (req.user.role === 'user') {
+        query = { userId: req.user.id };
+    }
+    // Admin? Query stays empty to see all
+
+    const orders = await Order.find(query)
+        .populate('prescriptionId')
+        .sort({ createdAt: -1 });
+
     res.json({ success: true, data: orders, message: 'Orders retrieved' });
 });
 
-// Retrieve a single order by its ID
+// Retrieve a single order with ownership check
 exports.getOrderById = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const order = await Order.findById(id);
+    const order = await Order.findById(id).populate('prescriptionId');
 
-    if (!order) return res.status(404).json({ success: false, data: null, message: 'Order not found' });
+    if (!order) {
+        return res.status(404).json({ success: false, data: null, message: 'Order not found' });
+    }
+
+    // Security Assertion: Ensure requesting user has relationship to this order
+    const isOwner = order.userId.toString() === req.user.id.toString();
+    const isPharmacy = order.pharmacyId && order.pharmacyId.toString() === req.user.id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isPharmacy && !isAdmin) {
+        return res.status(403).json({ success: false, data: null, message: 'Unauthorized access to this order record.' });
+    }
 
     res.json({ success: true, data: order, message: 'Order retrieved' });
 });
 
-// Initiate a PayHere payment for an approved order
+// Initiate a Stripe payment for an approved order
 exports.initiatePayment = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    const order = await Order.findById(id).populate('userId', 'firstName lastName email phone');
+    const order = await Order.findById(id).populate('userId', 'name email');
     if (!order) {
         return res.status(404).json({ success: false, data: null, message: 'Order not found' });
     }
@@ -155,67 +193,65 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, data: null, message: 'This order has already been paid.' });
     }
 
-    const merchantId = process.env.PAYHERE_MERCHANT_ID;
-    const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
-    const isSandbox = process.env.PAYHERE_SANDBOX === 'true';
+    try {
+        const amount = parseFloat(order.totalAmount).toFixed(2);
+        const currency = 'LKR';
 
-    if (!merchantId || !merchantSecret) {
-        return res.status(500).json({ success: false, data: null, message: 'Payment gateway not configured on server.' });
+        // Creates a PaymentIntent and returns the client_secret required to complete the payment on the frontend
+        const paymentIntent = await PaymentService.createPaymentIntent(amount, currency, order._id.toString());
+
+        res.json({
+            success: true,
+            data: {
+                clientSecret: paymentIntent.client_secret,
+                amount: amount,
+                currency: currency
+            },
+            message: 'Stripe PaymentIntent created successfully'
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, data: null, message: error.message });
     }
-
-    const amount = parseFloat(order.totalAmount).toFixed(2);
-    const currency = 'LKR';
-
-    const hash = PaymentService.generateSignature(merchantId, order._id.toString(), amount, currency, merchantSecret);
-
-    const payhereParams = {
-        sandbox: isSandbox,
-        merchant_id: merchantId,
-        return_url: '',   // Not used for mobile SDK — callbacks are handled natively
-        cancel_url: '',
-        notify_url: `${process.env.BACKEND_BASE_URL}/api/orders/pay/notify`,
-        order_id: order._id.toString(),
-        items: `Lakwedha Order #${order._id.toString().slice(-6)}`,
-        amount: amount,
-        currency: currency,
-        hash: hash,
-        first_name: order.userId.firstName || 'Customer',
-        last_name: order.userId.lastName || '',
-        email: order.userId.email || '',
-        phone: order.userId.phone || '',
-        address: 'N/A',
-        city: 'Colombo',
-        country: 'Sri Lanka',
-    };
-
-    res.json({ success: true, data: payhereParams, message: 'Payment parameters generated' });
 });
 
-// Handle PayHere webhook notification for payment status updates
-exports.handlePayhereNotification = asyncHandler(async (req, res) => {
-    const { order_id, status_code } = req.body;
-    const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
+// Handle Stripe webhook notification for payment status updates
+exports.handleStripeWebhook = asyncHandler(async (req, res) => {
+    // Note: In Express, Stripe webhooks require raw body access because it validates the raw symmetric signature.
+    // If you use express.json() globally, you might need a raw body middleware for this specific route.
+    const sig = req.headers['stripe-signature'];
 
-    // Always respond 200 to PayHere immediately, then process
+    let event;
+    try {
+        event = PaymentService.verifyWebhook(req.rawBody || JSON.stringify(req.body), sig);
+    } catch (err) {
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Acknowledge receipt of the event
     res.status(200).send('OK');
 
     try {
-        const isValid = PaymentService.verifyNotification(req.body, merchantSecret);
-        if (!isValid) return;
+        if (event.type === 'payment_intent.succeeded') {
+            const paymentIntent = event.data.object;
+            const order_id = paymentIntent.metadata.orderId;
 
-        const order = await Order.findById(order_id);
-        if (!order) return;
+            const order = await Order.findById(order_id);
+            if (!order) return;
 
-        // status_code 2 = Success, -1 = Cancelled, -2 = Failed, -3 = Chargebacked
-        if (status_code === '2') {
+            // IDEMPOTENCY CHECK: Prevent duplicate processing if Stripe sends webhook twice
+            if (order.paymentStatus === 'paid') {
+                return;
+            }
+
             order.paymentStatus = 'paid';
             order.statusHistory.push({
                 from: order.status,
                 to: ORDER_STATUSES.PROCESSING,
                 changedAt: new Date(),
-                changedBy: 'payhere_webhook',
-                reason: 'Payment confirmed by PayHere gateway'
+                changedBy: 'stripe_webhook',
+                reason: 'Payment confirmed by Stripe gateway'
             });
+
             OrderStateMachine.assertValidTransition(order.status, ORDER_STATUSES.PROCESSING);
             order.status = ORDER_STATUSES.PROCESSING;
 
@@ -226,18 +262,24 @@ exports.handlePayhereNotification = asyncHandler(async (req, res) => {
                     { $inc: { stockQuantity: -med.quantity } }
                 );
             }
-        } else {
+            await order.save();
+        } else if (event.type === 'payment_intent.payment_failed') {
+            const paymentIntent = event.data.object;
+            const order_id = paymentIntent.metadata.orderId;
+
+            const order = await Order.findById(order_id);
+            if (!order) return;
+
             order.paymentStatus = 'failed';
             order.statusHistory.push({
                 from: order.status,
                 to: order.status,
                 changedAt: new Date(),
-                changedBy: 'payhere_webhook',
-                reason: `Payment failed — PayHere status code: ${status_code}`
+                changedBy: 'stripe_webhook',
+                reason: `Payment failed — Stripe declined`
             });
+            await order.save();
         }
-
-        await order.save();
     } catch (err) {
         // Silently catch webhook processing errors
     }

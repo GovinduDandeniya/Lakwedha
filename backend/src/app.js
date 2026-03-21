@@ -14,7 +14,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(morgan('combined')); // Request logging
 
 app.get('/', (req, res) => res.json({ success: true, data: null, message: 'Ayurveda Hub API is Live' }));
@@ -28,6 +32,9 @@ app.use('/api/pharmacy', pharmacyRoutes);
 
 const orderRoutes = require('./routes/orderRoutes');
 app.use('/api/orders', orderRoutes);
+
+const medicineRoutes = require('./routes/medicineRoutes');
+app.use('/api/medicines', medicineRoutes);
 
 // Global Error Handler
 app.use(errorHandler);
