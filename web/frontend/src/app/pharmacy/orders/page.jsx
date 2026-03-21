@@ -160,7 +160,7 @@ export default function OrdersPage() {
               onChange={(e) => setDateFilter(e.target.value)}
               className="px-4 py-2.5 bg-white border border-background rounded-xl text-xs font-black text-secondary uppercase tracking-widest outline-none shadow-sm cursor-pointer"
             >
-              <option value="all">📅 All Dates</option>
+              <option value="all">All Dates</option>
               <option value="today">Today</option>
               <option value="week">This Week</option>
             </select>
@@ -169,7 +169,7 @@ export default function OrdersPage() {
               onChange={(e) => setSortBy(e.target.value)}
               className="px-4 py-2.5 bg-white border border-background rounded-xl text-xs font-black text-secondary uppercase tracking-widest outline-none shadow-sm cursor-pointer"
             >
-              <option value="newest">🕒 Newest</option>
+              <option value="newest">Newest</option>
               <option value="oldest">Oldest</option>
               <option value="amount-high">Price: High</option>
               <option value="amount-low">Price: Low</option>
