@@ -1,16 +1,22 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:ravana_app/src/core/api_client.dart';
+import 'package:intl/intl.dart';
+
+/**
+ * Order Tracking Screen
+ * Strictly Patient-Facing.
+ * Displays real-time status history with timestamps and pulsing animations.
+ */
 
 final orderDetailsProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, orderId) async {
   final dio = ref.watch(dioProvider);
   final response = await dio.get('/orders/$orderId');
-  return response.data['data'] != null ? response.data['data'] as Map<String, dynamic> : response.data as Map<String, dynamic>;
+  return response.data['data'] as Map<String, dynamic>;
 });
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
@@ -23,7 +29,6 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
 
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with TickerProviderStateMixin {
   late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
   Timer? _pollingTimer;
 
   @override
@@ -31,13 +36,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
 
-    // Poll every 20 seconds
+    // Poll every 20 seconds for real-time updates from pharmacists
     _pollingTimer = Timer.periodic(const Duration(seconds: 20), (_) {
       ref.invalidate(orderDetailsProvider(widget.orderId));
     });
@@ -50,61 +52,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
     super.dispose();
   }
 
-  // Helper to map DB status to steps
-  List<_TrackingStep> _generateSteps(Map<String, dynamic> order) {
-    final status = order['status'] as String? ?? 'pending';
-    final history = order['statusHistory'] as List<dynamic>? ?? [];
-
-    // Helper to extract time from history
-    String getTime(String state) {
-      final record = history.cast<Map<String, dynamic>>().lastWhere(
-        (h) => h['to'] == state,
-        orElse: () => <String, dynamic>{},
-      );
-      if (record.isEmpty) return '--:--';
-      final date = DateTime.parse(record['changedAt'].toString());
-      return "${date.hour}:${date.minute.toString().padLeft(2, '0')}";
-    }
-
-    final states = ['approved', 'processing', 'shipped', 'completed'];
-    final currentIndex = states.indexOf(status);
-
-    return [
-      _TrackingStep(
-        icon: Icons.check_circle_rounded,
-        title: 'Prescription Approved',
-        subtitle: 'Pharmacist verified your request',
-        time: getTime('approved'),
-        isCompleted: currentIndex >= 0,
-        isCurrent: currentIndex == 0,
-      ),
-      _TrackingStep(
-        icon: Icons.inventory_2_rounded,
-        title: 'Packaging Medicines',
-        subtitle: 'Ensuring correct dosage and quality',
-        time: currentIndex == 1 ? 'In Progress' : (currentIndex > 1 ? getTime('processing') : '--:--'),
-        isCompleted: currentIndex >= 1,
-        isCurrent: currentIndex == 1,
-      ),
-      _TrackingStep(
-        icon: Icons.local_shipping_rounded,
-        title: 'Out for Delivery',
-        subtitle: 'Rider is on the way to your address',
-        time: currentIndex == 2 ? 'In Progress' : (currentIndex > 2 ? getTime('shipped') : '--:--'),
-        isCompleted: currentIndex >= 2,
-        isCurrent: currentIndex == 2,
-      ),
-      _TrackingStep(
-        icon: Icons.home_rounded,
-        title: 'Order Delivered',
-        subtitle: 'Successfully handed over',
-        time: currentIndex == 3 ? getTime('completed') : '--:--',
-        isCompleted: currentIndex >= 3,
-        isCurrent: currentIndex == 3,
-      ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final orderAsync = ref.watch(orderDetailsProvider(widget.orderId));
@@ -112,400 +59,239 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Order Pipeline'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Track Order', style: TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primaryColor)),
         leading: IconButton(
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            // Using pushAndRemoveUntil to prevent going back to checkout
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          },
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.primaryColor),
+          onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
         ),
-        actions: [
-          IconButton(
-            onPressed: () => ref.invalidate(orderDetailsProvider(widget.orderId)),
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
       ),
       body: orderAsync.when(
-        data: (order) {
-          final steps = _generateSteps(order);
-          final total = order['totalAmount']?.toString() ?? '0.00';
-          final shortId = order['_id']?.toString().substring(0, 8) ?? 'UNKNOWN';
-          final niceStatus = (order['status'] as String? ?? 'Pending').toUpperCase();
-
-          return SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                _buildOrderSummaryCard(shortId, total, niceStatus),
-                const SizedBox(height: 36),
-
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'TRACKING STATUS',
-                    style: TextStyle(
-                      color: AppTheme.secondaryColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: steps.length,
-                  itemBuilder: (context, index) {
-                    return _buildStep(steps[index], index, index == steps.length - 1);
-                  },
-                ),
-
-                const SizedBox(height: 36),
-                _buildSupportCard(),
-                const SizedBox(height: 40),
-              ],
-            ),
-          );
-        },
-        loading: () => _buildShimmerLoading(),
-        error: (err, stack) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
+        data: (order) => _buildContent(order),
+        loading: () => _buildShimmer(),
+        error: (e, s) => _buildErrorState(),
       ),
     );
   }
 
-  Widget _buildOrderSummaryCard(String id, String total, String status) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppTheme.secondaryColor, Color(0xFF4E342E)],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.secondaryColor.withValues(alpha: 0.2),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Order ID',
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
-                  Text(
-                    '#ORD-$id',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('Total',
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
-                  Text(
-                    'LKR $total',
-                    style: const TextStyle(
-                      color: AppTheme.accentColor,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Divider(color: Colors.white.withValues(alpha: 0.12)),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(Icons.local_hospital_rounded,
-                  color: Colors.white.withValues(alpha: 0.5), size: 16),
-              const SizedBox(width: 8),
-              Text(
-                'Standard Ayurvedic Dispensary',
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.accentColor.withValues(alpha: 0.4)),
-                ),
-                child: Text(
-                  status,
-                  style: const TextStyle(
-                    color: AppTheme.accentColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 500.ms).slideY(begin: -0.1, end: 0);
-  }
+  Widget _buildContent(Map<String, dynamic> order) {
+    final status = order['status'] ?? 'pending';
+    final paymentStatus = order['paymentStatus'] ?? 'pending';
+    final paidAtStr = order['paidAt'];
+    final history = order['statusHistory'] as List? ?? [];
 
-  Widget _buildStep(_TrackingStep step, int index, bool isLast) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 52,
-          child: Column(
-            children: [
-              step.isCurrent
-                  ? AnimatedBuilder(
-                      animation: _pulseAnimation,
-                      builder: (context, child) {
-                        return Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppTheme.accentColor,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.accentColor.withValues(alpha: 
-                                    0.35 * _pulseAnimation.value),
-                                blurRadius: 20 * _pulseAnimation.value,
-                                spreadRadius: 3 * _pulseAnimation.value,
-                              ),
-                            ],
-                          ),
-                          child: Icon(step.icon,
-                              color: Colors.white, size: 20),
-                        );
-                      },
-                    )
-                  : Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: step.isCompleted
-                            ? AppTheme.primaryColor
-                            : AppTheme.backgroundColor.withValues(alpha: 0.5),
-                        boxShadow: step.isCompleted
-                            ? [
-                                BoxShadow(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                                  blurRadius: 10,
-                                )
-                              ]
-                            : [],
-                      ),
-                      child: Icon(
-                        step.icon,
-                        color: step.isCompleted
-                            ? Colors.white
-                            : AppTheme.secondaryColor.withValues(alpha: 0.4),
-                        size: 20,
-                      ),
-                    ),
-              if (!isLast)
-                Container(
-                  width: 2,
-                  height: 56,
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: step.isCompleted
-                          ? [AppTheme.primaryColor, AppTheme.primaryColor.withValues(alpha: 0.2)]
-                          : [
-                              AppTheme.backgroundColor.withValues(alpha: 0.5),
-                              Colors.transparent
-                            ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      step.title,
-                      style: TextStyle(
-                        color: step.isCompleted || step.isCurrent
-                            ? AppTheme.secondaryColor
-                            : AppTheme.secondaryColor.withValues(alpha: 0.4),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-                    Text(
-                      step.time,
-                      style: TextStyle(
-                        color: step.isCurrent
-                            ? AppTheme.accentColor
-                            : AppTheme.secondaryColor.withValues(alpha: 0.5),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  step.subtitle,
-                  style: TextStyle(
-                    color: AppTheme.secondaryColor.withValues(alpha: 
-                        step.isCompleted || step.isCurrent ? 0.5 : 0.25),
-                    fontSize: 13,
-                  ),
-                ),
-                SizedBox(height: isLast ? 0 : 24),
-              ],
-            ),
-          ),
-        ),
-      ],
-    )
-        .animate(delay: Duration(milliseconds: 300 + index * 150))
-        .fadeIn(duration: 500.ms)
-        .slideX(begin: -0.08, end: 0);
-  }
-
-  Widget _buildShimmerLoading() {
-    return Shimmer.fromColors(
-      baseColor: AppTheme.backgroundColor.withValues(alpha: 0.5),
-      highlightColor: AppTheme.backgroundColor,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+    return RefreshIndicator(
+      onRefresh: () async => ref.invalidate(orderDetailsProvider(widget.orderId)),
+      color: AppTheme.primaryColor,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              height: 140,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
-              ),
-            ),
-            const SizedBox(height: 60),
-            ...List.generate(
-              4,
-              (index) => Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ],
-              ).animate().fadeIn(),
-            ),
+            // Header Info
+            _buildOrderInfoCard(order, paymentStatus, paidAtStr),
+            
+            const SizedBox(height: 48),
+            const Text('ORDER TIMELINE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.grey)),
+            const SizedBox(height: 24),
+
+            // Vertical Timeline
+            ..._buildTimeline(status, history),
+            
+            const SizedBox(height: 48),
+            _buildSupportSection(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSupportCard() {
+  Widget _buildOrderInfoCard(Map<String, dynamic> order, String paymentStatus, dynamic paidAt) {
+    Color badgeColor = Colors.orange;
+    String badgeText = paymentStatus.toUpperCase();
+
+    if (paymentStatus == 'paid') {
+      badgeColor = AppTheme.primaryColor;
+    } else if (paymentStatus == 'failed') {
+      badgeColor = Colors.red;
+    }
+
     return Container(
-      padding: const EdgeInsets.all(18),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.backgroundColor),
+        borderRadius: BorderRadius.circular(32),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 40, offset: const Offset(0, 10)),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.support_agent_rounded,
-                color: AppTheme.primaryColor, size: 22),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('#${widget.orderId.substring(widget.orderId.length - 8).toUpperCase()}', 
+                   style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.grey, fontSize: 12)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: badgeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: badgeColor.withOpacity(0.3))),
+                child: Text(badgeText, style: TextStyle(color: badgeColor, fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
+            ],
           ),
-          const SizedBox(width: 14),
+          const SizedBox(height: 16),
+          const Text('Items Dispensed:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+          Text('${(order['medicines'] as List?)?.length ?? 0} Pharmaceutical Items', 
+               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.primaryColor)),
+          
+          if (paidAt != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.verified, color: AppTheme.accentColor, size: 14),
+                const SizedBox(width: 4),
+                Text('Paid on ${DateFormat('MMM dd, hh:mm a').format(DateTime.parse(paidAt.toString()))}', 
+                     style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accentColor)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildTimeline(String currentStatus, List history) {
+    final stages = [
+      {'key': 'approved', 'label': 'Order Approved', 'desc': 'Pharmacist verified prescription'},
+      {'key': 'processing', 'label': 'Packaging', 'desc': 'Medicines being prepared'},
+      {'key': 'shipped', 'label': 'On the Way', 'desc': 'Rider out for delivery'},
+      {'key': 'completed', 'label': 'Delivered', 'desc': 'Handed over successfully'},
+    ];
+
+    int currentIndex = stages.indexWhere((s) => s['key'] == currentStatus);
+    
+    return List.generate(stages.length, (i) {
+      final stage = stages[i];
+      final isLast = i == stages.length - 1;
+      final isCompleted = i <= currentIndex;
+      final isCurrent = i == currentIndex;
+      
+      // Try to find timestamp in history
+      final historyEntry = history.firstWhere((h) => h['to'] == stage['key'], orElse: () => null);
+      String timeStr = '--:--';
+      if (historyEntry != null) {
+        timeStr = DateFormat('hh:mm a').format(DateTime.parse(historyEntry['changedAt'].toString()));
+      }
+
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Marker
+          Column(
+            children: [
+              if (isCurrent)
+                ScaleTransition(
+                  scale: Tween(begin: 1.0, end: 1.2).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut)),
+                  child: Container(
+                    width: 24, height: 24, 
+                    decoration: const BoxDecoration(color: AppTheme.primaryColor, shape: BoxShape.circle),
+                    child: const Icon(Icons.sync, color: Colors.white, size: 12),
+                  ),
+                )
+              else
+                Container(
+                  width: 20, height: 20,
+                  decoration: BoxDecoration(
+                    color: isCompleted ? AppTheme.primaryColor : Colors.grey[200],
+                    shape: BoxShape.circle,
+                  ),
+                  child: isCompleted ? const Icon(Icons.check, color: Colors.white, size: 12) : null,
+                ),
+              if (!isLast)
+                Container(width: 2, height: 60, color: isCompleted ? AppTheme.primaryColor : Colors.grey[200]),
+            ],
+          ),
+          const SizedBox(width: 24),
+          // Info
           Expanded(
-            child: Text(
-              'Need help? Our pharmaceutical support team is available 24/7.',
-              style: TextStyle(
-                  color: AppTheme.secondaryColor.withValues(alpha: 0.6), fontSize: 13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(stage['label']!, style: TextStyle(fontWeight: FontWeight.bold, color: isCompleted ? AppTheme.primaryColor : Colors.grey)),
+                    Text(timeStr, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(stage['desc']!, style: TextStyle(fontSize: 12, color: isCompleted ? Colors.black54 : Colors.grey[400])),
+              ],
             ),
           ),
         ],
-      ),
-    ).animate(delay: 1000.ms).fadeIn(duration: 400.ms);
+      );
+    });
   }
-}
 
-class _TrackingStep {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String time;
-  final bool isCompleted;
-  final bool isCurrent;
+  Widget _buildSupportSection() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(color: AppTheme.secondaryColor.withOpacity(0.05), borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.secondaryColor.withOpacity(0.1))),
+      child: const Row(
+        children: [
+          Icon(Icons.headset_mic_outlined, color: AppTheme.secondaryColor),
+          SizedBox(width: 16),
+          Expanded(child: Text('Need assistance with your delivery?\nContact our support anytime.', style: TextStyle(fontSize: 13, color: AppTheme.primaryColor, fontWeight: FontWeight.w600))),
+        ],
+      ),
+    );
+  }
 
-  const _TrackingStep({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.time,
-    required this.isCompleted,
-    required this.isCurrent,
-  });
+  Widget _buildShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Container(width: double.infinity, height: 140, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(32))),
+            const SizedBox(height: 48),
+            ...List.generate(4, (i) => Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Row(children: [
+                Container(width: 24, height: 24, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                const SizedBox(width: 24),
+                Expanded(child: Container(height: 40, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)))),
+              ]),
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.cloud_off, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text('Connection lost to health services.', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => ref.invalidate(orderDetailsProvider(widget.orderId)),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white),
+            child: const Text('RETRY SYNC'),
+          ),
+        ],
+      ),
+    );
+  }
 }
