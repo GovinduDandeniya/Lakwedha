@@ -1,17 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:ravana_app/src/core/api_client.dart';
 import 'package:intl/intl.dart';
 
-/**
- * Order Tracking Screen
- * Strictly Patient-Facing.
- * Displays real-time status history with timestamps and pulsing animations.
- */
+/// Order Tracking Screen
+/// Strictly Patient-Facing.
+/// Displays real-time status history with timestamps and pulsing animations.
 
 final orderDetailsProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, orderId) async {
   final dio = ref.watch(dioProvider);
@@ -125,7 +122,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 40, offset: const Offset(0, 10)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 40, offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -138,7 +135,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
                    style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.grey, fontSize: 12)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: badgeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: badgeColor.withOpacity(0.3))),
+                decoration: BoxDecoration(color: badgeColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: badgeColor.withValues(alpha: 0.3))),
                 child: Text(badgeText, style: TextStyle(color: badgeColor, fontSize: 10, fontWeight: FontWeight.bold)),
               ),
             ],
@@ -241,7 +238,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> with 
   Widget _buildSupportSection() {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: AppTheme.secondaryColor.withOpacity(0.05), borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.secondaryColor.withOpacity(0.1))),
+      decoration: BoxDecoration(color: AppTheme.secondaryColor.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.secondaryColor.withValues(alpha: 0.1))),
       child: const Row(
         children: [
           Icon(Icons.headset_mic_outlined, color: AppTheme.secondaryColor),

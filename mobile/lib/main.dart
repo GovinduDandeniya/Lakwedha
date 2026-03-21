@@ -6,15 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ravana_app/src/screens/pharmacy_finder_screen.dart';
 import 'package:ravana_app/src/screens/patient_orders_screen.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
-
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:flutter/foundation.dart';
-
-/**
- * Lakwedha Mobile Application
- * Strictly Patient-Facing UI.
- * Pharmacists must use the official Web Dashboard Hub.
- */
+/// Lakwedha Mobile Application
+/// Strictly Patient-Facing UI.
+/// Pharmacists must use the official Web Dashboard Hub.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -69,7 +64,7 @@ class HomeScreen extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppTheme.primaryColor.withOpacity(0.2),
+                    AppTheme.primaryColor.withValues(alpha: 0.2),
                     Colors.transparent,
                   ],
                 ),
@@ -94,7 +89,7 @@ class HomeScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(40),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryColor.withOpacity(0.15),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.15),
                           blurRadius: 40,
                           offset: const Offset(0, 10),
                         ),
@@ -214,7 +209,7 @@ class _HomeButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.2),
+              color: color.withValues(alpha: 0.2),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -225,7 +220,7 @@ class _HomeButton extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(icon, color: Colors.white, size: 28),
@@ -235,7 +230,7 @@ class _HomeButton extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                   Text(
                     title,
                     style: const TextStyle(
                       color: Colors.white,
@@ -246,7 +241,7 @@ class _HomeButton extends StatelessWidget {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 12,
                     ),
                   ),
