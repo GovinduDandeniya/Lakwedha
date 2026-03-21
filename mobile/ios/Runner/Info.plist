@@ -54,5 +54,10 @@
 	<string>Camera is needed to photograph your prescription</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo library access is needed to upload your prescription</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>telprompt</string>
+	</array>
 </dict>
 </plist>
