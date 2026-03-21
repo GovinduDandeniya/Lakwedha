@@ -2,8 +2,51 @@ const Notification = require('../../models/Notification');
 const User = require('../../models/user');
 const RegisteredDoctor = require('../../models/RegisteredDoctor');
 const { sendPushNotification } = require('../../utils/sendNotification');
+const { sendSMS } = require('../../services/smsService');
+const { sendEmail } = require('../../services/emailService');
 
 class NotificationService {
+    /**
+     * Look up patient contact info and doctor name for an appointment.
+     * @private
+     */
+    async _getContactDetails(appointment) {
+        const [patient, doctor] = await Promise.all([
+            User.findById(appointment.patientId).select('name email phone'),
+            RegisteredDoctor.findById(appointment.doctorId).select('fullName firstName lastName title fcmToken'),
+        ]);
+
+        const slotTime = new Date(appointment.slotTime);
+        const dateStr = slotTime.toLocaleDateString('en-GB', {
+            day: 'numeric', month: 'long', year: 'numeric',
+        });
+        const timeStr = slotTime.toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit', hour12: true,
+        });
+
+        const doctorName = doctor?.fullName
+            || [doctor?.title, doctor?.firstName, doctor?.lastName].filter(Boolean).join(' ')
+            || 'Your Doctor';
+        const hospital = appointment.hospitalName || 'the clinic';
+
+        return { patient, doctor, dateStr, timeStr, doctorName, hospital };
+    }
+
+    /** Send SMS if patient has a phone number. */
+    async _sendSms(phone, message) {
+        if (!phone) return;
+        const result = await sendSMS(phone, message);
+        if (!result.success) {
+            console.warn('[NotificationService] SMS delivery failed:', result.error);
+        }
+    }
+
+    /** Send email if patient has an email address. */
+    async _sendEmail(email, subject, message) {
+        if (!email) return;
+        await sendEmail(email, subject, message);
+    }
+
     /**
      * Save a notification to DB and optionally send a push to the user's FCM token.
      * @private
@@ -19,10 +62,11 @@ class NotificationService {
 
     /**
      * Booking confirmation — sent to the patient and doctor right after booking.
+     * Delivers: push notification + DB record + SMS + Email.
      */
     async sendAppointmentConfirmation(appointment) {
         try {
-            // Notify patient (DB + push)
+            // Push + DB notification
             await this._notify(
                 appointment.patientId,
                 'Appointment Confirmed',
@@ -31,14 +75,35 @@ class NotificationService {
                 appointment._id
             );
 
-            // Notify doctor (push only — doctor manages appointments via portal)
-            const doctor = await RegisteredDoctor.findById(appointment.doctorId).select('fcmToken');
+            // Notify doctor via push
+            const { patient, doctor, dateStr, timeStr, doctorName, hospital } =
+                await this._getContactDetails(appointment);
+
             if (doctor?.fcmToken) {
                 await sendPushNotification(
                     doctor.fcmToken,
                     'New Appointment',
                     'A patient has booked an appointment with you.'
                 );
+            }
+
+            // SMS + Email to patient
+            if (patient) {
+                const message =
+                    `Lakwedha Appointment Confirmed ✅\n` +
+                    `Doctor: ${doctorName}\n` +
+                    `Hospital: ${hospital}\n` +
+                    `Date: ${dateStr}\n` +
+                    `Time: ${timeStr}`;
+
+                await Promise.all([
+                    this._sendSms(patient.phone, message),
+                    this._sendEmail(
+                        patient.email,
+                        'Appointment Confirmation - Lakwedha',
+                        message
+                    ),
+                ]);
             }
         } catch (err) {
             console.error('Notification error (confirmation):', err.message);
@@ -92,17 +157,39 @@ class NotificationService {
     }
 
     /**
-     * 12-hour reminder — called by the cron job.
+     * 10-hour reminder — called by the cron job.
+     * Delivers: push notification + DB record + SMS + Email.
      */
     async sendAppointmentReminder(appointment) {
         try {
             await this._notify(
                 appointment.patientId,
                 'Appointment Reminder',
-                'You have an appointment in 12 hours. Please be on time.',
+                'You have an appointment in 10 hours. Please be on time.',
                 'REMINDER',
                 appointment._id
             );
+
+            // SMS + Email to patient
+            const { patient, timeStr, doctorName } =
+                await this._getContactDetails(appointment);
+
+            if (patient) {
+                const message =
+                    `Reminder from Lakwedha ⏰\n` +
+                    `Your appointment is in 10 hours\n` +
+                    `Doctor: ${doctorName}\n` +
+                    `Time: ${timeStr}`;
+
+                await Promise.all([
+                    this._sendSms(patient.phone, message),
+                    this._sendEmail(
+                        patient.email,
+                        'Appointment Reminder - Lakwedha',
+                        message
+                    ),
+                ]);
+            }
         } catch (err) {
             console.error('Notification error (reminder):', err.message);
         }
