@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ravana_app/src/screens/pharmacy_hub_screen.dart';
-import 'package:ravana_app/src/screens/upload_prescription_screen.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
@@ -119,21 +118,6 @@ class HomeScreen extends StatelessWidget {
                   ).animate(delay: 400.ms).fadeIn(),
 
                   const Spacer(),
-
-                  // Action Buttons
-                  _HomeButton(
-                    title: 'I am a Patient',
-                    subtitle: 'Consult or order medicine',
-                    icon: Icons.person_rounded,
-                    color: AppTheme.primaryColor,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const UploadPrescriptionScreen()),
-                      );
-                    },
-                  ).animate(delay: 600.ms).fadeIn().slideY(begin: 0.2, end: 0),
 
                   const SizedBox(height: 16),
 
