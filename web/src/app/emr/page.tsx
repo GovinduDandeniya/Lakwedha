@@ -1,93 +1,95 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import EMRFileUploader from "@/components/emr/EMRFileUploader";
 import EMRSecureViewer from "@/components/emr/EMRSecureViewer";
+import { useAuth } from "@/context/AuthContext";
+import { emrApi } from "@/lib/api";
 import { FolderOpen, UploadCloud, X } from "lucide-react";
 
 export default function EMRPage() {
-  const [authToken, setAuthToken] = useState<string>('');
+  const { user, token, loading } = useAuth();
+  const searchParams = useSearchParams();
+
   const [isUploading, setIsUploading] = useState(false);
   const [records, setRecords] = useState<any[]>([]);
-
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showViewerModal, setShowViewerModal] = useState(false);
 
-  // Auto-login to get JWT token
-  useEffect(() => {
-    const autoLogin = async () => {
-      const credentials = { name: 'Dr. isolated', email: 'doctor_v2@lakwedha.com', password: 'password123', role: 'DOCTOR' };
-      try {
-        await fetch("http://localhost:5000/api/users/register", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(credentials)
-        });
-        const res = await fetch("http://localhost:5000/api/users/login", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: credentials.email, password: credentials.password })
-        });
-        const data = await res.json();
-        if (data && data.token) {
-          setAuthToken(data.token);
-          fetchHistoricalRecords(data.token);
-        }
-      } catch (err) {
-        console.error("Auto-login failed. Make sure backend is running.", err);
-      }
-    };
-    autoLogin();
-  }, []);
+  // Resolve patientId: patient sees own records; doctor passes ?patientId=... in URL
+  const resolvedPatientId =
+    user?.role?.toUpperCase() === "PATIENT"
+      ? user._id
+      : searchParams.get("patientId") ?? "";
 
-  const fetchHistoricalRecords = async (token: string) => {
+  useEffect(() => {
+    if (!loading && token && resolvedPatientId) {
+      fetchHistoricalRecords();
+    }
+  }, [loading, token, resolvedPatientId]);
+
+  const fetchHistoricalRecords = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/emr/patient/65c3b1234567890123456782`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setRecords(data || []);
-      }
+      const data = await emrApi.getByPatientId(resolvedPatientId);
+      setRecords(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch EMR records:", err);
     }
   };
 
   const handleUploadSubmit = async (files: File[], title: string) => {
-    if (!authToken) {
-      alert("No secure connection to backend! Make sure the Node server is running on Port 5000.");
+    if (!token) {
+      alert("You must be logged in to upload records.");
+      return;
+    }
+    if (!resolvedPatientId) {
+      alert("No patient selected. Doctors must pass ?patientId= in the URL.");
       return;
     }
     setIsUploading(true);
 
-    const formData = new FormData();
-    formData.append("patientId", "65c3b1234567890123456782");
-    formData.append("title", title);
-    formData.append("type", "prescription");
-
-
-    files.forEach(f => {
-      formData.append("file", f);
-    });
-
     try {
-      const res = await fetch("http://localhost:5000/api/emr/upload", {
-        method: "POST",
-        body: formData,
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      if (!res.ok) throw new Error("API returned failure");
-
-      alert("File AES Encrypted and Uploaded successfully!");
-      fetchHistoricalRecords(authToken);
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("patientId", resolvedPatientId);
+        formData.append("title", title);
+        formData.append("type", "prescription");
+        formData.append("file", file);
+        await emrApi.upload(formData);
+      }
+      await fetchHistoricalRecords();
       setShowUploadModal(false);
-    } catch (err) {
-      alert("Upload failed. Did you restart the backend?");
+    } catch (err: any) {
+      alert(`Upload failed: ${err.message}`);
     } finally {
       setIsUploading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-400">
+        Loading…
+      </div>
+    );
+  }
+
+  if (!user || !token) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-500">
+        Please log in to access medical records.
+      </div>
+    );
+  }
+
+  if (!resolvedPatientId) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-500">
+        No patient selected. Add <code className="mx-1 font-mono">?patientId=&lt;id&gt;</code> to the URL.
+      </div>
+    );
+  }
 
   return (
     <>

@@ -39,6 +39,20 @@ const channelingSessionSchema = new mongoose.Schema({
     maxlength: 200,
     default: '',
   },
+  hospitalCharge: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  cancellationCharge: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  extraRequestsEnabled: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

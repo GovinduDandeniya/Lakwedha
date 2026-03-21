@@ -44,11 +44,169 @@ function formatDoctor(d) {
 
 // ── Controllers ───────────────────────────────────────────────────────────────
 
+const CHANNELING_RATE = 0.10; // 10% platform fee
+
 /**
  * GET /doctor-channeling/specializations
  */
 exports.getSpecializations = (req, res) => {
     res.status(200).json({ success: true, data: AYURVEDA_SPECIALIZATIONS });
+};
+
+/**
+ * GET /api/v1/doctor-channeling/doctors/me/fee
+ * Doctor: fetch own consultation fee
+ */
+exports.getMyHospitals = async (req, res) => {
+    try {
+        const doctor = await RegisteredDoctor.findById(req.user.id).select('hospitals');
+        if (!doctor) return res.status(404).json({ success: false, error: 'Doctor not found' });
+        res.json({ success: true, hospitals: doctor.hospitals || [] });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
+/**
+ * POST /api/v1/doctor-channeling/doctors/me/hospitals
+ * Body: { name, location }
+ * Doctor: add a new hospital/clinic to own profile
+ */
+exports.addMyHospital = async (req, res) => {
+    try {
+        const { name, location } = req.body;
+        if (!name?.trim() || !location?.trim()) {
+            return res.status(400).json({ success: false, error: 'Name and location are required' });
+        }
+        const doctor = await RegisteredDoctor.findByIdAndUpdate(
+            req.user.id,
+            { $push: { hospitals: { name: name.trim(), location: location.trim() } } },
+            { new: true, select: 'hospitals' }
+        );
+        if (!doctor) return res.status(404).json({ success: false, error: 'Doctor not found' });
+        res.json({ success: true, hospitals: doctor.hospitals });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
+/**
+ * DELETE /api/v1/doctor-channeling/doctors/me/hospitals/:index
+ * Doctor: remove a hospital/clinic from own profile by array index
+ */
+exports.removeMyHospital = async (req, res) => {
+    try {
+        const index = parseInt(req.params.index, 10);
+        const doctor = await RegisteredDoctor.findById(req.user.id).select('hospitals');
+        if (!doctor) return res.status(404).json({ success: false, error: 'Doctor not found' });
+        if (isNaN(index) || index < 0 || index >= doctor.hospitals.length) {
+            return res.status(400).json({ success: false, error: 'Invalid hospital index' });
+        }
+        doctor.hospitals.splice(index, 1);
+        await doctor.save();
+        res.json({ success: true, hospitals: doctor.hospitals });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
+exports.getMyFee = async (req, res) => {
+    try {
+        const doctor = await RegisteredDoctor.findById(req.user.id).select('consultationFee');
+        if (!doctor) return res.status(404).json({ success: false, error: 'Doctor not found' });
+
+        const upcomingSession = await ChannelingSession.findOne({
+            doctorId: req.user.id,
+            date: { $gte: new Date() },
+            status: { $in: ['open', 'full'] },
+        }).sort({ date: 1 }).select('hospitalCharge');
+
+        res.json({
+            success: true,
+            consultationFee: doctor.consultationFee || 0,
+            hospitalCharge: upcomingSession?.hospitalCharge || 0,
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
+/**
+ * PUT /api/v1/doctor-channeling/doctors/me/fee
+ * Body: { consultationFee: number }
+ * Doctor: update own consultation fee
+ */
+exports.updateMyFee = async (req, res) => {
+    try {
+        const { consultationFee } = req.body;
+        if (consultationFee === undefined || isNaN(Number(consultationFee)) || Number(consultationFee) < 0) {
+            return res.status(400).json({ success: false, error: 'Invalid consultationFee value' });
+        }
+        const doctor = await RegisteredDoctor.findByIdAndUpdate(
+            req.user.id,
+            { consultationFee: Number(consultationFee) },
+            { new: true }
+        ).select('consultationFee');
+        if (!doctor) return res.status(404).json({ success: false, error: 'Doctor not found' });
+        res.json({ success: true, consultationFee: doctor.consultationFee });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
+/**
+ * GET /api/v1/doctor-channeling/doctors/me/qualifications
+ * Doctor: fetch own qualifications
+ */
+exports.getMyQualifications = async (req, res) => {
+    try {
+        const doctor = await RegisteredDoctor.findById(req.user.id).select('qualifications');
+        if (!doctor) return res.status(404).json({ success: false, error: 'Doctor not found' });
+        res.json({ success: true, data: doctor.qualifications || [] });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
+/**
+ * POST /api/v1/doctor-channeling/doctors/me/qualifications
+ * Body: { type, title, institution, year }
+ * Doctor: add a qualification entry
+ */
+exports.addQualification = async (req, res) => {
+    try {
+        const { type, title, institution, year } = req.body;
+        if (!title || !title.trim()) {
+            return res.status(400).json({ success: false, error: 'title is required' });
+        }
+        const doctor = await RegisteredDoctor.findByIdAndUpdate(
+            req.user.id,
+            { $push: { qualifications: { type: type || 'education', title: title.trim(), institution: institution || '', year: year || '' } } },
+            { new: true }
+        ).select('qualifications');
+        if (!doctor) return res.status(404).json({ success: false, error: 'Doctor not found' });
+        res.status(201).json({ success: true, data: doctor.qualifications });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
+/**
+ * DELETE /api/v1/doctor-channeling/doctors/me/qualifications/:qualId
+ * Doctor: remove a qualification entry
+ */
+exports.deleteQualification = async (req, res) => {
+    try {
+        const doctor = await RegisteredDoctor.findByIdAndUpdate(
+            req.user.id,
+            { $pull: { qualifications: { _id: req.params.qualId } } },
+            { new: true }
+        ).select('qualifications');
+        if (!doctor) return res.status(404).json({ success: false, error: 'Doctor not found' });
+        res.json({ success: true, data: doctor.qualifications });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
 };
 
 /**
@@ -201,20 +359,31 @@ exports.getDoctorAvailabilityById = async (req, res) => {
                     sessions: [],
                 };
             }
-            hospitalMap[h].sessions.push({
-                session_id:   s._id.toString(),
-                date:         s.date.toISOString().split('T')[0],
-                start_time:   s.startTime,
-                end_time:     s.startTime,
-                total_slots:  s.totalAppointments,
-                booked_slots: s.bookedCount,
+            const doctorFee     = regDoctor ? (regDoctor.consultationFee || 0) : 0;
+        const hospCharge    = s.hospitalCharge || 0;
+        const channelingFee = Math.round((doctorFee + hospCharge) * CHANNELING_RATE);
+        const totalAmount   = doctorFee + hospCharge + channelingFee;
+
+        hospitalMap[h].sessions.push({
+                session_id:       s._id.toString(),
+                date:             s.date.toISOString().split('T')[0],
+                start_time:       s.startTime,
+                end_time:         s.startTime,
+                total_slots:      s.totalAppointments,
+                booked_slots:     s.bookedCount,
+                doctor_fee:       doctorFee,
+                hospital_charge:  hospCharge,
+                channeling_fee:   channelingFee,
+                total_amount:     totalAmount,
             });
         });
+
+        const doctorFeeBase = regDoctor ? (regDoctor.consultationFee || 0) : 0;
 
         res.json({
             success: true,
             data: {
-                doctor:    doctorInfo,
+                doctor:    { ...doctorInfo, consultationFee: doctorFeeBase },
                 hospitals: Object.values(hospitalMap),
             },
         });
@@ -291,18 +460,27 @@ exports.getDoctorAvailabilityByName = async (req, res) => {
                     sessions: [],
                 };
             }
-            hospitalMap[h].sessions.push({
-                session_id: s._id.toString(),
-                date: s.date.toISOString().split('T')[0],
-                start_time: s.startTime,
-                end_time: s.startTime,
-                total_slots: s.totalAppointments,
-                booked_slots: s.bookedCount,
+            const doctorFeeByName  = regDoctor ? (regDoctor.consultationFee || 0) : 0;
+        const hospChargeByName = s.hospitalCharge || 0;
+        const channelingFeeByName = Math.round((doctorFeeByName + hospChargeByName) * CHANNELING_RATE);
+        const totalAmountByName   = doctorFeeByName + hospChargeByName + channelingFeeByName;
+
+        hospitalMap[h].sessions.push({
+                session_id:       s._id.toString(),
+                date:             s.date.toISOString().split('T')[0],
+                start_time:       s.startTime,
+                end_time:         s.startTime,
+                total_slots:      s.totalAppointments,
+                booked_slots:     s.bookedCount,
+                doctor_fee:       doctorFeeByName,
+                hospital_charge:  hospChargeByName,
+                channeling_fee:   channelingFeeByName,
+                total_amount:     totalAmountByName,
             });
         });
 
         res.status(200).json({
-            doctor: doctorInfo,
+            doctor: { ...doctorInfo, consultationFee: regDoctor ? (regDoctor.consultationFee || 0) : 0 },
             hospitals: Object.values(hospitalMap),
         });
     } catch (error) {

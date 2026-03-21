@@ -234,10 +234,44 @@ exports.getChannelingSessions = async (req, res) => {
         }
 
         const sessions = await ChannelingSession.find(filter)
-            .populate('doctorId', 'name specialization')
+            .populate('doctorId', 'name specialization consultationFee')
             .sort({ date: -1, startTime: 1 });
 
         res.json(sessions);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * PUT /api/admin/channeling-sessions/:id/hospital-charge
+ * Body: { hospitalCharge: number }
+ * Admin sets the hospital charge for a specific channeling session.
+ */
+exports.setSessionHospitalCharge = async (req, res) => {
+    try {
+        const { hospitalCharge } = req.body;
+        if (hospitalCharge === undefined || isNaN(Number(hospitalCharge)) || Number(hospitalCharge) < 0) {
+            return res.status(400).json({ message: 'Invalid hospitalCharge value' });
+        }
+        const session = await ChannelingSession.findByIdAndUpdate(
+            req.params.id,
+            { hospitalCharge: Number(hospitalCharge), updatedAt: new Date() },
+            { new: true }
+        ).populate('doctorId', 'name specialization consultationFee');
+
+        if (!session) return res.status(404).json({ message: 'Session not found' });
+
+        const doctorFee      = session.doctorId?.consultationFee || 0;
+        const hospCharge     = session.hospitalCharge;
+        const channelingFee  = Math.round((doctorFee + hospCharge) * 0.10);
+        const totalAmount    = doctorFee + hospCharge + channelingFee;
+
+        res.json({
+            message: 'Hospital charge updated',
+            session,
+            feeBreakdown: { doctorFee, hospitalCharge: hospCharge, channelingFee, totalAmount },
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

@@ -63,6 +63,21 @@ const registeredDoctorSchema = new mongoose.Schema({
     default: null,
   },
 
+  qualifications: [
+    {
+      type:        { type: String, enum: ['education', 'certification', 'award'], default: 'education' },
+      title:       { type: String, required: true },
+      institution: { type: String, default: '' },
+      year:        { type: String, default: '' },
+    },
+  ],
+
+  consultationFee: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+
   fcmToken: {
     type: String,
     default: null,

@@ -211,6 +211,7 @@ async function register(req, res) {
             password: hashedPassword,
             phone_verified: true,
             is_verified: true,
+            role: 'patient',
         });
 
         // Clean up OTP record

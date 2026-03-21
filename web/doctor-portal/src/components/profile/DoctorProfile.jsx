@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography, Avatar, Chip, Grid, Divider } from '@mui/material';
-import { Email, LocalHospital, Person, Star } from '@mui/icons-material';
+import { Email, LocalHospital, Person, Star, Verified } from '@mui/icons-material';
 import { AYURVEDA_SPECIALIZATIONS } from '../../utils/constants';
 
 const InfoItem = ({ icon, label, value }) => (
@@ -27,7 +27,17 @@ const DoctorProfile = ({ user }) => {
                     {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'DR'}
                 </Avatar>
                 <Box>
-                    <Typography variant="h5" fontWeight={800}>{user?.name || 'Doctor'}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="h5" fontWeight={800}>{user?.name || 'Doctor'}</Typography>
+                        {user?.status === 'APPROVED' && (
+                            <Chip
+                                icon={<Verified sx={{ fontSize: '14px !important' }} />}
+                                label="Verified"
+                                size="small"
+                                sx={{ bgcolor: '#E3F2FD', color: '#1565C0', fontWeight: 700, fontSize: 11 }}
+                            />
+                        )}
+                    </Box>
                     <Chip
                         icon={<Star sx={{ fontSize: '14px !important' }} />}
                         label={
