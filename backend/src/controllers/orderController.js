@@ -1,7 +1,6 @@
 const Order = require('../models/Order');
 const Prescription = require('../models/Prescription');
 const { DELIVERY_FEE, TAX_RATE, ORDER_STATUS, PAYMENT_STATUS, PRESCRIPTION_STATUS } = require('../config/constants');
-const { updateOrderStatusSchema, updatePaymentStatusSchema } = require('../utils/validationSchemas');
 
 // Create order from prescription
 exports.createOrderFromPrescription = async (req, res, next) => {
@@ -21,9 +20,9 @@ exports.createOrderFromPrescription = async (req, res, next) => {
 
         // Create order using direct financial data
         const order = await Order.create({
-            userId: prescription.userId,
+            userId: prescription.patientId, // mapped securely
             prescriptionId: prescription._id,
-            medicines: prescription.medicines,
+            medicines: prescription.medications || [],
             totalAmount: Number(totalAmount || 0), // Trusted FE value
             status: ORDER_STATUS.APPROVED,
             paymentStatus: PAYMENT_STATUS.PENDING
@@ -39,11 +38,10 @@ exports.createOrderFromPrescription = async (req, res, next) => {
 // Update order status
 exports.updateOrderStatus = async (req, res, next) => {
     try {
-        const { error } = updateOrderStatusSchema.validate(req.body);
-        if (error) return res.status(400).json({ message: error.details[0].message });
-
         const { id } = req.params;
         const { status } = req.body;
+
+        if (!status) return res.status(400).json({ message: 'Status is required' });
 
         console.log(`Updating status for order ${id} to ${status}`);
 
@@ -65,11 +63,10 @@ exports.updateOrderStatus = async (req, res, next) => {
 // Update payment status
 exports.updatePaymentStatus = async (req, res, next) => {
     try {
-        const { error } = updatePaymentStatusSchema.validate(req.body);
-        if (error) return res.status(400).json({ message: error.details[0].message });
-
         const { id } = req.params;
         const { paymentStatus } = req.body;
+
+        if (!paymentStatus) return res.status(400).json({ message: 'Payment status is required' });
 
         console.log(`Updating payment status for order ${id} to ${paymentStatus}`);
 
