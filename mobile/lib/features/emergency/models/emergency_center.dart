@@ -9,6 +9,7 @@ class EmergencyCenter {
   final bool is24Hours;
   final bool isActive;
   final double? distance;
+  final List<String> emergencyTypes;
 
   EmergencyCenter({
     required this.id,
@@ -21,6 +22,7 @@ class EmergencyCenter {
     this.is24Hours = false,
     this.isActive = true,
     this.distance,
+    this.emergencyTypes = const [],
   });
 
   factory EmergencyCenter.fromJson(Map<String, dynamic> json) {
@@ -48,6 +50,10 @@ class EmergencyCenter {
       is24Hours: json['is24Hours'] ?? false,
       isActive: json['isActive'] ?? true,
       distance: (json['distance'] as num?)?.toDouble(),
+      emergencyTypes: (json['emergencyTypes'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
     );
   }
 
@@ -62,6 +68,7 @@ class EmergencyCenter {
       'longitude': longitude,
       'is24Hours': is24Hours,
       'isActive': isActive,
+      'emergencyTypes': emergencyTypes,
       if (distance != null) 'distance': distance,
     };
   }

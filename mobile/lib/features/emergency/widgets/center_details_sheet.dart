@@ -8,11 +8,15 @@ import '../models/emergency_center.dart';
 class CenterDetailsSheet extends StatelessWidget {
   final EmergencyCenter center;
   final String? formattedDistance;
+  final double? userLatitude;
+  final double? userLongitude;
 
   const CenterDetailsSheet({
     super.key,
     required this.center,
     this.formattedDistance,
+    this.userLatitude,
+    this.userLongitude,
   });
 
   Future<void> _makePhoneCall(String phoneNumber) async {
@@ -23,8 +27,11 @@ class CenterDetailsSheet extends StatelessWidget {
   }
 
   Future<void> _openDirections(double lat, double lng) async {
+    final origin = (userLatitude != null && userLongitude != null)
+        ? '&origin=$userLatitude,$userLongitude'
+        : '';
     final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+      'https://www.google.com/maps/dir/?api=1${origin}&destination=$lat,$lng',
     );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
