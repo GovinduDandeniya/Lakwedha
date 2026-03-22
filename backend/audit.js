@@ -11,7 +11,7 @@ async function runAudit() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: 'Audit Doctor', email: 'audit_final_test@lakwedha.com', password: 'password123', role: 'DOCTOR' })
         });
-        
+
         // Wait for registration completion
         const regText = await resReg.text();
         console.log(' -> Registration Details:', resReg.status, regText);
@@ -23,7 +23,7 @@ async function runAudit() {
             body: JSON.stringify({ email: 'audit_final_test@lakwedha.com', password: 'password123' })
         });
         const logData = await resLog.json();
-        
+
         if (!logData.token) {
             throw new Error(`Login failed. Status: ${resLog.status} Msg: ${JSON.stringify(logData)}`);
         }
