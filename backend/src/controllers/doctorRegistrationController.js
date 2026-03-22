@@ -1,5 +1,32 @@
 const RegisteredDoctor = require('../models/RegisteredDoctor');
+const Hospital = require('../models/Hospital');
 const bcrypt = require('bcryptjs');
+
+/**
+ * Upsert a list of hospital objects into the central Hospital collection.
+ * Skips hospitals whose name already exists (preserves admin-set fees).
+ */
+async function syncHospitalsToMasterList(hospitals) {
+    if (!Array.isArray(hospitals) || hospitals.length === 0) return;
+    for (const h of hospitals) {
+        if (!h.name?.trim()) continue;
+        await Hospital.updateOne(
+            { name: { $regex: `^${h.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' } },
+            {
+                $setOnInsert: {
+                    name: h.name.trim(),
+                    location: h.location?.trim() || '',
+                    city: h.city?.trim() || '',
+                    type: h.type || 'hospital',
+                    contactNumber: h.contactNumber?.trim() || '',
+                    adminCharge: 0,
+                    isActive: true,
+                },
+            },
+            { upsert: true }
+        );
+    }
+}
 
 exports.getApprovedDoctors = async (req, res) => {
   try {
@@ -117,6 +144,9 @@ exports.registerDoctor = async (req, res) => {
       password: hashedPassword,
       status: 'PENDING',
     });
+
+    // Sync doctor's hospitals into the master Hospital collection
+    await syncHospitalsToMasterList(hospitals);
 
     res.status(201).json({
       message: 'Registration successful. Waiting for admin approval.',

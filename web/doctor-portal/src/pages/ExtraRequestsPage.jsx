@@ -3,11 +3,11 @@ import {
     Box, Typography, Paper, Chip, Button, Divider,
     CircularProgress, Dialog, DialogTitle, DialogContent,
     DialogActions, TextField, Avatar, Alert, Snackbar,
-    Tab, Tabs,
+    Tab, Tabs, List, ListItem, ListItemText,
 } from '@mui/material';
 import {
     EventAvailable, Person, MedicalServices,
-    CheckCircle, Cancel, AccessTime,
+    CheckCircle, Cancel, AccessTime, Description,
 } from '@mui/icons-material';
 import api from '../services/api';
 
@@ -140,6 +140,72 @@ const RequestCard = ({ request, onRespond, onViewMedicalRecords }) => {
     );
 };
 
+// ── Medical Records Dialog ────────────────────────────────────────────────────
+const MedicalRecordsDialog = ({ open, onClose, patient, patientId }) => {
+    const [records, setRecords] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (!open || !patientId) return;
+        setLoading(true);
+        api.get(`/emr/patient/${patientId}`)
+            .then(res => setRecords(res.data || []))
+            .catch(() => setRecords([]))
+            .finally(() => setLoading(false));
+    }, [open, patientId]);
+
+    return (
+        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+            <DialogTitle sx={{ fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Description sx={{ color: '#2E7D32', fontSize: 20 }} />
+                Medical Records — {patient?.name || 'Patient'}
+            </DialogTitle>
+            <Divider />
+            <DialogContent sx={{ pt: 2, minHeight: 160 }}>
+                {loading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                        <CircularProgress size={28} sx={{ color: '#2E7D32' }} />
+                    </Box>
+                ) : records.length === 0 ? (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                        <MedicalServices sx={{ fontSize: 40, color: '#C8D8C8', mb: 1 }} />
+                        <Typography color="text.secondary" variant="body2">No medical records found for this patient.</Typography>
+                    </Box>
+                ) : (
+                    <List disablePadding>
+                        {records.map((r, i) => (
+                            <Paper key={r._id || i} elevation={0} sx={{ border: '1px solid #E8EDF2', borderRadius: 2, mb: 1.5 }}>
+                                <ListItem alignItems="flex-start" sx={{ px: 2, py: 1.5 }}>
+                                    <ListItemText
+                                        primary={
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                                <Typography variant="subtitle2" fontWeight={700}>{r.title || r.type || 'Record'}</Typography>
+                                                {r.type && <Chip label={r.type} size="small" sx={{ fontSize: 10, height: 18 }} />}
+                                            </Box>
+                                        }
+                                        secondary={
+                                            <Box>
+                                                {r.diagnosis && <Typography variant="body2" sx={{ mb: 0.3 }}><strong>Diagnosis:</strong> {r.diagnosis}</Typography>}
+                                                {r.notes && <Typography variant="body2" color="text.secondary">{r.notes}</Typography>}
+                                                <Typography variant="caption" color="text.disabled">
+                                                    {r.uploadedDate || r.createdAt ? new Date(r.uploadedDate || r.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                                                </Typography>
+                                            </Box>
+                                        }
+                                    />
+                                </ListItem>
+                            </Paper>
+                        ))}
+                    </List>
+                )}
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+                <Button onClick={onClose} sx={{ color: '#666' }}>Close</Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 const ExtraRequestsPage = () => {
     const [requests, setRequests] = useState([]);
@@ -148,6 +214,7 @@ const ExtraRequestsPage = () => {
     const [respondTarget, setRespondTarget] = useState(null);
     const [saving, setSaving] = useState(false);
     const [snack, setSnack] = useState({ open: false, msg: '', severity: 'success' });
+    const [medicalTarget, setMedicalTarget] = useState(null); // { patientId, patient }
 
     const fetchRequests = useCallback(async () => {
         setLoading(true);
@@ -164,7 +231,7 @@ const ExtraRequestsPage = () => {
     useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
     const handleViewMedicalRecords = (request) => {
-        // TODO: integrate with EMR module (handled by another team member)
+        setMedicalTarget({ patientId: request.patientId?._id || request.patientId, patient: request.patient });
     };
 
     const handleRespond = (request, action) => {
@@ -252,6 +319,13 @@ const ExtraRequestsPage = () => {
                 request={respondTarget}
                 onConfirm={handleConfirmRespond}
                 saving={saving}
+            />
+
+            <MedicalRecordsDialog
+                open={!!medicalTarget}
+                onClose={() => setMedicalTarget(null)}
+                patientId={medicalTarget?.patientId}
+                patient={medicalTarget?.patient}
             />
 
             <Snackbar

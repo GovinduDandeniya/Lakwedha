@@ -147,6 +147,138 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
     );
   }
 
+  static const List<String> _cancelReasons = [
+    'Feeling better',
+    'Emergency',
+    'Doctor unavailable',
+    'Personal issue',
+    'Change of plans',
+    'Other',
+  ];
+
+  void _showCancelSheet(BuildContext context, Appointment appointment) {
+    String? selectedReason;
+    bool loading = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24, right: 24, top: 24,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      const Icon(Icons.cancel_outlined, color: Colors.deepOrange),
+                      const SizedBox(width: 8),
+                      const Text('Cancel Appointment',
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(sheetCtx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Warnings
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _warningRow(Icons.percent, '10% cancellation fee will be charged'),
+                        const SizedBox(height: 4),
+                        _warningRow(Icons.access_time, 'Cancellation only allowed ≥ 12 hours before appointment'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Reason dropdown
+                  const Text('Reason for cancellation',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    // ignore: deprecated_member_use
+                    value: selectedReason,
+                    hint: const Text('Select a reason'),
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    items: _cancelReasons.map((r) => DropdownMenuItem(
+                      value: r, child: Text(r, style: const TextStyle(fontSize: 14)),
+                    )).toList(),
+                    onChanged: (v) => setState(() => selectedReason = v),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Submit button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: loading || selectedReason == null ? null : () async {
+                        setState(() => loading = true);
+                        final error = await Provider.of<AppointmentProvider>(
+                          context, listen: false,
+                        ).requestCancellation(appointment.id, selectedReason!);
+                        if (!sheetCtx.mounted) return;
+                        Navigator.pop(sheetCtx);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(error ?? 'Cancellation request sent to admin'),
+                          backgroundColor: error != null ? Colors.red : Colors.green,
+                        ));
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepOrange,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: loading
+                          ? const SizedBox(height: 18, width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('Submit Cancellation Request',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _warningRow(IconData icon, String text) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: 14, color: Colors.orange.shade700),
+      const SizedBox(width: 6),
+      Expanded(child: Text(text,
+        style: TextStyle(fontSize: 12, color: Colors.orange.shade800))),
+    ],
+  );
+
   Widget _buildAppointmentList(List<Appointment> appointments, bool isUpcoming) {
     if (appointments.isEmpty) {
       return Center(
@@ -277,7 +409,53 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
                     ],
                   ),
                 ],
-                 if (!isUpcoming && appointment.status == AppointmentStatus.completed) ...[
+                // Cancel button — shown for active upcoming appointments
+                if (isUpcoming &&
+                    (appointment.status == AppointmentStatus.confirmed ||
+                     appointment.status == AppointmentStatus.pending)) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showCancelSheet(context, appointment),
+                      icon: const Icon(Icons.cancel_outlined, size: 16),
+                      label: const Text('Request Cancellation'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.deepOrange,
+                        side: const BorderSide(color: Colors.deepOrange),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                ],
+
+                // Cancel-requested info chip
+                if (appointment.status == AppointmentStatus.cancelRequested) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.deepOrange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.deepOrange.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.hourglass_top, size: 14, color: Colors.deepOrange.shade700),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Cancellation request pending admin approval',
+                            style: TextStyle(fontSize: 12, color: Colors.deepOrange.shade700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                if (!isUpcoming && appointment.status == AppointmentStatus.completed) ...[
                   const SizedBox(height: 12),
                   Row(
                     children: [

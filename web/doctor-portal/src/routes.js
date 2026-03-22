@@ -18,7 +18,6 @@ import PatientsPage from './pages/PatientsPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import ExtraRequestsPage from './pages/ExtraRequestsPage';
-import DoctorChanellingSearchPage from './pages/DoctorChanellingSearchPage';
 
 const PrivateRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -106,14 +105,6 @@ const AppRoutes = () => {
             element={
                 <PrivateRoute>
                     <ExtraRequestsPage />
-                </PrivateRoute>
-            }
-        />
-        <Route
-            path="/chanelling-search"
-            element={
-                <PrivateRoute>
-                    <DoctorChanellingSearchPage />
                 </PrivateRoute>
             }
         />

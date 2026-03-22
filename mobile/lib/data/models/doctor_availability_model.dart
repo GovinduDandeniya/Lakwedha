@@ -9,6 +9,7 @@ class DateSlotSummary {
   final double hospitalCharge;
   final double channelingFee;
   final double totalAmount;
+  final bool extraRequestsEnabled;
 
   const DateSlotSummary({
     this.sessionId,
@@ -21,6 +22,7 @@ class DateSlotSummary {
     this.hospitalCharge = 0,
     this.channelingFee = 0,
     this.totalAmount = 0,
+    this.extraRequestsEnabled = false,
   });
 
   int get availableSlots => totalSlots - bookedSlots;
@@ -76,6 +78,7 @@ class HospitalAvailability {
               hospitalCharge: (e.value['hospital_charge'] as num? ?? 0).toDouble(),
               channelingFee: (e.value['channeling_fee'] as num? ?? 0).toDouble(),
               totalAmount: (e.value['total_amount'] as num? ?? 0).toDouble(),
+              extraRequestsEnabled: e.value['extra_requests_enabled'] as bool? ?? false,
             ))
         .toList()
       ..sort((a, b) => '${a.date}|${a.startTime}'.compareTo('${b.date}|${b.startTime}'));

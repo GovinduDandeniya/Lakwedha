@@ -75,6 +75,19 @@ export const appointmentApi = {
             method: 'PUT',
             body: JSON.stringify({ reason }),
         }),
+    approveCancel: (id: string) =>
+        request<{
+            message: string;
+            cancellationFee: number;
+            refundAmount: number;
+            totalAmount: number;
+            appointment: unknown;
+        }>(`/admin/appointments/${id}/approve-cancel`, { method: 'POST' }),
+    rejectCancel: (id: string, reason: string) =>
+        request<{ message: string; appointment: unknown }>(
+            `/admin/appointments/${id}/reject-cancel`,
+            { method: 'POST', body: JSON.stringify({ reason }) }
+        ),
 };
 
 /* ── Admin — Channeling Sessions ── */
@@ -96,6 +109,17 @@ export const orderApi = {
 /* ── Admin — Analytics ── */
 export const analyticsApi = {
     getOverview: () => request<Record<string, unknown>>('/admin/analytics/overview'),
+};
+
+/* ── Admin — Hospitals / Clinics ── */
+export const hospitalApi = {
+    getAll: () => request<unknown[]>('/admin/hospitals'),
+    create: (data: Record<string, unknown>) =>
+        request<unknown>('/admin/hospitals', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Record<string, unknown>) =>
+        request<unknown>(`/admin/hospitals/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+        request<unknown>(`/admin/hospitals/${id}`, { method: 'DELETE' }),
 };
 
 /* ── Admin — Emergency Centers ── */

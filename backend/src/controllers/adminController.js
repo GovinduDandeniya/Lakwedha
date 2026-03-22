@@ -205,6 +205,84 @@ exports.cancelAppointment = async (req, res) => {
     }
 };
 
+/**
+ * POST /api/admin/appointments/:id/approve-cancel
+ * Admin approves a patient's cancellation request — 90% refund.
+ */
+exports.approveCancellation = async (req, res) => {
+    try {
+        const appointment = await Appointment.findById(req.params.id)
+            .populate('doctorId', 'name consultationFee');
+
+        if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+        if (appointment.status !== 'cancel_requested') {
+            return res.status(400).json({ message: 'No pending cancellation request for this appointment' });
+        }
+
+        let cancellationFee = 0;
+        let refundAmount    = 0;
+        let totalAmount     = 0;
+
+        if (appointment.paymentStatus === 'paid') {
+            const doctorFee        = appointment.doctorId?.consultationFee || 1500;
+            const hospitalCharge   = 500;
+            const channelingCharge = 300;
+            totalAmount     = doctorFee + hospitalCharge + channelingCharge;
+            cancellationFee = Math.round(totalAmount * 0.10);
+            refundAmount    = totalAmount - cancellationFee;
+
+            appointment.paymentStatus   = 'refunded';
+            appointment.cancellationFee = cancellationFee;
+        }
+
+        appointment.status                      = 'cancelled';
+        appointment.cancellationReason          = appointment.cancellation?.reason || 'Patient requested cancellation';
+        appointment.cancellation.approvedAt     = new Date();
+        appointment.cancellation.refundAmount   = refundAmount;
+        appointment.cancellation.adminId        = req.admin?._id || req.user?.id;
+        appointment.updatedAt                   = new Date();
+        await appointment.save();
+
+        res.json({
+            message: 'Cancellation approved',
+            cancellationFee,
+            refundAmount,
+            totalAmount,
+            appointment,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * POST /api/admin/appointments/:id/reject-cancel
+ * Admin rejects a patient's cancellation request — appointment reverts to confirmed.
+ */
+exports.rejectCancellation = async (req, res) => {
+    try {
+        const { reason } = req.body;
+        if (!reason || !reason.trim()) {
+            return res.status(400).json({ message: 'Rejection reason is required' });
+        }
+
+        const appointment = await Appointment.findById(req.params.id);
+        if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+        if (appointment.status !== 'cancel_requested') {
+            return res.status(400).json({ message: 'No pending cancellation request for this appointment' });
+        }
+
+        appointment.status                          = 'confirmed';
+        appointment.cancellation.rejectedReason     = reason.trim();
+        appointment.updatedAt                       = new Date();
+        await appointment.save();
+
+        res.json({ message: 'Cancellation rejected', appointment });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 /** GET /api/admin/appointments — list all channeling appointments */
 exports.getAppointments = async (req, res) => {
     try {
