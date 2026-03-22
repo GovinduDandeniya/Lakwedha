@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
 const path = require('path');
 const app = express();
 
@@ -18,10 +19,22 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-app.use(cors());
-app.use(express.json());
-
-// Secure file access will be handled explicitly via authenticated routes.
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow all origins for dev (covers dynamic Flutter web ports like :12031)
+    callback(null, true);
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
+  credentials: true,
+}));
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+app.use(express.urlencoded({ extended: true })); // needed for PayHere notifications
+app.use(morgan('combined')); // Request logging
 
 const userRoutes = require('./routes/user.routes');
 app.use('/api/users', userRoutes);
@@ -40,6 +53,9 @@ app.use('/api/pharmacy-registration', pharmacyRegistrationRoutes);
 
 const orderRoutes = require('./routes/orderRoutes');
 app.use('/api/orders', orderRoutes);
+
+const medicineRoutes = require('./routes/medicineRoutes');
+app.use('/api/medicines', medicineRoutes);
 
 const adminRoutes = require('./routes/adminRoutes');
 app.use('/api/admin', adminRoutes);
