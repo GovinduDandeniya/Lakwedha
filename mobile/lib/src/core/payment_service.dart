@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ravana_app/src/core/api_client.dart';
-import 'dart:js' as js;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -24,7 +25,7 @@ class PaymentService {
         // Wait for payhere to be available on window
         bool sdkLoaded = false;
         for (int i = 0; i < 20; i++) {
-          if (js.context.hasProperty('payhere')) {
+          if (globalContext.hasProperty('payhere'.toJS).toDart) {
             sdkLoaded = true;
             break;
           }
@@ -33,19 +34,19 @@ class PaymentService {
 
         if (!sdkLoaded) {
           // Try injecting script one more time via eval
-          js.context.callMethod('eval', ['''
+          globalContext.callMethod('eval'.toJS, '''
             (function() {
               var script = document.createElement('script');
               script.src = 'https://www.payhere.lk/lib/payhere.js';
               script.type = 'text/javascript';
               document.head.appendChild(script);
             })();
-          ''']);
-          
+          '''.toJS);
+
           // Wait another 5 seconds after injection
           for (int i = 0; i < 10; i++) {
             await Future.delayed(const Duration(milliseconds: 500));
-            if (js.context.hasProperty('payhere')) {
+            if (globalContext.hasProperty('payhere'.toJS).toDart) {
               sdkLoaded = true;
               break;
             }
@@ -61,29 +62,33 @@ class PaymentService {
         final paymentData = res.data['data'];
 
         if (paymentData != null) {
-          js.context['payhere']['onCompleted'] = js.allowInterop((oId) async {
-            try {
-              final confirmRes = await dio.post('/orders/$orderId/pay/confirm');
-              if (confirmRes.data['success'] == true) {
-                onSuccess();
-              } else {
-                onError(confirmRes.data['message'] ?? 'Payment verification failed.');
+          final payhere = globalContext['payhere'] as JSObject;
+
+          payhere['onCompleted'] = (JSAny? oId) {
+            () async {
+              try {
+                final confirmRes = await dio.post('/orders/$orderId/pay/confirm');
+                if (confirmRes.data['success'] == true) {
+                  onSuccess();
+                } else {
+                  onError(confirmRes.data['message'] ?? 'Payment verification failed.');
+                }
+              } catch (e) {
+                onError(e.toString());
               }
-            } catch (e) {
-              onError(e.toString());
-            }
-          });
+            }();
+          }.toJS;
 
-          js.context['payhere']['onDismissed'] = js.allowInterop(() {
+          payhere['onDismissed'] = () {
             onError('Payment was cancelled.');
-          });
+          }.toJS;
 
-          js.context['payhere']['onError'] = js.allowInterop((err) {
+          payhere['onError'] = (JSAny? err) {
             onError('Payment Error: $err');
-          });
+          }.toJS;
 
-          final jsPayment = js.JsObject.jsify(paymentData);
-          js.context['payhere'].callMethod('startPayment', [jsPayment]);
+          final jsPayment = (paymentData as Object).jsify();
+          payhere.callMethod('startPayment'.toJS, jsPayment);
         }
         return;
       }

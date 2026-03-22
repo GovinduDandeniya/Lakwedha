@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/emergency_center.dart';
+import '../../../core/constants/app_constants.dart';
 
 class EmergencyApiService {
-  static const String _baseUrl = 'http://lakwedha.lk/api/emergency-centers';
+  static const String _baseUrl = '${AppConstants.baseUrl}/api/emergency-centers';
 
   /// Fetch the list of Ayurveda-treatable emergency types from the backend
   Future<List<String>> fetchEmergencyTypes() async {

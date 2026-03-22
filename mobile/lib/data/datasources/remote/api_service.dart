@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_constants.dart';
@@ -36,15 +38,23 @@ class ApiService {
 
   // ===================== AUTH =====================
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await http.post(
-      Uri.parse('${AppConstants.baseUrl}${AppConstants.loginEndpoint}'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'email': email, 'password': password}),
-    );
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${AppConstants.baseUrl}${AppConstants.loginEndpoint}'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({'email': email, 'password': password}),
+          )
+          .timeout(const Duration(seconds: 15));
 
-    final data = json.decode(response.body);
-    if (response.statusCode == 200) return data;
-    throw Exception(data['message'] ?? data['error'] ?? 'Login failed');
+      final data = json.decode(response.body);
+      if (response.statusCode == 200) return data;
+      throw Exception(data['message'] ?? data['error'] ?? 'Login failed');
+    } on SocketException {
+      throw Exception('Cannot reach server. Make sure the backend is running.');
+    } on TimeoutException {
+      throw Exception('Connection timed out. Check your network and try again.');
+    }
   }
 
   Future<void> register({
@@ -103,17 +113,23 @@ class ApiService {
     required String currentPassword,
     required String newPassword,
   }) async {
-    final response = await http.post(
-      Uri.parse('${AppConstants.baseUrl}${AppConstants.changePasswordEndpoint}'),
-      headers: await _getHeaders(),
-      body: json.encode({
-        'currentPassword': currentPassword,
-        'newPassword': newPassword,
-      }),
-    );
-    if (response.statusCode != 200) {
-      final data = json.decode(response.body);
-      throw Exception(data['error'] ?? 'Failed to change password');
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}${AppConstants.changePasswordEndpoint}'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) {
+        final data = json.decode(response.body);
+        throw Exception(data['error'] ?? data['message'] ?? 'Failed to change password');
+      }
+    } on SocketException {
+      throw Exception('Cannot reach server. Make sure the backend is running.');
+    } on TimeoutException {
+      throw Exception('Connection timed out. Check your network and try again.');
     }
   }
 
@@ -281,17 +297,25 @@ class ApiService {
     required String method, // 'email' | 'phone'
     required String value,
   }) async {
-    final response = await http.post(
-      Uri.parse('${AppConstants.baseUrl}${AppConstants.fpSendOtpEndpoint}'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'method': method, 'value': value}),
-    );
-    final data = json.decode(response.body) as Map<String, dynamic>;
-    if (response.statusCode == 200) return data;
-    throw ForgotPasswordException(
-      data['message'] as String? ?? 'Failed to send OTP.',
-      waitSeconds: data['waitSeconds'] as int?,
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}${AppConstants.fpSendOtpEndpoint}'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'method': method, 'value': value}),
+      ).timeout(const Duration(seconds: 15));
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return data;
+      throw ForgotPasswordException(
+        data['message'] as String? ?? 'Failed to send OTP.',
+        waitSeconds: data['waitSeconds'] as int?,
+      );
+    } on ForgotPasswordException {
+      rethrow;
+    } on SocketException {
+      throw ForgotPasswordException('Cannot reach server. Make sure the backend is running.');
+    } on TimeoutException {
+      throw ForgotPasswordException('Connection timed out. Check your network and try again.');
+    }
   }
 
   /// Step 2 – verify OTP.
@@ -301,17 +325,25 @@ class ApiService {
     required String value,
     required String otp,
   }) async {
-    final response = await http.post(
-      Uri.parse('${AppConstants.baseUrl}${AppConstants.fpVerifyOtpEndpoint}'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'method': method, 'value': value, 'otp': otp}),
-    );
-    final data = json.decode(response.body) as Map<String, dynamic>;
-    if (response.statusCode == 200) return data;
-    throw ForgotPasswordException(
-      data['message'] as String? ?? 'Invalid OTP.',
-      remainingAttempts: data['remainingAttempts'] as int?,
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}${AppConstants.fpVerifyOtpEndpoint}'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'method': method, 'value': value, 'otp': otp}),
+      ).timeout(const Duration(seconds: 15));
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return data;
+      throw ForgotPasswordException(
+        data['message'] as String? ?? 'Invalid OTP.',
+        remainingAttempts: data['remainingAttempts'] as int?,
+      );
+    } on ForgotPasswordException {
+      rethrow;
+    } on SocketException {
+      throw ForgotPasswordException('Cannot reach server. Make sure the backend is running.');
+    } on TimeoutException {
+      throw ForgotPasswordException('Connection timed out. Check your network and try again.');
+    }
   }
 
   /// Step 3 – reset password using the JWT reset token.
@@ -319,16 +351,22 @@ class ApiService {
     required String resetToken,
     required String newPassword,
   }) async {
-    final response = await http.post(
-      Uri.parse('${AppConstants.baseUrl}${AppConstants.fpResetPasswordEndpoint}'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'resetToken': resetToken, 'new_password': newPassword}),
-    );
-    if (response.statusCode != 200) {
-      final data = json.decode(response.body) as Map<String, dynamic>;
-      throw ForgotPasswordException(
-        data['message'] as String? ?? 'Reset failed.',
-      );
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}${AppConstants.fpResetPasswordEndpoint}'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'resetToken': resetToken, 'new_password': newPassword}),
+      ).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        throw ForgotPasswordException(data['message'] as String? ?? 'Reset failed.');
+      }
+    } on ForgotPasswordException {
+      rethrow;
+    } on SocketException {
+      throw ForgotPasswordException('Cannot reach server. Make sure the backend is running.');
+    } on TimeoutException {
+      throw ForgotPasswordException('Connection timed out. Check your network and try again.');
     }
   }
 }

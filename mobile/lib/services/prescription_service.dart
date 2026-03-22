@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart'; // Add this package if mapping mime-types
 import '../models/prescription_model.dart';
 import '../utils/api_constants.dart';
 import 'dart:io';

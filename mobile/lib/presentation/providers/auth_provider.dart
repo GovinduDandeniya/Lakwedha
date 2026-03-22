@@ -68,23 +68,31 @@ class AuthProvider extends ChangeNotifier {
     try {
       final response = await _apiService.login(email, password);
 
-      _token   = response['token'];
+      final token = response['token'] as String?;
+      if (token == null || token.isEmpty) {
+        throw Exception('Server returned no token. Please try again.');
+      }
+
+      _token   = token;
       _isGuest = false;
-      _user = Map<String, dynamic>.from(response['user'] ?? {});
+      _user    = Map<String, dynamic>.from(response['user'] as Map? ?? {});
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(AppConstants.tokenKey, _token!);
-      await prefs.setString(AppConstants.userIdKey, _user!['id'] ?? _user!['_id'] ?? '');
-      await prefs.setString(AppConstants.userRoleKey, _user!['role'] ?? 'patient');
+      await prefs.setString(AppConstants.userIdKey,
+          (_user!['id'] ?? _user!['_id'] ?? '').toString());
+      await prefs.setString(AppConstants.userRoleKey,
+          (_user!['role'] ?? 'patient').toString());
       await prefs.setString(AppConstants.userKey, _user.toString());
 
-      // Fetch full profile (birthday, nic_number, etc.) and merge
-      final fullProfile = await _apiService.fetchProfile();
-      if (fullProfile != null) {
-        _user!.addAll(fullProfile);
-      }
+      // Fetch full profile non-blocking — login succeeds even if this fails
+      _apiService.fetchProfile().then((fullProfile) {
+        if (fullProfile != null) {
+          _user!.addAll(fullProfile);
+          notifyListeners();
+        }
+      }).catchError((_) {});
 
-      // Load any locally saved overrides
       await _loadLocalOverrides(prefs);
 
       // Register FCM token with backend (non-blocking)
@@ -95,7 +103,7 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _isLoading = false;
-      _error = e.toString();
+      _error = e.toString().replaceFirst('Exception: ', '');
       _isSuspended = _error!.toLowerCase().contains('suspended');
       notifyListeners();
       return false;
