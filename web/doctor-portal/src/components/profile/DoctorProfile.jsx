@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography, Avatar, Chip, Grid, Divider } from '@mui/material';
-import { Email, LocalHospital, Person, Star } from '@mui/icons-material';
+import { Email, LocalHospital, Person, Star, Verified } from '@mui/icons-material';
 import { AYURVEDA_SPECIALIZATIONS } from '../../utils/constants';
 
 const InfoItem = ({ icon, label, value }) => (
@@ -27,17 +27,28 @@ const DoctorProfile = ({ user }) => {
                     {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'DR'}
                 </Avatar>
                 <Box>
-                    <Typography variant="h5" fontWeight={800}>{user?.name || 'Doctor'}</Typography>
-                    <Chip
-                        icon={<Star sx={{ fontSize: '14px !important' }} />}
-                        label={
-                            AYURVEDA_SPECIALIZATIONS.includes(user?.specialization)
-                                ? user.specialization
-                                : (user?.specialization || 'Kayachikitsa (General Ayurveda)')
-                        }
-                        size="small"
-                        sx={{ bgcolor: '#E8F5E9', color: '#2E7D32', fontWeight: 600, mt: 0.5 }}
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                        <Typography variant="h5" fontWeight={800}>{user?.name || 'Doctor'}</Typography>
+                        <Verified sx={{ fontSize: 20, color: '#2E7D32' }} titleAccess="Verified Doctor" />
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
+                        <Chip
+                            icon={<Star sx={{ fontSize: '14px !important' }} />}
+                            label={
+                                AYURVEDA_SPECIALIZATIONS.includes(user?.specialization)
+                                    ? user.specialization
+                                    : (user?.specialization || 'Kayachikitsa (General Ayurveda)')
+                            }
+                            size="small"
+                            sx={{ bgcolor: '#E8F5E9', color: '#2E7D32', fontWeight: 600 }}
+                        />
+                        <Chip
+                            icon={<Verified sx={{ fontSize: '14px !important', color: '#2E7D32 !important' }} />}
+                            label="Verified Doctor"
+                            size="small"
+                            sx={{ bgcolor: '#E8F5E9', color: '#2E7D32', fontWeight: 600 }}
+                        />
+                    </Box>
                 </Box>
             </Box>
             <Divider sx={{ mb: 2.5 }} />

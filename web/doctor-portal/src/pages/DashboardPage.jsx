@@ -13,7 +13,7 @@ import {
     CheckCircle, Schedule, LocalHospital,
     NotificationsActive, Payment,
     EventNote, ManageAccounts, TrendingUp, PersonAdd,
-    Cancel, Event, Today, Warning,
+    Cancel, Event, Today, Warning, Verified,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -349,9 +349,12 @@ const DashboardPage = () => {
                             {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'DR'}
                         </Avatar>
                         <Box>
-                            <Typography variant="h5" sx={{ color: '#fff', fontWeight: 800 }}>
-                                Welcome, {user?.name || 'Doctor'}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="h5" sx={{ color: '#fff', fontWeight: 800 }}>
+                                    Welcome, {user?.name || 'Doctor'}
+                                </Typography>
+                                <Verified sx={{ fontSize: 20, color: '#A5D6A7' }} />
+                            </Box>
                             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.3 }}>
                                 {user?.specialization || 'General Physician'}
                             </Typography>

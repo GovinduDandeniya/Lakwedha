@@ -230,6 +230,89 @@ class ApiService {
     throw Exception('Failed to load appointment history');
   }
 
+  // ===================== PHARMACY ORDERS =====================
+  Future<String> uploadPrescriptionFile(File file, String fileName) async {
+    final uri = Uri.parse('${AppConstants.baseUrl}/api/v1/pharmacy/upload-prescription');
+    final request = http.MultipartRequest('POST', uri);
+    final headers = await _getHeaders();
+    request.headers.addAll(headers..remove('Content-Type'));
+    request.files.add(await http.MultipartFile.fromPath('file', file.path,
+        filename: fileName));
+    final streamed = await request.send().timeout(const Duration(seconds: 30));
+    final body = json.decode(await streamed.stream.bytesToString());
+    if (streamed.statusCode == 200 || streamed.statusCode == 201) {
+      return body['url'] as String? ?? body['fileUrl'] as String? ?? '';
+    }
+    throw Exception(body['message'] ?? 'File upload failed');
+  }
+
+  Future<void> submitPharmacyOrder({
+    required List<String> pharmacyIds,
+    required Map<String, String> patientDetails,
+    required String prescriptionFileUrl,
+    required Map<String, String> location,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/api/v1/pharmacy/request'),
+      headers: await _getHeaders(),
+      body: json.encode({
+        'pharmacies': pharmacyIds,
+        'patientDetails': patientDetails,
+        'prescriptionFileUrl': prescriptionFileUrl,
+        'location': location,
+      }),
+    ).timeout(const Duration(seconds: 15));
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final body = json.decode(response.body);
+      throw Exception(body['message'] ?? 'Order submission failed');
+    }
+  }
+
+  Future<void> payForPharmacyRequest(String requestId) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/api/v1/pharmacy/pay'),
+      headers: await _getHeaders(),
+      body: json.encode({'requestId': requestId}),
+    ).timeout(const Duration(seconds: 15));
+
+    if (response.statusCode != 200) {
+      final body = json.decode(response.body);
+      throw Exception(body['message'] ?? 'Payment failed');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getMyPharmacyRequests() async {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/api/v1/pharmacy/my-requests'),
+      headers: await _getHeaders(),
+    ).timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final list = (data['data'] as List?) ?? <dynamic>[];
+      return list
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+
+    final body = json.decode(response.body);
+    throw Exception(body['message'] ?? 'Failed to load pharmacy orders');
+  }
+
+  Future<void> cancelPharmacyRequest(String requestId) async {
+    final response = await http.delete(
+      Uri.parse('${AppConstants.baseUrl}/api/v1/pharmacy/request/$requestId'),
+      headers: await _getHeaders(),
+    ).timeout(const Duration(seconds: 15));
+
+    if (response.statusCode != 200) {
+      final body = json.decode(response.body);
+      throw Exception(body['message'] ?? 'Cancellation failed');
+    }
+  }
+
   Future<Appointment> updateAppointmentStatus(
     String appointmentId,
     String status, {
