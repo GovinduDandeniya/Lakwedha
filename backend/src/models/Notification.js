@@ -22,6 +22,8 @@ const notificationSchema = new mongoose.Schema({
             'PAYMENT_FAILED',
             'EMERGENCY_APPROVED',
             'EMERGENCY_REJECTED',
+            'PHARMACY_PRICE_SENT',
+            'PHARMACY_ORDER_PAID',
         ],
         required: true,
     },

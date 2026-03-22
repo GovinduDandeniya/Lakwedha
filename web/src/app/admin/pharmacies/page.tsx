@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { pharmacyApi } from '@/lib/api';
 import { PageSkeleton } from '@/components/admin/LoadingSkeleton';
-import { CheckCircle, XCircle, Pill } from 'lucide-react';
+import { CheckCircle, XCircle, Pill, BadgeCheck } from 'lucide-react';
 
 interface Pharmacy {
     _id: string;
@@ -17,6 +17,32 @@ interface Pharmacy {
     createdAt: string;
 }
 
+type PharmaciesResponse =
+    | Pharmacy[]
+    | {
+          registrations?: Pharmacy[];
+          legacy?: Pharmacy[];
+          total?: number;
+      };
+
+const normalizeStatus = (status?: string) => {
+    if (!status) return 'pending';
+    if (status === 'approved') return 'active';
+    return status;
+};
+
+const normalizePharmaciesResponse = (res: PharmaciesResponse): Pharmacy[] => {
+    const raw = Array.isArray(res)
+        ? res
+        : [...(res.registrations || []), ...(res.legacy || [])];
+
+    return raw.map((p) => ({
+        ...p,
+        status: normalizeStatus(p.status),
+        name: p.name || p.pharmacyName || 'Pharmacy',
+    }));
+};
+
 export default function PharmaciesPage() {
     const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
     const [loading, setLoading] = useState(true);
@@ -26,7 +52,7 @@ export default function PharmaciesPage() {
     const fetchPharmacies = () => {
         pharmacyApi
             .getAll()
-            .then((res) => setPharmacies(res as Pharmacy[]))
+            .then((res) => setPharmacies(normalizePharmaciesResponse(res as PharmaciesResponse)))
             .catch(() => {})
             .finally(() => setLoading(false));
     };
@@ -132,13 +158,18 @@ export default function PharmaciesPage() {
                                             <Pill className="h-4 w-4" />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-gray-800">{ph.pharmacyName || ph.name}</p>
+                                            <p className="font-medium text-gray-800 flex items-center gap-1">
+                                                {ph.pharmacyName || ph.name}
+                                                {ph.status === 'active' && (
+                                                    <BadgeCheck className="h-4 w-4 text-green-500 shrink-0" />
+                                                )}
+                                            </p>
                                             <p className="text-xs text-gray-400">{ph.email}</p>
                                         </div>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-gray-600">{ph.licenseNumber || '—'}</td>
-                                <td className="px-6 py-4 text-gray-600 max-w-[200px] truncate">{ph.address || '—'}</td>
+                                <td className="px-6 py-4 text-gray-600 max-w-50 truncate">{ph.address || '—'}</td>
                                 <td className="px-6 py-4">{statusBadge(ph.status)}</td>
                                 <td className="px-6 py-4 text-gray-500">{new Date(ph.createdAt).toLocaleDateString()}</td>
                                 <td className="px-6 py-4 text-right">

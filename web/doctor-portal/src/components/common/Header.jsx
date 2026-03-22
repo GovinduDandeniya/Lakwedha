@@ -9,10 +9,12 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import LocalPharmacyIcon from '@mui/icons-material/LocalPharmacy';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import EventIcon from '@mui/icons-material/Event';
 import CancelIcon from '@mui/icons-material/Cancel';
 import PaymentIcon from '@mui/icons-material/Payment';
+import VerifiedIcon from '@mui/icons-material/Verified';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
@@ -24,7 +26,7 @@ const NOTIFICATION_ICONS = {
     payment: <PaymentIcon fontSize="small" sx={{ color: '#2E7D32' }} />,
 };
 
-const Header = ({ onMenuClick }) => {
+const Header = ({ onMenuClick, isPharmacy = false }) => {
     const { user, logout } = useAuth();
     const { unreadCount, setUnreadCount, notifications, setNotifications } = useNotification();
     const navigate = useNavigate();
@@ -32,14 +34,19 @@ const Header = ({ onMenuClick }) => {
     const [profileAnchor, setProfileAnchor] = useState(null);
     const [notifAnchor, setNotifAnchor] = useState(null);
 
+    const pharmacyUser = (() => {
+        try { return JSON.parse(localStorage.getItem('pharmacy_user') || '{}'); } catch { return {}; }
+    })();
+
     useEffect(() => {
+        if (isPharmacy) return; // pharmacy portal doesn't use doctor notifications
         api.get('/dashboard/notifications')
             .then(res => {
                 setNotifications(res.data.data || []);
                 setUnreadCount(res.data.unreadCount || 0);
             })
             .catch(() => {});
-    }, [setNotifications, setUnreadCount]);
+    }, [isPharmacy, setNotifications, setUnreadCount]);
 
     const handleProfileOpen = (e) => setProfileAnchor(e.currentTarget);
     const handleProfileClose = () => setProfileAnchor(null);
@@ -85,14 +92,16 @@ const Header = ({ onMenuClick }) => {
                         bgcolor: 'rgba(255,255,255,0.2)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                        <LocalHospitalIcon sx={{ color: '#fff', fontSize: 22 }} />
+                        {isPharmacy
+                            ? <LocalPharmacyIcon sx={{ color: '#fff', fontSize: 22 }} />
+                            : <LocalHospitalIcon sx={{ color: '#fff', fontSize: 22 }} />}
                     </Box>
                     <Box>
                         <Typography variant="h6" sx={{ fontWeight: 700, color: '#fff', lineHeight: 1.1, letterSpacing: 0.5 }}>
-                            Aurveda
+                            {isPharmacy ? pharmacyUser.pharmacyName || 'Pharmacy' : 'Lakwedha'}
                         </Typography>
                         <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', letterSpacing: 1, fontSize: 9 }}>
-                            DOCTOR PORTAL
+                            {isPharmacy ? 'PHARMACY PORTAL' : 'DOCTOR PORTAL'}
                         </Typography>
                     </Box>
                 </Box>
@@ -123,9 +132,12 @@ const Header = ({ onMenuClick }) => {
                             {getInitials(user?.name)}
                         </Avatar>
                         <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-                            <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, lineHeight: 1.2 }}>
-                                {user?.name || 'Doctor'}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, lineHeight: 1.2 }}>
+                                    {user?.name || 'Doctor'}
+                                </Typography>
+                                <VerifiedIcon sx={{ fontSize: 14, color: '#A5D6A7' }} />
+                            </Box>
                             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 10 }}>
                                 {user?.specialization || 'Physician'}
                             </Typography>

@@ -18,15 +18,19 @@ import PatientsPage from './pages/PatientsPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import ExtraRequestsPage from './pages/ExtraRequestsPage';
+import PharmacyDashboardPage from './pages/PharmacyDashboardPage';
+import PharmacyPrescriptionsPage from './pages/PharmacyPrescriptionsPage';
+import PharmacyOrdersPage from './pages/PharmacyOrdersPage';
 
 const PrivateRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
-
-    if (loading) {
-        return <div>Loading...</div>;
-    }
-
+    if (loading) return <div>Loading...</div>;
     return isAuthenticated ? children : <Navigate to="/login" />;
+};
+
+const PharmacyRoute = ({ children }) => {
+    const token = localStorage.getItem('pharmacy_token');
+    return token ? children : <Navigate to="/login" />;
 };
 
 const AppRoutes = () => {
@@ -108,6 +112,11 @@ const AppRoutes = () => {
                 </PrivateRoute>
             }
         />
+            {/* Pharmacy portal routes */}
+            <Route path="/pharmacy/dashboard" element={<PharmacyRoute><PharmacyDashboardPage /></PharmacyRoute>} />
+            <Route path="/pharmacy/prescriptions" element={<PharmacyRoute><PharmacyPrescriptionsPage /></PharmacyRoute>} />
+            <Route path="/pharmacy/orders" element={<PharmacyRoute><PharmacyOrdersPage /></PharmacyRoute>} />
+
             <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>
     );

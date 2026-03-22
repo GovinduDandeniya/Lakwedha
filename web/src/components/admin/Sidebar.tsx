@@ -25,6 +25,7 @@ const menu = [
   { name: "Patients", href: "/admin/patients", icon: Users },
   { name: "Appointments", href: "/admin/appointments", icon: CalendarCheck },
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { name: "Pharmacy Orders", href: "/admin/pharmacy-orders", icon: Package },
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
   { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { name: "Hospitals / Clinics", href: "/admin/hospitals", icon: Building2 },
