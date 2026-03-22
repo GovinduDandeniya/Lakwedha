@@ -115,7 +115,7 @@ const LoginPage = () => {
     // ── Pharmacy login (direct API — separate from doctor auth) ───────────
     const handlePharmacyLogin = async () => {
         try {
-            const response = await axios.post(`http://localhost:5000/api/v1/pharmacy/login`, { email, password });
+            const response = await axios.post(`http://localhost:5000/api/pharmacy-registration/login`, { email, password });
             const { status, token, pharmacy, reason } = response.data;
 
             if (status === 'pending') {

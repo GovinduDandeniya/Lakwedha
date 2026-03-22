@@ -32,10 +32,6 @@ export const getMockResponse = (url = '', method = 'get') => {
     if (path === '/dashboard/earnings'            && m === 'get') return { data: { doctorFee: 0, channelingFee: 0, totalToday: 0, totalMonth: 0, weeklyTrend: [0, 0, 0, 0, 0, 0, 0], weekDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] } };
     if (/^\/dashboard\/appointments\/[^/]+\/complete$/.test(path) && m === 'patch') return { success: true };
 
-    if (path === '/doctor-channeling/doctors/me/hospitals' && m === 'get')  return { success: true, hospitals: [] };
-    if (path === '/doctor-channeling/doctors/me/hospitals' && m === 'post') return { success: true, hospitals: [] };
-    if (/^\/doctor-channeling\/doctors\/me\/hospitals\/\d+$/.test(path) && m === 'delete') return { success: true, hospitals: [] };
-
     if (path === '/doctors' && m === 'get') return { data: [] };
 
     if (path === '/patients' && m === 'get') return { data: [] };
@@ -66,20 +62,6 @@ export const getMockResponse = (url = '', method = 'get') => {
 
     if (/^\/channeling-sessions\/[^/]+\/close$/.test(path) && m === 'patch')
         return { success: true, data: { status: 'closed' }, message: 'Booking closed' };
-
-    // Qualifications
-    if (path === '/doctor-channeling/doctors/me/qualifications' && m === 'get')
-        return { success: true, data: [] };
-    if (path === '/doctor-channeling/doctors/me/qualifications' && m === 'post')
-        return { success: true, data: [] };
-    if (/^\/doctor-channeling\/doctors\/me\/qualifications\/[^/]+$/.test(path) && m === 'delete')
-        return { success: true, data: [] };
-
-    if (path === '/users/change-password' && m === 'post') return { success: true, message: 'Password changed successfully' };
-
-    // EMR endpoints (/api/emr — note: not /api/v1/emr)
-    if (/^\/emr\/patient\/[^/]+$/.test(path) && m === 'get') return [];
-    if (path === '/emr/upload' && m === 'post') return { message: 'Record uploaded (mock)', record: {} };
 
     return null;
 };

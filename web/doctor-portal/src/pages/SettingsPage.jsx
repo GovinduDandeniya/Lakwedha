@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import {
     Box, Typography, Paper, Switch, Divider,
-    TextField, Button, Grid, Alert, CircularProgress,
+    TextField, Button, Grid, Alert,
 } from '@mui/material';
 import { Notifications, Lock, Settings } from '@mui/icons-material';
-import api from '../services/api';
 
 const Section = ({ icon, title, children }) => (
     <Paper elevation={0} sx={{ borderRadius: 3, p: 3, mb: 3, border: '1px solid #E8EDF2', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
@@ -44,11 +43,10 @@ const SettingsPage = () => {
     const [passwords, setPasswords] = useState({ current: '', newPw: '', confirm: '' });
     const [saved, setSaved] = useState(false);
     const [pwError, setPwError] = useState('');
-    const [pwLoading, setPwLoading] = useState(false);
 
     const handleNotifChange = (key) => () => setNotifs(prev => ({ ...prev, [key]: !prev[key] }));
 
-    const handlePasswordChange = async () => {
+    const handlePasswordChange = () => {
         setPwError('');
         if (!passwords.current || !passwords.newPw || !passwords.confirm) {
             setPwError('Please fill all fields.');
@@ -62,20 +60,9 @@ const SettingsPage = () => {
             setPwError('Password must be at least 6 characters.');
             return;
         }
-        setPwLoading(true);
-        try {
-            await api.post('/users/change-password', {
-                currentPassword: passwords.current,
-                newPassword: passwords.newPw,
-            });
-            setSaved(true);
-            setPasswords({ current: '', newPw: '', confirm: '' });
-            setTimeout(() => setSaved(false), 3000);
-        } catch (err) {
-            setPwError(err.response?.data?.message || 'Failed to update password. Please try again.');
-        } finally {
-            setPwLoading(false);
-        }
+        setSaved(true);
+        setPasswords({ current: '', newPw: '', confirm: '' });
+        setTimeout(() => setSaved(false), 3000);
     };
 
     return (
@@ -155,14 +142,12 @@ const SettingsPage = () => {
                         <Button
                             variant="contained"
                             onClick={handlePasswordChange}
-                            disabled={pwLoading}
-                            startIcon={pwLoading ? <CircularProgress size={16} color="inherit" /> : null}
                             sx={{
                                 bgcolor: '#2E7D32', borderRadius: 2, px: 3,
                                 '&:hover': { bgcolor: '#1B5E20' },
                             }}
                         >
-                            {pwLoading ? 'Updating…' : 'Update Password'}
+                            Update Password
                         </Button>
                     </Grid>
                 </Grid>
