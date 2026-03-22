@@ -5,8 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/appointment_provider.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../../data/datasources/remote/api_service.dart';
 import '../../../data/models/appointment_model.dart';
 import '../../../data/models/doctor_model.dart';
+import '../../../src/screens/pharmacy_finder_screen.dart';
+import '../../../src/screens/pharmacy_order_status_screen.dart';
 import '../patient/doctor_search_screen.dart';
 import 'edit_profile_screen.dart';
 
@@ -18,6 +21,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final ApiService _apiService = ApiService();
+
   // ── Design tokens ──────────────────────────────────────────────────────────
   static const Color _green     = Color(0xFF2E7D32);
   static const Color _lightGreen= Color(0xFFE8F5E9);
@@ -27,11 +32,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const Color _subText   = Color(0xFF607D8B);
   static const Color _border    = Color(0xFFE8EDF2);
 
+  late Future<List<Map<String, dynamic>>> _pharmacyOrdersFuture;
+
   @override
   void initState() {
     super.initState();
+    _pharmacyOrdersFuture = _fetchPharmacyOrders();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<AppointmentProvider>(context, listen: false).loadAppointments();
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchPharmacyOrders() async {
+    try {
+      return await _apiService.getMyPharmacyRequests();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  void _refreshPharmacyOrders() {
+    setState(() {
+      _pharmacyOrdersFuture = _fetchPharmacyOrders();
     });
   }
 
@@ -401,9 +423,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // ── Quick actions ─────────────────────────────────────────────────────────
   Widget _buildQuickActions(BuildContext context, AuthProvider auth) {
+    final actions = [
+      _QA(Icons.calendar_month_rounded, 'Appointments', const Color(0xFF1565C0), () {}),
+      _QA(Icons.favorite_rounded,       'My Doctors',   _green,                  () {}),
+      _QA(Icons.shopping_bag_rounded,   'My Orders',    const Color(0xFF00796B), () {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const PharmacyOrderStatusScreen(),
+        )).then((_) => _refreshPharmacyOrders());
+      }),
+      _QA(Icons.edit_rounded,   'Edit Profile', const Color(0xFF6A1B9A), () {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const EditProfileScreen()));
+      }),
+      _QA(Icons.logout_rounded, 'Logout', const Color(0xFFC62828), () {
+        _showLogoutDialog(context, auth);
+      }),
+    ];
+
+    // Split into rows of 3 + 2
+    final row1 = actions.sublist(0, 3);
+    final row2 = actions.sublist(3);
+
+    Widget buildRow(List<_QA> items) => Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: items.map((a) => _quickAction(a.icon, a.label, a.color, a.onTap)).toList(),
+    );
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       decoration: BoxDecoration(
         color: _cardBg,
         borderRadius: BorderRadius.circular(16),
@@ -412,18 +460,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 12, offset: const Offset(0, 3))],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _quickAction(Icons.calendar_month_rounded, 'Appointments', const Color(0xFF1565C0), () {}),
-          _quickAction(Icons.favorite_rounded, 'My Doctors', _green, () {}),
-          _quickAction(Icons.edit_rounded, 'Edit Profile', const Color(0xFF6A1B9A), () {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const EditProfileScreen()));
-          }),
-          _quickAction(Icons.logout_rounded, 'Logout', const Color(0xFFC62828), () {
-            _showLogoutDialog(context, auth);
-          }),
+          buildRow(row1),
+          const SizedBox(height: 16),
+          buildRow(row2),
         ],
       ),
     );
@@ -432,22 +474,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _quickAction(IconData icon, String label, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 48, height: 48,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: color.withValues(alpha: 0.20)),
+      child: SizedBox(
+        width: 80,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 52, height: 52,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: color.withValues(alpha: 0.20)),
+              ),
+              child: Icon(icon, color: color, size: 24),
             ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(height: 6),
-          Text(label, style: GoogleFonts.poppins(
-            fontSize: 10, fontWeight: FontWeight.w600, color: _subText),
-            textAlign: TextAlign.center),
-        ],
+            const SizedBox(height: 6),
+            Text(label, style: GoogleFonts.poppins(
+              fontSize: 10, fontWeight: FontWeight.w600, color: _subText),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+          ],
+        ),
       ),
     );
   }
@@ -476,9 +524,167 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // ── My Orders section ────────────────────────────────────────────────────
   Widget _buildOrdersSection() {
-    return _buildEmptyState(
-      icon: Icons.shopping_bag_outlined,
-      message: 'No orders yet.\nBrowse our Ayurveda pharmacy.',
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _pharmacyOrdersFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            decoration: BoxDecoration(
+              color: _cardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _border),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(color: _green),
+            ),
+          );
+        }
+
+        final orders = snapshot.data ?? <Map<String, dynamic>>[];
+        // "Pending" = waiting for pharmacy response OR price sent but unpaid
+        final pendingOrders = orders
+            .where((o) {
+              final s = o['status'] as String? ?? 'pending';
+              return s == 'pending' || s == 'price_sent';
+            })
+            .toList();
+
+        if (orders.isEmpty) {
+          return _buildEmptyState(
+            icon: Icons.shopping_bag_outlined,
+            message: 'No orders yet.\nBrowse our Ayurveda pharmacy.',
+            actionLabel: 'Browse Medicine',
+            onActionTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PharmacyFinderScreen()),
+              );
+            },
+          );
+        }
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _cardBg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _border),
+            boxShadow: [BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10, offset: const Offset(0, 2))],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      pendingOrders.isNotEmpty
+                          ? '${pendingOrders.length} order(s) need attention'
+                          : 'No pending orders',
+                      style: GoogleFonts.poppins(
+                        color: _text,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _refreshPharmacyOrders,
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                    color: _subText,
+                    tooltip: 'Refresh orders',
+                  ),
+                ],
+              ),
+              if (pendingOrders.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                for (final order in pendingOrders.take(3))
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const PharmacyOrderStatusScreen()),
+                      ).then((_) => _refreshPharmacyOrders());
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            (order['status'] as String?) == 'price_sent'
+                                ? Icons.monetization_on_rounded
+                                : Icons.hourglass_top_rounded,
+                            size: 16,
+                            color: (order['status'] as String?) == 'price_sent'
+                                ? const Color(0xFF1565C0)
+                                : const Color(0xFFE65100),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              ((order['pharmacy'] as Map?)?['pharmacyName'] ?? 'Pharmacy').toString(),
+                              style: GoogleFonts.poppins(
+                                color: _subText,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            (order['status'] as String?) == 'price_sent'
+                                ? 'Pay Now'
+                                : 'Pending',
+                            style: GoogleFonts.poppins(
+                              color: (order['status'] as String?) == 'price_sent'
+                                  ? const Color(0xFF1565C0)
+                                  : const Color(0xFFE65100),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right_rounded, size: 16, color: _subText),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const PharmacyOrderStatusScreen()),
+                    ).then((_) => _refreshPharmacyOrders());
+                  },
+                  icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+                  label: Text(
+                    'View All Orders',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -649,7 +855,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ── Empty state ───────────────────────────────────────────────────────────
-  Widget _buildEmptyState({required IconData icon, required String message}) {
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String message,
+    String? actionLabel,
+    VoidCallback? onActionTap,
+  }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.symmetric(vertical: 28),
@@ -665,6 +876,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text(message, style: GoogleFonts.poppins(
             color: _subText, fontSize: 13, height: 1.5),
             textAlign: TextAlign.center),
+          if (actionLabel != null && onActionTap != null) ...[
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: onActionTap,
+              icon: const Icon(Icons.local_pharmacy_rounded, size: 18),
+              label: Text(
+                actionLabel,
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -750,4 +980,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+}
+
+// ── Simple data holder for quick-action items ────────────────────────────────
+class _QA {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _QA(this.icon, this.label, this.color, this.onTap);
 }

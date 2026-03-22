@@ -130,14 +130,24 @@ class DoctorCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          doctor.name,
-          style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1A1A2E)),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                doctor.name,
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A2E)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (doctor.isVerified) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.verified_rounded, size: 15, color: _primary),
+            ],
+          ],
         ),
         const SizedBox(height: 3),
         Text(
@@ -163,44 +173,18 @@ class DoctorCard extends StatelessWidget {
   }
 
   Widget _infoRow() {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      children: [
-        if (doctor.experience > 0)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE3F2FD),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text('${doctor.experience} yrs exp',
-                style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF1565C0),
-                    fontWeight: FontWeight.w600)),
-          ),
-        if (doctor.isVerified)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.verified_rounded, size: 11, color: _primary),
-                SizedBox(width: 3),
-                Text('Verified',
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: _primary,
-                        fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
-      ],
+    if (doctor.experience <= 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE3F2FD),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text('${doctor.experience} yrs exp',
+          style: const TextStyle(
+              fontSize: 10,
+              color: Color(0xFF1565C0),
+              fontWeight: FontWeight.w600)),
     );
   }
 

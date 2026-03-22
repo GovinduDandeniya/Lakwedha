@@ -6,7 +6,7 @@ import { PageSkeleton } from '@/components/admin/LoadingSkeleton';
 import {
     CheckCircle, XCircle, Search, Stethoscope,
     Phone, MapPin, CreditCard, Building2, Clock,
-    ChevronDown, ChevronUp,
+    ChevronDown, ChevronUp, BadgeCheck,
 } from 'lucide-react';
 
 interface Hospital {
@@ -212,7 +212,12 @@ export default function DoctorsPage() {
                                                 {initials(doc)}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-gray-800">{displayName(doc)}</p>
+                                                <p className="font-medium text-gray-800 flex items-center gap-1">
+                                                    {displayName(doc)}
+                                                    {doc.status === 'APPROVED' && (
+                                                        <BadgeCheck className="h-4 w-4 text-green-500 shrink-0" />
+                                                    )}
+                                                </p>
                                                 <p className="text-xs text-gray-400">{doc.email}</p>
                                             </div>
                                         </div>

@@ -148,12 +148,23 @@ class _BookingScreenState extends State<BookingScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          doctor.name,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                doctor.name,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            if (doctor.isVerified) ...[
+                              const SizedBox(width: 6),
+                              const Icon(Icons.verified_rounded,
+                                  size: 18, color: Color(0xFF2E7D32)),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(

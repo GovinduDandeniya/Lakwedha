@@ -31,6 +31,7 @@ const registrationRoutes          = require("./routes/registration.routes");
 const doctorRegistrationRoutes    = require("./routes/doctorRegistrationRoutes");
 const pharmacyRegistrationRoutes  = require("./routes/pharmacyRegistrationRoutes");
 const pharmacyOperationsRoutes    = require("./routes/pharmacyRoutes");   // prescription management
+const pharmacyRequestRoutes       = require("./routes/pharmacyRequestRoutes");
 const orderRoutes                 = require("./routes/orderRoutes");       // order lifecycle
 const adminRoutes                 = require("./routes/admin.routes");      // admin auth (login/register)
 const adminManagementRoutes       = require("./routes/adminRoutes");        // admin dashboard (analytics, doctors, etc.)
@@ -965,6 +966,8 @@ app.use("/api/v1/forgot-password",  forgotPasswordRoutes);
 app.use("/api/v1/doctors",          doctorRegistrationRoutes);
 app.use("/api/v1/pharmacy",         pharmacyRegistrationRoutes);   // register / login / approve / reject
 app.use("/api/v1/pharmacy",         pharmacyOperationsRoutes);     // prescriptions management
+app.use("/api/v1/pharmacy",         pharmacyRequestRoutes);        // patient->pharmacy request flow
+app.use("/api/pharmacy-registration", pharmacyRegistrationRoutes);  // legacy alias for older web pages
 app.use("/api/v1/orders",           orderRoutes);                  // order lifecycle
 
 // ── Doctor channeling routes ──────────────────────────────────────────────────

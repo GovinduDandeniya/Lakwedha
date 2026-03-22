@@ -6,6 +6,13 @@ import { useNavigate } from 'react-router-dom';
 const PharmacyApprovedPage = () => {
     const navigate = useNavigate();
 
+    // If arriving here after successful login (token already stored), go straight to dashboard
+    React.useEffect(() => {
+        if (localStorage.getItem('pharmacy_token')) {
+            navigate('/pharmacy/dashboard', { replace: true });
+        }
+    }, [navigate]);
+
     const handleBackToLogin = () => {
         localStorage.removeItem('pharmacy_token');
         localStorage.removeItem('pharmacy_user');
@@ -34,7 +41,7 @@ const PharmacyApprovedPage = () => {
 
                     <Box sx={{ bgcolor: '#E8F5E9', border: '1px solid #C8E6C9', borderRadius: 2, p: 2.5, mb: 4 }}>
                         <Typography variant="body2" color="#2E7D32">
-                            You can now log in to access your pharmacy dashboard and start managing prescriptions and orders.
+                            Log in to access your pharmacy dashboard and start managing prescriptions and orders.
                         </Typography>
                     </Box>
 

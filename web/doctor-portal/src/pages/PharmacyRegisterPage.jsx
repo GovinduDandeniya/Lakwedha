@@ -10,7 +10,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import SRI_LANKA_LOCATIONS from '../utils/sriLankaLocations';
 
-const PHARMACY_API = 'http://localhost:5000/api/pharmacy-registration';
+const API_ROOT =
+    process.env.REACT_APP_API_ROOT ||
+    (process.env.REACT_APP_API_URL
+        ? process.env.REACT_APP_API_URL.replace(/\/api\/v1\/?$/, '')
+        : 'http://localhost:5000');
+const PHARMACY_API = `${API_ROOT}/api/v1/pharmacy`;
 
 const ACCOUNT_TYPES = ['Savings', 'Current'];
 
@@ -131,7 +136,14 @@ const PharmacyRegisterPage = () => {
             });
             navigate('/pharmacy/pending');
         } catch (err) {
-            setError(err?.response?.data?.message || 'Registration failed. Please try again.');
+            const serverMessage = err?.response?.data?.message || err?.response?.data?.error;
+            if (serverMessage) {
+                setError(serverMessage);
+            } else if (err?.code === 'ERR_NETWORK') {
+                setError('Cannot connect to server. Please check backend is running and API URL configuration.');
+            } else {
+                setError('Registration failed. Please try again.');
+            }
         } finally {
             setLoading(false);
         }

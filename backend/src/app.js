@@ -36,6 +36,22 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: true })); // needed for PayHere notifications
 app.use(morgan('combined')); // Request logging
 
+// Basic health routes for quick API checks from browser/tools
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'Lakwedha backend is running' });
+});
+
+app.get('/api', (req, res) => {
+  res.json({ success: true, message: 'Lakwedha API root' });
+});
+
+app.get('/api/v1', (req, res) => {
+  res.json({ success: true, message: 'Lakwedha API v1 root' });
+});
+
+// Serve uploaded files (prescriptions, etc.) as static assets
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 const userRoutes = require('./routes/user.routes');
 app.use('/api/users', userRoutes);
 
@@ -47,6 +63,9 @@ app.use('/api/auth', registrationRoutes);
 
 const pharmacyRoutes = require('./routes/pharmacyRoutes');
 app.use('/api/pharmacy', pharmacyRoutes);
+
+const pharmacyRequestRoutes = require('./routes/pharmacyRequestRoutes');
+app.use('/api/v1/pharmacy', pharmacyRequestRoutes);
 
 const pharmacyRegistrationRoutes = require('./routes/pharmacyRegistrationRoutes');
 app.use('/api/pharmacy-registration', pharmacyRegistrationRoutes);
