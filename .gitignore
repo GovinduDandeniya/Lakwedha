@@ -29,3 +29,13 @@ audit_out.txt
 analysis_results.txt
 errors.txt
 run_error.txt
+
+# IDE folders
+.idea/
+.vscode/
+
+# Machine-specific package files
+package-*.json
+package-lock-*.json
+!package.json
+!package-lock.json
