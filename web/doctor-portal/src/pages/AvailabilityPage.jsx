@@ -7,7 +7,6 @@ import {
 import {
   Add, CalendarMonth, EventAvailable, Cancel, Edit, Close,
   ChevronLeft, ChevronRight, CheckCircle, Pending, Block,
-  NotificationsActive, NotificationsOff,
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import api from '../services/api';
@@ -22,6 +21,13 @@ const STATUS_CONFIG = {
   completed: { label: 'Completed', color: 'info'    },
   cancelled: { label: 'Cancelled', color: 'error'   },
 };
+
+const HOSPITALS = [
+  'Lakwedha Ayurveda Hospital - Colombo',
+  'Lakwedha Ayurveda Hospital - Kandy',
+  'Lakwedha Ayurveda Hospital - Galle',
+  'Lakwedha Wellness Center - Negombo',
+];
 
 const EMPTY_FORM = {
   hospitalName: '',
@@ -60,11 +66,10 @@ function StatusChip({ status }) {
   return <Chip label={cfg.label} color={cfg.color} size="small" />;
 }
 
-function SessionCard({ session, onEdit, onCancel, onClose, onToggleExtra }) {
-  const canEdit        = session.status === 'open' || session.status === 'full';
-  const canCancel      = session.status === 'open' || session.status === 'full';
-  const canClose       = session.status === 'open';
-  const canToggleExtra = session.status === 'open' || session.status === 'full';
+function SessionCard({ session, onEdit, onCancel, onClose }) {
+  const canEdit   = session.status === 'open' || session.status === 'full';
+  const canCancel = session.status === 'open' || session.status === 'full';
+  const canClose  = session.status === 'open';
 
   return (
     <Paper
@@ -90,31 +95,9 @@ function SessionCard({ session, onEdit, onCancel, onClose, onToggleExtra }) {
           {session.note && (
             <Typography variant="caption" color="text.secondary">{session.note}</Typography>
           )}
-          {session.status === 'cancelled' && session.cancellationCharge > 0 && (
-            <Chip
-              label={`Cancellation charge: LKR ${session.cancellationCharge.toLocaleString()}`}
-              size="small"
-              sx={{ mt: 0.5, bgcolor: '#FFF3E0', color: '#E65100', fontWeight: 700, fontSize: 11, border: '1px solid #FFB74D' }}
-            />
-          )}
         </Box>
         <Box display="flex" alignItems="center" gap={1}>
           <StatusChip status={session.status} />
-          {canToggleExtra && (
-            <Tooltip title={session.extraRequestsEnabled
-              ? 'Disable extra appointment requests'
-              : 'Enable extra appointment requests'}>
-              <IconButton
-                size="small"
-                onClick={() => onToggleExtra(session)}
-                sx={{ color: session.extraRequestsEnabled ? '#2E7D32' : '#BDBDBD' }}
-              >
-                {session.extraRequestsEnabled
-                  ? <NotificationsActive fontSize="small" />
-                  : <NotificationsOff fontSize="small" />}
-              </IconButton>
-            </Tooltip>
-          )}
           {canEdit && (
             <Tooltip title="Edit">
               <IconButton size="small" onClick={() => onEdit(session)}><Edit fontSize="small" /></IconButton>
@@ -132,28 +115,6 @@ function SessionCard({ session, onEdit, onCancel, onClose, onToggleExtra }) {
           )}
         </Box>
       </Box>
-      {canToggleExtra && (
-        <Box sx={{ mt: 1 }}>
-          <Chip
-            size="small"
-            icon={session.extraRequestsEnabled
-              ? <NotificationsActive sx={{ fontSize: '14px !important' }} />
-              : <NotificationsOff sx={{ fontSize: '14px !important' }} />}
-            label={session.extraRequestsEnabled
-              ? 'Extra requests ON — patients can request when session is full'
-              : 'Extra requests OFF'}
-            onClick={() => onToggleExtra(session)}
-            sx={{
-              fontSize: 11, fontWeight: 600, cursor: 'pointer',
-              bgcolor: session.extraRequestsEnabled ? '#E8F5E9' : '#F5F5F5',
-              color: session.extraRequestsEnabled ? '#2E7D32' : '#9E9E9E',
-              border: '1px solid',
-              borderColor: session.extraRequestsEnabled ? '#A5D6A7' : '#E0E0E0',
-              '&:hover': { bgcolor: session.extraRequestsEnabled ? '#C8E6C9' : '#EEEEEE' },
-            }}
-          />
-        </Box>
-      )}
     </Paper>
   );
 }
@@ -279,11 +240,9 @@ export default function AvailabilityPage() {
   const [dayDialog, setDayDialog]     = useState(null);     // { day, sessions }
 
   // form state
-  const [form, setForm]         = useState(EMPTY_FORM);
-  const [saving, setSaving]     = useState(false);
-  const [errors, setErrors]     = useState({});
-  const [myHospitals, setMyHospitals] = useState([]);
-  const [myFee, setMyFee]       = useState(0);
+  const [form, setForm]     = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const todayStr = dayjs().format('YYYY-MM-DD');
 
@@ -302,20 +261,7 @@ export default function AvailabilityPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchSessions();
-    const interval = setInterval(fetchSessions, 60_000);
-    return () => clearInterval(interval);
-  }, [fetchSessions]);
-
-  useEffect(() => {
-    api.get('/doctor-channeling/doctors/me/hospitals')
-      .then(res => setMyHospitals(res.data.hospitals || []))
-      .catch(() => setMyHospitals([]));
-    api.get('/doctor-channeling/doctors/me/fee')
-      .then(res => setMyFee(res.data.consultationFee || 0))
-      .catch(() => setMyFee(0));
-  }, []);
+  useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
   // ── Summary counts ───────────────────────────────────────────────────────
 
@@ -409,9 +355,8 @@ export default function AvailabilityPage() {
       if (type === 'cancel') {
         const res = await api.patch(`/channeling-sessions/${session._id}/cancel`, {});
         const affected = res?.data?.affectedAppointments ?? 0;
-        const charge   = res?.data?.cancellationCharge ?? 0;
         toast.success(affected > 0
-          ? `Session cancelled. ${affected} patient(s) notified. Cancellation charge: LKR ${charge.toLocaleString()}.`
+          ? `Session cancelled. ${affected} patient appointment(s) cancelled and notified.`
           : 'Session cancelled.');
       } else {
         await api.patch(`/channeling-sessions/${session._id}/close`, {});
@@ -424,19 +369,6 @@ export default function AvailabilityPage() {
       toast.error(err?.response?.data?.message || 'Action failed');
     } finally {
       setSaving(false);
-    }
-  };
-
-  // ── Toggle extra requests ─────────────────────────────────────────────────
-
-  const handleToggleExtra = async (session) => {
-    try {
-      const res = await api.patch(`/channeling-sessions/${session._id}/extra-requests/toggle`, {});
-      const enabled = res.data.extraRequestsEnabled;
-      setSessions(prev => prev.map(s => s._id === session._id ? { ...s, extraRequestsEnabled: enabled } : s));
-      toast.success(enabled ? 'Extra appointment requests enabled' : 'Extra appointment requests disabled');
-    } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to update setting');
     }
   };
 
@@ -541,7 +473,6 @@ export default function AvailabilityPage() {
                     onEdit={openEdit}
                     onCancel={sess => openConfirm('cancel', sess)}
                     onClose={sess => openConfirm('close', sess)}
-                    onToggleExtra={handleToggleExtra}
                   />
                 ))}
               </Box>
@@ -563,10 +494,7 @@ export default function AvailabilityPage() {
                 onChange={e => setForm(f => ({ ...f, hospitalName: e.target.value }))}
                 error={!!errors.hospitalName} helperText={errors.hospitalName}
               >
-                {myHospitals.length === 0
-                  ? <MenuItem disabled value="">No hospitals in your profile</MenuItem>
-                  : myHospitals.map(h => <MenuItem key={h.name} value={h.name}>{h.name}</MenuItem>)
-                }
+                {HOSPITALS.map(h => <MenuItem key={h} value={h}>{h}</MenuItem>)}
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -628,10 +556,7 @@ export default function AvailabilityPage() {
                 onChange={e => setForm(f => ({ ...f, hospitalName: e.target.value }))}
                 error={!!errors.hospitalName} helperText={errors.hospitalName}
               >
-                {myHospitals.length === 0
-                  ? <MenuItem disabled value="">No hospitals in your profile</MenuItem>
-                  : myHospitals.map(h => <MenuItem key={h.name} value={h.name}>{h.name}</MenuItem>)
-                }
+                {HOSPITALS.map(h => <MenuItem key={h} value={h}>{h}</MenuItem>)}
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -686,36 +611,11 @@ export default function AvailabilityPage() {
           {confirmAction?.type === 'cancel' ? 'Cancel Session' : 'Close Booking'}
         </DialogTitle>
         <DialogContent>
-          {confirmAction?.type === 'cancel' ? (() => {
-            const sess       = confirmAction.session;
-            const booked     = sess?.bookedCount ?? 0;
-            const hospCharge = sess?.hospitalCharge ?? 0;
-            const channelingFeePerApt   = Math.round((myFee + hospCharge) * 0.10);
-            const chargePerApt          = Math.round(channelingFeePerApt * 0.06);
-            const totalCharge           = chargePerApt * booked;
-            return (
-              <Box>
-                <Typography variant="body2" sx={{ mb: booked > 0 ? 2 : 0 }}>
-                  Are you sure you want to cancel this session? This cannot be undone.
-                </Typography>
-                {booked > 0 && (
-                  <Box sx={{ bgcolor: '#FFF3E0', border: '1.5px solid #FFB74D', borderRadius: 2, p: 1.5 }}>
-                    <Typography variant="caption" fontWeight={700} sx={{ color: '#E65100', display: 'block', mb: 0.5 }}>
-                      Cancellation Charge (6% of channeling fee)
-                    </Typography>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption" color="text.secondary">{booked} booked patient(s) × LKR {chargePerApt}</Typography>
-                      <Typography variant="caption" fontWeight={800} sx={{ color: '#E65100' }}>LKR {totalCharge.toLocaleString()}</Typography>
-                    </Box>
-                  </Box>
-                )}
-              </Box>
-            );
-          })() : (
-            <Typography variant="body2">
-              Close booking for this session? No new appointments will be accepted.
-            </Typography>
-          )}
+          <Typography variant="body2">
+            {confirmAction?.type === 'cancel'
+              ? 'Are you sure you want to cancel this session? This cannot be undone.'
+              : 'Close booking for this session? No new appointments will be accepted.'}
+          </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Back</Button>
