@@ -4,15 +4,28 @@ node_modules/
 
 # Environment files - NEVER commit these
 .env
-.env.*
 .env.local
 .env.development
 .env.production
+.env.staging
+# NOTE: .env.example is intentionally NOT ignored — it is a safe template
 
 # Firebase service account key - NEVER commit this
 firebase-key.json
 
 # Logs
 logs/
+reports/
 *.log
 npm-debug.log*
+
+# Temp / debug output files
+diff_server.txt
+diff_server_utf8.txt
+git_log.txt
+gitlog.txt
+status.txt
+audit_out.txt
+analysis_results.txt
+errors.txt
+run_error.txt

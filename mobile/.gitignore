@@ -1,3 +1,6 @@
+# Local device-specific env overrides (contains IP address)
+dart_defines.json
+
 # Miscellaneous
 *.class
 *.log

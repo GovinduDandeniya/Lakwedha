@@ -58,7 +58,7 @@ class PaymentService {
           return;
         }
 
-        final res = await dio.post('/orders/$orderId/pay/initiate');
+        final res = await dio.post('/api/v1/orders/$orderId/pay/initiate');
         final paymentData = res.data['data'];
 
         if (paymentData != null) {
@@ -67,7 +67,7 @@ class PaymentService {
           payhere['onCompleted'] = (JSAny? oId) {
             () async {
               try {
-                final confirmRes = await dio.post('/orders/$orderId/pay/confirm');
+                final confirmRes = await dio.post('/api/v1/orders/$orderId/pay/confirm');
                 if (confirmRes.data['success'] == true) {
                   onSuccess();
                 } else {
@@ -107,7 +107,7 @@ class PaymentService {
   }) async {
     final dio = ref.read(dioProvider);
     try {
-      await dio.put('/orders/$orderId/status', data: {
+      await dio.put('/api/v1/orders/$orderId/status', data: {
         'status': 'processing',
         'reason': 'Patient opted for Cash on Delivery',
       });
