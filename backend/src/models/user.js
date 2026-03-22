@@ -12,7 +12,6 @@ const userSchema = new mongoose.Schema(
             unique: true,
             lowercase: true,
         },
-<<<<<<< HEAD
         phone: {
             type: String,
             unique: true,

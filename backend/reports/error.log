@@ -1,4 +1,0 @@
-[2026-03-21 19:08:35] ERROR: Upload error: EMR validation failed: encryptedNotes: Path `encryptedNotes` is required., encryptedTreatment: Path `encryptedTreatment` is required., encryptedDiagnosis: Path `encryptedDiagnosis` is required.
-[2026-03-21 19:08:38] ERROR: Upload error: EMR validation failed: encryptedNotes: Path `encryptedNotes` is required., encryptedTreatment: Path `encryptedTreatment` is required., encryptedDiagnosis: Path `encryptedDiagnosis` is required.
-[2026-03-21 19:08:42] ERROR: Upload error: EMR validation failed: encryptedNotes: Path `encryptedNotes` is required., encryptedTreatment: Path `encryptedTreatment` is required., encryptedDiagnosis: Path `encryptedDiagnosis` is required.
-[2026-03-21 19:10:40] ERROR: Upload error: EMR validation failed: encryptedNotes: Path `encryptedNotes` is required., encryptedTreatment: Path `encryptedTreatment` is required., encryptedDiagnosis: Path `encryptedDiagnosis` is required.

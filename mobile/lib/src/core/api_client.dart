@@ -41,14 +41,17 @@ final _tokenStorage = kIsWeb ? _WebTokenStorage() as _TokenStorage : _NativeToke
 
 // ---------------------------------------------------------------------------
 // Base URL
-// On web (Chrome), use localhost. On device, use local network IP.
+// Resolved from --dart-define=API_URL=http://<host>:5000 at build time.
+// Defaults:
+//   Web / Windows desktop → http://localhost:5000
+//   Android emulator      → http://10.0.2.2:5000  (routes to host machine)
+//   Physical device       → pass --dart-define=API_URL=http://192.168.x.x:5000
 // ---------------------------------------------------------------------------
 String _baseUrl() {
   if (kIsWeb || defaultTargetPlatform == TargetPlatform.windows) {
-    return 'http://localhost:5000/api';
+    return 'http://localhost:5000';
   }
-  // For physical iPhone testing on same WiFi
-  return 'http://172.20.10.12:5000/api';
+  return String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:5000');
 }
 
 final dioProvider = Provider((ref) {

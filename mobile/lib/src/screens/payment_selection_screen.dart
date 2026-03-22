@@ -15,7 +15,7 @@ final _orderProvider =
     FutureProvider.family.autoDispose<Map<String, dynamic>, String>(
   (ref, orderId) async {
     final dio = ref.watch(dioProvider);
-    final response = await dio.get('/orders/$orderId');
+    final response = await dio.get('/api/v1/orders/$orderId');
     return response.data['data'] as Map<String, dynamic>;
   },
 );
