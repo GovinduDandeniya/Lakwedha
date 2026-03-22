@@ -107,3 +107,17 @@ exports.login = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+/* GET ALL PHARMACISTS */
+exports.getAllPharmacists = async (req, res) => {
+    try {
+        const pharmacists = await User.find({ role: { $in: ['pharmacist', 'pharmacy'] } }).select('name email _id province district city address phone');
+        res.json({
+            success: true,
+            data: pharmacists,
+            message: 'Pharmacists fetched successfully',
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};

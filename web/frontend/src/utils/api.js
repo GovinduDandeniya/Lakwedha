@@ -23,9 +23,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       if (typeof window !== 'undefined') {
-        // localStorage.clear();
-        // window.location.href = '/login';
-        console.warn('⚠️ 401 Unauthorized - Dev Redirect Suspended for Debugging');
+        localStorage.clear();
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);
