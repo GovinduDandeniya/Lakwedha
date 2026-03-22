@@ -185,8 +185,8 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'This order has already been paid' });
   }
 
-  const merchantId = process.env.PAYHERE_MERCHANT_ID;
-  const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
+  const merchantId = process.env.PAYHERE_MERCHANT_ID.trim();
+  const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET.trim();
   const orderId = order._id.toString();
   const amount = order.totalAmount.toFixed(2);
   const currency = 'LKR';
@@ -207,18 +207,18 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: {
-      sandbox: process.env.PAYHERE_SANDBOX === 'true',
+      sandbox: process.env.PAYHERE_SANDBOX?.trim() === 'true',
       merchant_id: merchantId,
-      return_url: undefined,
-      cancel_url: undefined,
-      notify_url: `${process.env.BACKEND_URL}/api/orders/pay/notify`,
+      return_url: `${process.env.BACKEND_URL?.trim()}/api/orders/pay/return`,
+      cancel_url: `${process.env.BACKEND_URL?.trim()}/api/orders/pay/cancel`,
+      notify_url: `${process.env.BACKEND_URL?.trim()}/api/orders/pay/notify`,
       order_id: orderId,
       items: 'Ayurvedic Medicines',
       amount: amount,
       currency: currency,
       hash: hash,
       first_name: 'Patient',
-      last_name: '',
+      last_name: 'Patient',
       email: 'patient@lakwedha.com',
       phone: '0771234567',
       address: 'Sri Lanka',

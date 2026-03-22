@@ -83,7 +83,7 @@ exports.getAllPrescriptions = asyncHandler(async (req, res) => {
 exports.getNearbyPharmacies = asyncHandler(async (req, res) => {
     const { province, district, city } = req.query;
 
-    const filter = { role: 'pharmacist' };
+    const filter = { role: 'pharmacy' };
     if (province) filter.province = { $regex: new RegExp(`^${province}$`, 'i') };
     if (district) filter.district = { $regex: new RegExp(`^${district}$`, 'i') };
     if (city)     filter.city     = { $regex: new RegExp(city, 'i') };
