@@ -5,10 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:ravana_app/src/core/api_client.dart';
 import 'package:ravana_app/src/theme/app_theme.dart';
-import 'order_tracking_screen.dart';
 import 'payment_selection_screen.dart';
 
-final patientOrdersProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+/// Patient Orders Screen — shows all orders with live status.
+/// Patients see status badges and can pay for approved unpaid orders.
+
+final patientOrdersProvider =
+    FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final dio = ref.watch(dioProvider);
   final response = await dio.get('/orders');
   return response.data['data'] as List<dynamic>;
@@ -24,35 +27,42 @@ class PatientOrdersScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('My Prescriptions & Orders'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          'My Orders',
+          style: TextStyle(
+              fontWeight: FontWeight.w900, color: AppTheme.primaryColor),
+        ),
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: AppTheme.primaryColor),
         ),
         actions: [
           IconButton(
+            tooltip: 'Refresh',
             onPressed: () {
               HapticFeedback.lightImpact();
               ref.invalidate(patientOrdersProvider);
             },
-            icon: const Icon(Icons.refresh_rounded),
-          )
+            icon: const Icon(Icons.refresh_rounded,
+                color: AppTheme.primaryColor),
+          ),
         ],
       ),
       body: ordersAsync.when(
         data: (orders) {
-          if (orders.isEmpty) {
-            return _buildEmptyState();
-          }
+          if (orders.isEmpty) return _buildEmptyState();
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(patientOrdersProvider),
             color: AppTheme.primaryColor,
             child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics()),
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               itemCount: orders.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              separatorBuilder: (_, __) => const SizedBox(height: 14),
               itemBuilder: (context, index) {
                 final order = orders[index] as Map<String, dynamic>;
                 return _OrderCard(order: order, index: index);
@@ -61,28 +71,7 @@ class PatientOrdersScreen extends ConsumerWidget {
           );
         },
         loading: () => _buildShimmer(),
-        error: (err, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.wifi_off_rounded,
-                    color: Colors.redAccent, size: 48),
-                const SizedBox(height: 16),
-                Text('Failed to fetch records',
-                    style: TextStyle(
-                        color: Colors.red.shade700,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text(err.toString(),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
-            ),
-          ),
-        ),
+        error: (err, _) => _buildErrorState(ref, err),
       ),
     );
   }
@@ -93,17 +82,17 @@ class PatientOrdersScreen extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(28),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              color: AppTheme.primaryColor.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.receipt_long_rounded,
-                size: 56, color: AppTheme.primaryColor),
+                size: 60, color: AppTheme.primaryColor),
           ),
           const SizedBox(height: 24),
           const Text(
-            'No Active Orders',
+            'No Orders Yet',
             style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
@@ -111,11 +100,11 @@ class PatientOrdersScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 40),
+            padding: EdgeInsets.symmetric(horizontal: 48),
             child: Text(
-              'When a doctor issues a prescription, or a pharmacy approves your request, it will appear here.',
+              'When a pharmacy approves your prescription, your order will appear here.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+              style: TextStyle(color: Colors.grey, fontSize: 14, height: 1.5),
             ),
           ),
         ],
@@ -131,12 +120,50 @@ class PatientOrdersScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(20),
         itemCount: 4,
         itemBuilder: (_, __) => Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          height: 160,
+          margin: const EdgeInsets.only(bottom: 14),
+          height: 130,
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-          ),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(WidgetRef ref, Object err) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.wifi_off_rounded,
+                color: Colors.redAccent, size: 52),
+            const SizedBox(height: 20),
+            const Text('Could not load your orders',
+                style: TextStyle(
+                    color: AppTheme.secondaryColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(err.toString(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 28),
+            ElevatedButton.icon(
+              onPressed: () => ref.invalidate(patientOrdersProvider),
+              icon: const Icon(Icons.refresh),
+              label: const Text('RETRY'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -151,193 +178,191 @@ class _OrderCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = order['status'] as String? ?? 'pending';
-    final paymentStatus = order['paymentStatus'] as String? ?? 'pending';
+    final status =
+        (order['status'] as String? ?? 'pending').toLowerCase();
+    final paymentStatus =
+        (order['paymentStatus'] as String? ?? 'pending').toLowerCase();
     final totalAmount = order['totalAmount'] as num? ?? 0;
-    final medicines = order['medicines'] as List<dynamic>? ?? [];
+    final createdAt = order['createdAt'] as String? ?? '';
 
     final isAwaitingPayment =
         status == 'approved' && paymentStatus == 'pending';
 
+    final statusColor = _statusColor(status);
+    final payColor = _paymentColor(paymentStatus);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
+            blurRadius: 14,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.medical_services_rounded,
-                          color: AppTheme.primaryColor, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Prescription Order',
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.secondaryColor)),
-                        Text(
-                            _formatDate(
-                                order['createdAt'] as String? ?? ''),
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade600))
-                      ],
-                    ),
-                  ],
-                ),
-                _buildStatusBadge(status),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 16),
+            // Top row: date + status badge
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${medicines.length} Items Prescribed',
+                    const Text('Prescription Order',
                         style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade600)),
-                    const SizedBox(height: 4),
-                    Text('LKR ${totalAmount.toStringAsFixed(2)}',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.secondaryColor)),
+                    if (createdAt.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatDate(createdAt),
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ],
+                ),
+                _badge(status.toUpperCase(), statusColor),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: Color(0xFFF0F0F0)),
+            const SizedBox(height: 14),
+
+            // Bottom row: amount + payment status + pay button
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'LKR ${totalAmount.toStringAsFixed(2)}',
                         style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
-                            color: AppTheme.primaryColor)),
-                  ],
+                            color: AppTheme.primaryColor),
+                      ),
+                      const SizedBox(height: 4),
+                      _badge(
+                        paymentStatus == 'paid'
+                            ? '✓ PAID'
+                            : paymentStatus == 'failed'
+                                ? '✗ FAILED'
+                                : 'PAYMENT PENDING',
+                        payColor,
+                        small: true,
+                      ),
+                    ],
+                  ),
                 ),
                 if (isAwaitingPayment)
                   ElevatedButton(
                     onPressed: () {
                       HapticFeedback.heavyImpact();
                       Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => PaymentSelectionScreen(
-                                  orderId: order['_id'])));
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PaymentSelectionScreen(
+                            orderId: order['_id'] as String,
+                          ),
+                        ),
+                      ).then((_) {
+                        // Refresh list when returning from payment
+                        ref.invalidate(patientOrdersProvider);
+                      });
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.accentColor,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(14)),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 12),
+                          horizontal: 22, vertical: 14),
                     ),
                     child: const Text('Pay Now',
                         style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w800)),
-                  )
-                else
-                  ElevatedButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) =>
-                                  OrderTrackingScreen(orderId: order['_id'])));
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          AppTheme.primaryColor.withValues(alpha: 0.1),
-                      foregroundColor: AppTheme.primaryColor,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                    ),
-                    child: const Text('Track Order',
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.bold)),
+                            fontSize: 13, fontWeight: FontWeight.w800)),
                   ),
               ],
-            )
+            ),
           ],
         ),
       ),
-    ).animate(delay: Duration(milliseconds: 100 * index)).fadeIn().slideY(
-        begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuad);
+    ).animate(
+        delay: Duration(milliseconds: 60 * index)
+    ).fadeIn().slideY(
+        begin: 0.06,
+        end: 0,
+        duration: 300.ms,
+        curve: Curves.easeOut);
   }
 
-  Widget _buildStatusBadge(String status) {
-    Color color;
-    switch (status.toLowerCase()) {
-      case 'approved':
-      case 'pending':
-        color = Colors.orange;
-        break;
-      case 'processing':
-        color = Colors.blue;
-        break;
-      case 'shipped':
-        color = Colors.purple;
-        break;
-      case 'completed':
-        color = AppTheme.primaryColor;
-        break;
-      case 'cancelled':
-      case 'failed':
-      case 'rejected':
-        color = Colors.red;
-        break;
-      default:
-        color = Colors.grey;
-    }
+  Widget _badge(String label, Color color, {bool small = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: EdgeInsets.symmetric(
+          horizontal: small ? 8 : 10, vertical: small ? 3 : 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color.withValues(alpha: 0.12),
         border: Border.all(color: color.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        status.toUpperCase(),
+        label,
         style: TextStyle(
             color: color,
-            fontSize: 10,
+            fontSize: small ? 9 : 10,
             fontWeight: FontWeight.w900,
-            letterSpacing: 0.5),
+            letterSpacing: 0.4),
       ),
     );
   }
 
-  String _formatDate(String isoString) {
-    if (isoString.isEmpty) return 'Unknown Date';
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'approved':
+        return Colors.orange;
+      case 'processing':
+        return Colors.blue;
+      case 'shipped':
+        return Colors.purple;
+      case 'completed':
+        return AppTheme.primaryColor;
+      case 'cancelled':
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _paymentColor(String status) {
+    switch (status) {
+      case 'paid':
+        return AppTheme.primaryColor;
+      case 'failed':
+        return Colors.red;
+      default:
+        return Colors.orange;
+    }
+  }
+
+  String _formatDate(String iso) {
     try {
-      final date = DateTime.parse(isoString);
-      return '${date.day}/${date.month}/${date.year} at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+      final d = DateTime.parse(iso);
+      return '${d.day}/${d.month}/${d.year}';
     } catch (_) {
-      return isoString;
+      return iso;
     }
   }
 }

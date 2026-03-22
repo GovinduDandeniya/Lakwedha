@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ['user', 'admin', 'pharmacist'],
+            enum: ['user', 'admin', 'pharmacist', 'pharmacy'],
             default: 'user',
         },
         province: { type: String, trim: true },
