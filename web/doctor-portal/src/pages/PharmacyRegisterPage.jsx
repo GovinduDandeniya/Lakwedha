@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Box, Container, Paper, Typography, TextField, Button,
     Alert, Divider, MenuItem, CircularProgress, InputAdornment, IconButton,
@@ -8,13 +8,9 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import SRI_LANKA_LOCATIONS from '../utils/sriLankaLocations';
 
 const PHARMACY_API = 'http://localhost:5000/api/pharmacy-registration';
-
-const PROVINCES = [
-    'Western', 'Central', 'Southern', 'Northern', 'Eastern',
-    'North Western', 'North Central', 'Uva', 'Sabaragamuwa',
-];
 
 const ACCOUNT_TYPES = ['Savings', 'Current'];
 
@@ -54,6 +50,28 @@ const PharmacyRegisterPage = () => {
     });
 
     const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+    const handleProvinceChange = (e) => {
+        setForm((f) => ({ ...f, province: e.target.value, district: '', city: '' }));
+    };
+
+    const handleDistrictChange = (e) => {
+        setForm((f) => ({ ...f, district: e.target.value, city: '' }));
+    };
+
+    const provinces = useMemo(() => SRI_LANKA_LOCATIONS.map((p) => p.province), []);
+
+    const districts = useMemo(() => {
+        const found = SRI_LANKA_LOCATIONS.find((p) => p.province === form.province);
+        return found ? found.districts.map((d) => d.name) : [];
+    }, [form.province]);
+
+    const cities = useMemo(() => {
+        const foundProvince = SRI_LANKA_LOCATIONS.find((p) => p.province === form.province);
+        if (!foundProvince) return [];
+        const foundDistrict = foundProvince.districts.find((d) => d.name === form.district);
+        return foundDistrict ? foundDistrict.cities : [];
+    }, [form.province, form.district]);
 
     const inputSx = {
         '& .MuiOutlinedInput-root': {
@@ -161,18 +179,24 @@ const PharmacyRegisterPage = () => {
                         <SectionTitle>Location</SectionTitle>
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                             <Field label="Province" required>
-                                <TextField fullWidth size="small" select value={form.province} onChange={set('province')} sx={inputSx}>
+                                <TextField fullWidth size="small" select value={form.province} onChange={handleProvinceChange} sx={inputSx}>
                                     <MenuItem value=""><em>Select Province</em></MenuItem>
-                                    {PROVINCES.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+                                    {provinces.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
                                 </TextField>
                             </Field>
                             <Field label="District" required>
-                                <TextField fullWidth size="small" placeholder="e.g. Colombo"
-                                    value={form.district} onChange={set('district')} sx={inputSx} />
+                                <TextField fullWidth size="small" select value={form.district} onChange={handleDistrictChange}
+                                    disabled={!form.province} sx={inputSx}>
+                                    <MenuItem value=""><em>{form.province ? 'Select District' : 'Select Province first'}</em></MenuItem>
+                                    {districts.map((d) => <MenuItem key={d} value={d}>{d}</MenuItem>)}
+                                </TextField>
                             </Field>
                             <Field label="City" required>
-                                <TextField fullWidth size="small" placeholder="e.g. Nugegoda"
-                                    value={form.city} onChange={set('city')} sx={inputSx} />
+                                <TextField fullWidth size="small" select value={form.city} onChange={set('city')}
+                                    disabled={!form.district} sx={inputSx}>
+                                    <MenuItem value=""><em>{form.district ? 'Select City' : 'Select District first'}</em></MenuItem>
+                                    {cities.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                                </TextField>
                             </Field>
                             <Field label="Postal Code" required>
                                 <TextField fullWidth size="small" placeholder="e.g. 10250"
@@ -180,7 +204,7 @@ const PharmacyRegisterPage = () => {
                             </Field>
                             <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
                                 <Field label="Address" required>
-                                    <TextField fullWidth size="small" placeholder="Street address"
+                                    <TextField fullWidth size="small" placeholder="Street address, No., Lane..."
                                         value={form.address} onChange={set('address')} sx={inputSx} />
                                 </Field>
                             </Box>

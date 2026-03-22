@@ -7,6 +7,8 @@ import {
     Search, CalendarToday, Refresh, LocalHospital, People,
 } from '@mui/icons-material';
 import AppointmentList from '../components/appointments/AppointmentList';
+import EMRUploadDialog from '../components/emr/EMRUploadDialog';
+import EMRViewDialog from '../components/emr/EMRViewDialog';
 import api from '../services/api';
 
 const GREEN = '#2E7D32';
@@ -147,6 +149,9 @@ const AppointmentsPage = () => {
     const [loading, setLoading] = useState(true);
     const [hospitalFilter, setHospitalFilter] = useState('all'); // today's hospital quick-filter
 
+    const [uploadTarget, setUploadTarget] = useState(null); // appointment for EMR upload
+    const [viewTarget,   setViewTarget]   = useState(null); // appointment for EMR view
+
     const fetchAppointments = useCallback(async () => {
         setLoading(true);
         try {
@@ -171,9 +176,8 @@ const AppointmentsPage = () => {
         } catch { /* ignore */ }
     };
 
-    // EMR handlers — implementation owned by the EMR module developer
-    const handleViewRecords   = (appointment) => { /* TODO: open EMR view for appointment.patientId */ };
-    const handleUploadRecords = (appointment) => { /* TODO: open EMR upload for appointment.patientId */ };
+    const handleViewRecords   = (appointment) => setViewTarget(appointment);
+    const handleUploadRecords = (appointment) => setUploadTarget(appointment);
 
     // Filtered appointments (search + status)
     const filtered = useMemo(() => {
@@ -181,7 +185,7 @@ const AppointmentsPage = () => {
 
         if (statusFilter !== 'all') {
             if (statusFilter === 'upcoming') {
-                data = data.filter(a => ['upcoming', 'confirmed'].includes(a.status));
+                data = data.filter(a => ['upcoming', 'confirmed', 'cancel_requested'].includes(a.status));
             } else {
                 data = data.filter(a => a.status === statusFilter);
             }
@@ -207,11 +211,13 @@ const AppointmentsPage = () => {
 
     // Status tab counts
     const upcomingCount = appointments.filter(a => ['upcoming','confirmed'].includes(a.status)).length;
+    const cancelRequestedCount = appointments.filter(a => a.status === 'cancel_requested').length;
     const TABS = [
-        { label: 'All',       value: 'all',       count: appointments.length },
-        { label: 'Upcoming',  value: 'upcoming',  count: upcomingCount },
-        { label: 'Completed', value: 'completed', count: appointments.filter(a => a.status === 'completed').length },
-        { label: 'Cancelled', value: 'cancelled', count: appointments.filter(a => a.status === 'cancelled').length },
+        { label: 'All',              value: 'all',              count: appointments.length },
+        { label: 'Upcoming',         value: 'upcoming',         count: upcomingCount },
+        { label: 'Cancel Requested', value: 'cancel_requested', count: cancelRequestedCount },
+        { label: 'Completed',        value: 'completed',        count: appointments.filter(a => a.status === 'completed').length },
+        { label: 'Cancelled',        value: 'cancelled',        count: appointments.filter(a => a.status === 'cancelled').length },
     ];
 
     return (
@@ -421,6 +427,19 @@ const AppointmentsPage = () => {
                     })
                 )}
             </Paper>
+
+        {/* EMR Dialogs */}
+        <EMRUploadDialog
+            open={Boolean(uploadTarget)}
+            appointment={uploadTarget}
+            onClose={() => setUploadTarget(null)}
+            onSuccess={fetchAppointments}
+        />
+        <EMRViewDialog
+            open={Boolean(viewTarget)}
+            appointment={viewTarget}
+            onClose={() => setViewTarget(null)}
+        />
         </Box>
     );
 };

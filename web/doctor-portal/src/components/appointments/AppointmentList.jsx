@@ -11,10 +11,11 @@ import {
 
 /* ── Status colour map ──────────────────────────────────────────────────────── */
 const STATUS = {
-    upcoming:  { color: '#1565C0', bg: '#E3F2FD', label: 'Upcoming'  },
-    confirmed: { color: '#1565C0', bg: '#E3F2FD', label: 'Upcoming'  },
-    completed: { color: '#2E7D32', bg: '#E8F5E9', label: 'Completed' },
-    cancelled: { color: '#C62828', bg: '#FFEBEE', label: 'Cancelled' },
+    upcoming:          { color: '#1565C0', bg: '#E3F2FD', label: 'Upcoming'           },
+    confirmed:         { color: '#1565C0', bg: '#E3F2FD', label: 'Upcoming'           },
+    completed:         { color: '#2E7D32', bg: '#E8F5E9', label: 'Completed'          },
+    cancelled:         { color: '#C62828', bg: '#FFEBEE', label: 'Cancelled'          },
+    cancel_requested:  { color: '#E65100', bg: '#FFF3E0', label: 'Cancel Requested'   },
 };
 
 const buildName = (apt) => {
@@ -53,7 +54,7 @@ const VisitBadge = ({ totalVisits }) =>
 const EMRMenu = ({ appointment, onViewRecords, onUploadRecords }) => {
     const [anchor, setAnchor] = useState(null);
     const open        = Boolean(anchor);
-    const isCancelled = appointment.status === 'cancelled';
+    const isCancelled = appointment.status === 'cancelled' || appointment.status === 'cancel_requested';
     const isReturning = appointment.totalVisits > 0;
 
     if (isCancelled) return <Typography fontSize={12} color="text.disabled">—</Typography>;

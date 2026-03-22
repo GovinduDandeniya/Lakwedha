@@ -65,7 +65,7 @@ const SPECIALIZATIONS = [
     'Herbal Medicine',
 ];
 
-const emptyHospital = () => ({ name: '', location: '', startTime: '', maxAppointments: '' });
+const emptyHospital = () => ({ name: '', location: '', city: '', type: 'hospital', contactNumber: '' });
 
 const SL_BANKS = [
     'Bank of Ceylon',
@@ -181,10 +181,10 @@ const RegisterPage = () => {
 
         const hErrs = hospitals.map((h) => {
             const e = {};
-            if (!h.name.trim()) e.name = 'Hospital name is required';
-            if (!h.location.trim()) e.location = 'Location is required';
-            if (h.maxAppointments && isNaN(Number(h.maxAppointments)))
-                e.maxAppointments = 'Must be a number';
+            if (!h.name.trim()) e.name = 'Hospital / Clinic name is required';
+            if (!h.location.trim()) e.location = 'Address / Location is required';
+            if (h.contactNumber && !MOBILE_REGEX.test(h.contactNumber))
+                e.contactNumber = 'Enter a valid 10-digit number';
             return e;
         });
 
@@ -226,10 +226,11 @@ const RegisterPage = () => {
                     accountType: form.accountType,
                 },
                 hospitals: hospitals.map((h) => ({
-                    name: h.name,
-                    location: h.location,
-                    startTime: h.startTime || undefined,
-                    maxAppointments: h.maxAppointments ? Number(h.maxAppointments) : undefined,
+                    name: h.name.trim(),
+                    location: h.location.trim(),
+                    city: h.city.trim(),
+                    type: h.type || 'hospital',
+                    contactNumber: h.contactNumber.trim(),
                 })),
                 password: form.password,
             });
@@ -380,7 +381,7 @@ const RegisterPage = () => {
                                 <Grid container spacing={2}>
                                     <Grid item xs={12} sm={6}>
                                         <TextField
-                                            fullWidth size="small" label="Hospital Name" name="name"
+                                            fullWidth size="small" label="Hospital / Clinic Name *" name="name"
                                             value={hospital.name}
                                             onChange={(e) => handleHospitalChange(index, e)}
                                             error={!!hospitalErrors[index]?.name}
@@ -389,11 +390,39 @@ const RegisterPage = () => {
                                     </Grid>
                                     <Grid item xs={12} sm={6}>
                                         <TextField
-                                            fullWidth size="small" label="Hospital Location" name="location"
+                                            select fullWidth size="small" label="Type *" name="type"
+                                            value={hospital.type}
+                                            onChange={(e) => handleHospitalChange(index, e)}
+                                        >
+                                            <MenuItem value="hospital">Hospital</MenuItem>
+                                            <MenuItem value="clinic">Clinic</MenuItem>
+                                        </TextField>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            fullWidth size="small" label="Address / Location *" name="location"
                                             value={hospital.location}
                                             onChange={(e) => handleHospitalChange(index, e)}
                                             error={!!hospitalErrors[index]?.location}
                                             helperText={hospitalErrors[index]?.location}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            fullWidth size="small" label="City" name="city"
+                                            value={hospital.city}
+                                            onChange={(e) => handleHospitalChange(index, e)}
+                                            placeholder="e.g. Colombo"
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            fullWidth size="small" label="Hospital Contact Number" name="contactNumber"
+                                            value={hospital.contactNumber}
+                                            onChange={(e) => handleHospitalChange(index, e)}
+                                            placeholder="07XXXXXXXX"
+                                            error={!!hospitalErrors[index]?.contactNumber}
+                                            helperText={hospitalErrors[index]?.contactNumber}
                                         />
                                     </Grid>
                                 </Grid>

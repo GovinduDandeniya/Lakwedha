@@ -40,4 +40,32 @@ class AppointmentProvider extends ChangeNotifier {
       return null;
     }
   }
+
+  Future<String?> requestCancellation(String appointmentId, String reason) async {
+    try {
+      await _apiService.requestCancellation(appointmentId, reason);
+      await loadAppointments();
+      return null; // success
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  /// Returns null on success, or an error message string on failure.
+  Future<String?> submitExtraRequest({
+    required String sessionId,
+    required String reason,
+    String? urgencyNote,
+  }) async {
+    try {
+      await _apiService.submitExtraRequest(
+        sessionId: sessionId,
+        reason: reason,
+        urgencyNote: urgencyNote,
+      );
+      return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
+  }
 }

@@ -7,6 +7,7 @@ import {
     CalendarCheck, Clock, CheckCircle2, XCircle,
     RefreshCw, AlertCircle, Search, Users,
     Building2, Hash, PhoneCall, ReceiptText, X,
+    AlertTriangle, ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -67,12 +68,13 @@ function fmtDateTime(iso: string) {
 /* ─── Status badge helpers ─── */
 
 const APPT_STATUS: Record<string, string> = {
-    pending:     'bg-amber-100 text-amber-700',
-    confirmed:   'bg-blue-100 text-blue-700',
-    completed:   'bg-green-100 text-green-700',
-    cancelled:   'bg-red-100 text-red-700',
-    rescheduled: 'bg-purple-100 text-purple-700',
-    'no-show':   'bg-gray-100 text-gray-500',
+    pending:           'bg-amber-100 text-amber-700',
+    confirmed:         'bg-blue-100 text-blue-700',
+    completed:         'bg-green-100 text-green-700',
+    cancelled:         'bg-red-100 text-red-700',
+    cancel_requested:  'bg-orange-100 text-orange-700',
+    rescheduled:       'bg-purple-100 text-purple-700',
+    'no-show':         'bg-gray-100 text-gray-500',
 };
 
 const SESSION_STATUS: Record<string, string> = {
@@ -616,10 +618,308 @@ function ChannelingSessionsTab() {
     );
 }
 
+/* ─── Cancellation Requests Tab ─── */
+
+function CancellationRequestsTab() {
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading]           = useState(true);
+    const [search, setSearch]             = useState('');
+
+    // Approve state
+    const [approveTarget, setApproveTarget]   = useState<Appointment | null>(null);
+    const [approveLoading, setApproveLoading] = useState(false);
+    const [approveResult, setApproveResult]   = useState<CancelResult | null>(null);
+
+    // Reject state
+    const [rejectTarget, setRejectTarget]   = useState<Appointment | null>(null);
+    const [rejectReason, setRejectReason]   = useState('');
+    const [rejectLoading, setRejectLoading] = useState(false);
+
+    const fetchRequests = () => {
+        appointmentApi
+            .getAll({ status: 'cancel_requested' })
+            .then((res) => {
+                const list = Array.isArray(res) ? res : (res as { data?: Appointment[] }).data ?? [];
+                setAppointments(list as Appointment[]);
+            })
+            .catch(() => {})
+            .finally(() => setLoading(false));
+    };
+
+    useEffect(() => { fetchRequests(); }, []);
+
+    const filtered = search
+        ? appointments.filter((a) => {
+            const q = search.toLowerCase();
+            return (
+                patientName(a.patientId).toLowerCase().includes(q) ||
+                a.doctorId?.name?.toLowerCase().includes(q) ||
+                a.appointmentId?.toLowerCase().includes(q)
+            );
+        })
+        : appointments;
+
+    const handleApprove = async () => {
+        if (!approveTarget) return;
+        setApproveLoading(true);
+        try {
+            const res = await appointmentApi.approveCancel(approveTarget._id);
+            setApproveResult({
+                cancellationFee: (res as { cancellationFee: number }).cancellationFee,
+                refundAmount: (res as { refundAmount: number }).refundAmount,
+                totalAmount: (res as { totalAmount: number }).totalAmount,
+            });
+            fetchRequests();
+        } catch { /* silent */ }
+        finally { setApproveLoading(false); }
+    };
+
+    const handleReject = async () => {
+        if (!rejectTarget || !rejectReason.trim()) return;
+        setRejectLoading(true);
+        try {
+            await appointmentApi.rejectCancel(rejectTarget._id, rejectReason.trim());
+            setRejectTarget(null);
+            setRejectReason('');
+            fetchRequests();
+        } catch { /* silent */ }
+        finally { setRejectLoading(false); }
+    };
+
+    if (loading) return <PageSkeleton statCount={1} statGridClass="sm:grid-cols-1" tableRows={5} tableCols={7} />;
+
+    return (
+        <div className="space-y-6">
+            {/* Stats */}
+            <div className="rounded-xl bg-white p-5 shadow-sm flex items-center gap-4 max-w-xs">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-orange-100">
+                    <AlertTriangle className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                    <p className="text-sm text-gray-500">Pending Requests</p>
+                    <p className="text-2xl font-bold text-green-800">{appointments.length}</p>
+                </div>
+            </div>
+
+            {/* Search */}
+            <div className="flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-48">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Search patient, doctor, Appt ID…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full rounded-lg border px-4 py-2 pl-10 text-sm"
+                    />
+                </div>
+                <span className="text-sm text-gray-500">{filtered.length} request(s)</span>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
+                <table className="w-full text-left text-sm">
+                    <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
+                        <tr>
+                            <th className="px-6 py-3">Appt ID</th>
+                            <th className="px-6 py-3">Patient</th>
+                            <th className="px-6 py-3">Doctor</th>
+                            <th className="px-6 py-3">Slot Time</th>
+                            <th className="px-6 py-3">Reason</th>
+                            <th className="px-6 py-3">Payment</th>
+                            <th className="px-6 py-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                        {filtered.length === 0 && (
+                            <tr>
+                                <td colSpan={7} className="px-6 py-10 text-center text-gray-400">
+                                    <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-green-400" />
+                                    No pending cancellation requests
+                                </td>
+                            </tr>
+                        )}
+                        {filtered.map((apt) => (
+                            <tr key={apt._id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4">
+                                    <span className="font-mono text-xs text-gray-500">{apt.appointmentId || apt._id.slice(-8)}</span>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <p className="font-medium text-gray-800">{patientName(apt.patientId)}</p>
+                                    <p className="text-xs text-gray-400">{apt.patientId?.phone || apt.patientId?.email || '—'}</p>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <p className="text-gray-700">{apt.doctorId?.name || '—'}</p>
+                                    <p className="text-xs text-gray-400">{apt.doctorId?.specialization}</p>
+                                </td>
+                                <td className="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
+                                    {apt.slotTime ? fmtDateTime(apt.slotTime) : '—'}
+                                </td>
+                                <td className="px-6 py-4 max-w-[200px]">
+                                    <p className="text-sm text-gray-700 truncate">
+                                        {(apt as unknown as { cancellation?: { reason?: string } }).cancellation?.reason || apt.cancellationReason || '—'}
+                                    </p>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <StatusBadge status={apt.paymentStatus} map={PAYMENT_STATUS} />
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                        <button
+                                            onClick={() => { setApproveTarget(apt); setApproveResult(null); }}
+                                            className="inline-flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100 transition"
+                                        >
+                                            <ThumbsUp className="h-3.5 w-3.5" /> Approve
+                                        </button>
+                                        <button
+                                            onClick={() => { setRejectTarget(apt); setRejectReason(''); }}
+                                            className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
+                                        >
+                                            <ThumbsDown className="h-3.5 w-3.5" /> Reject
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* ── Approve Dialog ── */}
+            {approveTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+                        <div className="flex items-center justify-between border-b px-6 py-4">
+                            <div className="flex items-center gap-2">
+                                <ThumbsUp className="h-5 w-5 text-green-600" />
+                                <h2 className="font-semibold text-gray-800">Approve Cancellation</h2>
+                            </div>
+                            <button onClick={() => setApproveTarget(null)} className="rounded-full p-1 hover:bg-gray-100">
+                                <X className="h-4 w-4 text-gray-500" />
+                            </button>
+                        </div>
+                        <div className="px-6 py-5 space-y-5">
+                            {approveResult ? (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 text-green-700">
+                                        <CheckCircle2 className="h-5 w-5" />
+                                        <span className="font-medium">Cancellation approved</span>
+                                    </div>
+                                    {approveResult.totalAmount > 0 ? (
+                                        <div className="rounded-xl bg-gray-50 p-4 space-y-2 text-sm">
+                                            <div className="flex justify-between text-gray-600">
+                                                <span>Total paid</span>
+                                                <span className="font-medium">LKR {approveResult.totalAmount.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between text-red-600">
+                                                <span>Cancellation fee (10%)</span>
+                                                <span className="font-medium">− LKR {approveResult.cancellationFee.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between border-t pt-2 text-green-700 font-semibold">
+                                                <span>Refund to patient</span>
+                                                <span>LKR {approveResult.refundAmount.toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-gray-500">No payment was made — no refund required.</p>
+                                    )}
+                                    <button onClick={() => setApproveTarget(null)} className="w-full rounded-xl bg-green-600 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition">
+                                        Done
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="rounded-xl bg-gray-50 p-4 text-sm space-y-1">
+                                        <p className="font-medium text-gray-800">{patientName(approveTarget.patientId)}</p>
+                                        <p className="text-gray-500">{approveTarget.doctorId?.name} · {approveTarget.slotTime ? fmtDateTime(approveTarget.slotTime) : '—'}</p>
+                                        <p className="text-orange-700 font-medium mt-1">
+                                            Reason: {(approveTarget as unknown as { cancellation?: { reason?: string } }).cancellation?.reason || '—'}
+                                        </p>
+                                    </div>
+                                    {approveTarget.paymentStatus === 'paid' && (
+                                        <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm">
+                                            <div className="flex items-start gap-2">
+                                                <ReceiptText className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
+                                                <p className="text-amber-800">A <strong>10% cancellation fee</strong> will be deducted. 90% will be refunded to the patient.</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="flex gap-3">
+                                        <button onClick={() => setApproveTarget(null)} className="flex-1 rounded-xl border py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                            Back
+                                        </button>
+                                        <button
+                                            onClick={handleApprove}
+                                            disabled={approveLoading}
+                                            className="flex-1 rounded-xl bg-green-600 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition disabled:opacity-50"
+                                        >
+                                            {approveLoading ? 'Processing…' : 'Confirm Approval'}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Reject Dialog ── */}
+            {rejectTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+                        <div className="flex items-center justify-between border-b px-6 py-4">
+                            <div className="flex items-center gap-2">
+                                <ThumbsDown className="h-5 w-5 text-red-600" />
+                                <h2 className="font-semibold text-gray-800">Reject Cancellation</h2>
+                            </div>
+                            <button onClick={() => setRejectTarget(null)} className="rounded-full p-1 hover:bg-gray-100">
+                                <X className="h-4 w-4 text-gray-500" />
+                            </button>
+                        </div>
+                        <div className="px-6 py-5 space-y-4">
+                            <div className="rounded-xl bg-gray-50 p-4 text-sm">
+                                <p className="font-medium text-gray-800">{patientName(rejectTarget.patientId)}</p>
+                                <p className="text-gray-500">{rejectTarget.doctorId?.name} · {rejectTarget.slotTime ? fmtDateTime(rejectTarget.slotTime) : '—'}</p>
+                                <p className="text-orange-700 mt-1">
+                                    Patient reason: {(rejectTarget as unknown as { cancellation?: { reason?: string } }).cancellation?.reason || '—'}
+                                </p>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                                    Reason for rejection <span className="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                    value={rejectReason}
+                                    onChange={(e) => setRejectReason(e.target.value)}
+                                    placeholder="e.g. Appointment is within 12 hours, policy does not allow cancellation"
+                                    rows={3}
+                                    className="w-full rounded-lg border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-300"
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={() => setRejectTarget(null)} className="flex-1 rounded-xl border py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                    Back
+                                </button>
+                                <button
+                                    onClick={handleReject}
+                                    disabled={rejectLoading || !rejectReason.trim()}
+                                    className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-medium text-white hover:bg-red-700 transition disabled:opacity-50"
+                                >
+                                    {rejectLoading ? 'Rejecting…' : 'Confirm Rejection'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 /* ─── Page ─── */
 
 export default function AppointmentsPage() {
-    const [tab, setTab] = useState<'appointments' | 'sessions'>('appointments');
+    const [tab, setTab] = useState<'appointments' | 'cancellations' | 'sessions'>('appointments');
 
     return (
         <div className="space-y-6">
@@ -642,6 +942,16 @@ export default function AppointmentsPage() {
                     <Users className="h-4 w-4" /> Patient Appointments
                 </button>
                 <button
+                    onClick={() => setTab('cancellations')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition ${
+                        tab === 'cancellations'
+                            ? 'border-orange-500 text-orange-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    <AlertTriangle className="h-4 w-4" /> Cancellation Requests
+                </button>
+                <button
                     onClick={() => setTab('sessions')}
                     className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition ${
                         tab === 'sessions'
@@ -653,7 +963,9 @@ export default function AppointmentsPage() {
                 </button>
             </div>
 
-            {tab === 'appointments' ? <AppointmentsTab /> : <ChannelingSessionsTab />}
+            {tab === 'appointments' ? <AppointmentsTab /> :
+             tab === 'cancellations' ? <CancellationRequestsTab /> :
+             <ChannelingSessionsTab />}
         </div>
     );
 }

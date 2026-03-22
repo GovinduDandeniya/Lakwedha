@@ -248,6 +248,59 @@ class ApiService {
     throw Exception('Failed to update appointment status');
   }
 
+  // ===================== EXTRA APPOINTMENT REQUESTS =====================
+  /// Patient submits an extra appointment request for a full session.
+  /// [sessionId] is the ChannelingSession _id.
+  Future<Map<String, dynamic>> submitExtraRequest({
+    required String sessionId,
+    required String reason,
+    String? urgencyNote,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}${AppConstants.extraRequestsEndpoint}'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'sessionId': sessionId,
+          'reason': reason,
+          if (urgencyNote != null && urgencyNote.isNotEmpty) 'urgencyNote': urgencyNote,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 || response.statusCode == 201) return data;
+      throw Exception(data['error'] ?? data['message'] ?? 'Failed to submit request');
+    } on SocketException {
+      throw Exception('Cannot reach server. Make sure the backend is running.');
+    } on TimeoutException {
+      throw Exception('Connection timed out. Check your network and try again.');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getMyExtraRequests() async {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.extraRequestsEndpoint}/my'),
+      headers: await _getHeaders(),
+    ).timeout(const Duration(seconds: 15));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return (data['data'] as List).cast<Map<String, dynamic>>();
+    }
+    throw Exception('Failed to load requests');
+  }
+
+  Future<void> requestCancellation(String appointmentId, String reason) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.doctorChannelingBase}/appointments/$appointmentId/cancel-request'),
+      headers: await _getHeaders(),
+      body: json.encode({'reason': reason}),
+    );
+
+    if (response.statusCode != 200) {
+      final data = json.decode(response.body);
+      throw Exception(data['error'] ?? data['message'] ?? 'Cancellation request failed');
+    }
+  }
+
   Future<Map<String, dynamic>> getQueueStatus(String slotId) async {
     final response = await http.get(
       Uri.parse('${AppConstants.baseUrl}${AppConstants.doctorChannelingBase}/appointments/queue/$slotId'),
@@ -262,7 +315,7 @@ class ApiService {
   }
 
   // ===================== NOTIFICATIONS (MongoDB-backed) =====================
-  Future<List<Map<String, dynamic>>> getPatientNotifications() async {
+  Future<Map<String, dynamic>> getPatientNotificationsWithCount() async {
     final response = await http.get(
       Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}'),
       headers: await _getHeaders(),
@@ -270,9 +323,26 @@ class ApiService {
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       final List list = (data['data'] ?? []) as List;
-      return list.cast<Map<String, dynamic>>();
+      return {
+        'notifications': list.cast<Map<String, dynamic>>(),
+        'unreadCount': data['unreadCount'] ?? 0,
+      };
     }
     throw Exception('Failed to load notifications');
+  }
+
+  Future<List<Map<String, dynamic>>> getPatientNotifications() async {
+    final result = await getPatientNotificationsWithCount();
+    return result['notifications'] as List<Map<String, dynamic>>;
+  }
+
+  Future<int> getUnreadNotificationCount() async {
+    try {
+      final result = await getPatientNotificationsWithCount();
+      return result['unreadCount'] as int;
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<void> markNotificationRead(String id) async {
@@ -285,6 +355,13 @@ class ApiService {
   Future<void> markAllNotificationsRead() async {
     await http.patch(
       Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}/read-all'),
+      headers: await _getHeaders(),
+    );
+  }
+
+  Future<void> deleteNotification(String id) async {
+    await http.delete(
+      Uri.parse('${AppConstants.baseUrl}${AppConstants.patientNotificationsEndpoint}/$id'),
       headers: await _getHeaders(),
     );
   }

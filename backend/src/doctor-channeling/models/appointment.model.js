@@ -8,7 +8,7 @@ const appointmentSchema = new mongoose.Schema({
     },
     doctorId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Doctor',
+        ref: 'RegisteredDoctor',
         required: true
     },
     patientId: {
@@ -22,13 +22,21 @@ const appointmentSchema = new mongoose.Schema({
   appointmentNumber: { type: Number, default: null },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no-show'],
+    enum: ['pending', 'confirmed', 'completed', 'cancelled', 'cancel_requested', 'rescheduled', 'no-show'],
     default: 'pending'
   },
   queuePosition: { type: Number },
   symptoms: { type: String, maxlength: 500 },
   notes: { type: String },
   cancellationReason: { type: String },
+  cancellation: {
+    reason:         { type: String },
+    requestedAt:    { type: Date },
+    approvedAt:     { type: Date },
+    rejectedReason: { type: String },
+    refundAmount:   { type: Number },
+    adminId:        { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+  },
   rescheduledFrom: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment' },
   paymentStatus: {
     type: String,

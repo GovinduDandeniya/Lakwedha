@@ -39,6 +39,9 @@ class AppConstants {
   // Change password
   static const String changePasswordEndpoint = '/api/v1/users/change-password';
 
+  // Extra appointment requests (session-full requests to doctor)
+  static const String extraRequestsEndpoint = '/api/v1/doctor-channeling/appointments/extra-requests';
+
   // Notifications
   static const String saveTokenEndpoint      = '/api/v1/save-token';
   static const String notificationsEndpoint  = '/api/v1/notifications';

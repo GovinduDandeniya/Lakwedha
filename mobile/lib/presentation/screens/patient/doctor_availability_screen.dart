@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../data/models/doctor_availability_model.dart';
 import '../../../data/models/doctor_model.dart';
 import 'appointment_registration_screen.dart';
+import '../../../screens/patient/extra_appointment_request_screen.dart';
 
 const Color _primary = Color(0xFF2E7D32);
 const Color _bg = Color(0xFFF4FAF4);
@@ -285,6 +286,7 @@ class DoctorAvailabilityScreen extends StatelessWidget {
   Widget _dateRow(
       BuildContext context, HospitalAvailability hospital, DateSlotSummary slot) {
     final isFull = slot.status == 'full';
+    final canRequest = isFull && slot.extraRequestsEnabled;
     final isLimited = slot.status == 'limited';
 
     final statusColor = isFull
@@ -364,32 +366,69 @@ class DoctorAvailabilityScreen extends StatelessWidget {
             const SizedBox(width: 8),
           ],
 
-          // Book button (colour reflects status)
-          SizedBox(
-            height: 32,
-            child: ElevatedButton(
-              onPressed:
-                  isFull ? null : () => _bookDate(context, hospital, slot),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: buttonColor,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFFE53935),
-                disabledForegroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                isFull ? 'Full' : 'Book',
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w600),
+          // Book / Request button
+          if (canRequest) ...[
+            SizedBox(
+              height: 32,
+              child: OutlinedButton.icon(
+                onPressed: () => _requestExtra(context, hospital, slot),
+                icon: const Icon(Icons.priority_high_rounded, size: 14),
+                label: const Text('Request',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFF57C00),
+                  side: const BorderSide(color: Color(0xFFF57C00)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
               ),
             ),
-          ),
+          ] else ...[
+            SizedBox(
+              height: 32,
+              child: ElevatedButton(
+                onPressed:
+                    isFull ? null : () => _bookDate(context, hospital, slot),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: buttonColor,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFFBDBDBD),
+                  disabledForegroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  isFull ? 'Full' : 'Book',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  void _requestExtra(BuildContext context, HospitalAvailability hospital,
+      DateSlotSummary slot) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ExtraAppointmentRequestScreen(
+          doctorId: availability.doctorId,
+          doctorName: availability.doctorName,
+          hospitalName: hospital.hospitalName,
+          slot: slot,
+        ),
       ),
     );
   }
