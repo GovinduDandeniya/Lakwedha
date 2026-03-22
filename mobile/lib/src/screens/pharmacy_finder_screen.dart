@@ -61,7 +61,7 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
       if (_cityCtrl.text.trim().isNotEmpty) params['city'] = _cityCtrl.text.trim();
 
       final response = await dio.get(
-        '/pharmacy/nearby',
+        '/api/v1/pharmacy/nearby',
         queryParameters: params,
       );
 

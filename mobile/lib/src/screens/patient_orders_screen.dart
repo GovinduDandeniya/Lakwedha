@@ -13,7 +13,7 @@ import 'payment_selection_screen.dart';
 final patientOrdersProvider =
     FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final dio = ref.watch(dioProvider);
-  final response = await dio.get('/orders');
+  final response = await dio.get('/api/v1/orders');
   return response.data['data'] as List<dynamic>;
 });
 
