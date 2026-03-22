@@ -6,11 +6,11 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        earth: '#5D4037',
-        turmeric: '#FFB300',
-        herbal: '#2E7D32',
-        sand: '#FFF8E1',
-        clay: '#D7CCC8',
+        primary: '#0D5C3E',
+        secondary: '#D4AF37',
+        accent: '#28A745',
+        emergency: '#DC3545',
+        background: '#F8F9FA',
       },
     },
   },
