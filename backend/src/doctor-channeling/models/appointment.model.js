@@ -8,7 +8,7 @@ const appointmentSchema = new mongoose.Schema({
     },
     doctorId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        ref: 'RegisteredDoctor',
         required: true
     },
     patientId: {
@@ -16,29 +16,44 @@ const appointmentSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+  slotId: { type: mongoose.Schema.Types.ObjectId },
   slotTime: { type: Date, required: true },
-  status: { 
-    type: String, 
-    enum: ['pending', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no-show'],
+  hospitalName: { type: String, default: null },
+  appointmentNumber: { type: Number, default: null },
+  status: {
+    type: String,
+    enum: ['pending', 'confirmed', 'completed', 'cancelled', 'cancel_requested', 'rescheduled', 'no-show'],
     default: 'pending'
   },
   queuePosition: { type: Number },
   symptoms: { type: String, maxlength: 500 },
   notes: { type: String },
   cancellationReason: { type: String },
+  cancellation: {
+    reason:         { type: String },
+    requestedAt:    { type: Date },
+    approvedAt:     { type: Date },
+    rejectedReason: { type: String },
+    refundAmount:   { type: Number },
+    adminId:        { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+  },
   rescheduledFrom: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment' },
   paymentStatus: {
     type: String,
     enum: ['pending', 'paid', 'refunded'],
     default: 'pending'
   },
+  totalFee: { type: Number, default: 0 },
+  paidAt: { type: Date },
+  cancellationFee: { type: Number, default: 0 },
+  reminderSent: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
 
 // Indexes for faster queries
 appointmentSchema.index({ doctorId: 1, status: 1 });
-appointmentSchema.index({ patientId: 1, date: -1 });
+appointmentSchema.index({ patientId: 1, slotTime: -1 });
 appointmentSchema.index({ slotTime: 1 });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);

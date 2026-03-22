@@ -8,22 +8,29 @@ import {
   Leaf,
   Users,
   Package,
-  Clock,
-  DollarSign,
+  ShoppingCart,
+  CreditCard,
   BarChart3,
   Settings,
+  MapPin,
+  Pill,
+  Building2,
 } from "lucide-react";
+import LakwedhaLogo from "@/components/LakwedhaLogo";
 
 const menu = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { name: "Appointments", href: "/admin/appointments", icon: CalendarCheck },
-  { name: "Practitioners", href: "/admin/doctors", icon: Leaf },
+  { name: "Doctors", href: "/admin/doctors", icon: Leaf },
+  { name: "Pharmacies", href: "/admin/pharmacies", icon: Pill },
   { name: "Patients", href: "/admin/patients", icon: Users },
-  { name: "Treatments", href: "#", icon: Package },
-  { name: "Schedule", href: "#", icon: Clock },
-  { name: "Payments", href: "#", icon: DollarSign },
-  { name: "Analytics", href: "#", icon: BarChart3 },
-  { name: "Settings", href: "#", icon: Settings },
+  { name: "Appointments", href: "/admin/appointments", icon: CalendarCheck },
+  { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { name: "Pharmacy Orders", href: "/admin/pharmacy-orders", icon: Package },
+  { name: "Payments", href: "/admin/payments", icon: CreditCard },
+  { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  { name: "Hospitals / Clinics", href: "/admin/hospitals", icon: Building2 },
+  { name: "Emergency Centers", href: "/admin/emergency-centers", icon: MapPin },
+  { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
 export default function Sidebar() {
@@ -32,12 +39,13 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-gradient-to-b from-green-900 to-green-700 text-white">
       {/* LOGO */}
-      <div className="px-6 py-6">
-        <div className="flex items-center gap-2">
-          <Leaf className="h-6 w-6 text-green-300" />
-          <h1 className="text-xl font-bold">Lakwedha</h1>
-        </div>
-        <p className="mt-1 text-xs text-green-200">Admin Portal</p>
+      <div className="px-6 py-6 border-b border-green-800/50">
+        <LakwedhaLogo
+          size={40}
+          textColor="white"
+          subtitle="Admin Portal"
+          subtitleColor="rgba(187,247,208,0.75)"
+        />
       </div>
 
       {/* MENU */}

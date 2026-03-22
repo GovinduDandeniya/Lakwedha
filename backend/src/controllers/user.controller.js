@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 /* REGISTER */
 exports.register = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, role } = req.body;
 
         if (!name || !email || !password)
             return res.status(400).json({ message: 'All fields required' });
@@ -19,6 +19,7 @@ exports.register = async (req, res) => {
             name,
             email,
             password: hashedPassword,
+            role: role || 'patient',
         });
 
         res.status(201).json({
@@ -29,20 +30,68 @@ exports.register = async (req, res) => {
     }
 };
 
+/* CHANGE PASSWORD */
+exports.changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword)
+            return res.status(400).json({ success: false, message: 'currentPassword and newPassword are required' });
+
+        const user = await User.findById(req.user.id).select('+password');
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        const match = await bcrypt.compare(currentPassword, user.password);
+        if (!match) return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        res.json({ success: true, message: 'Password changed successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
 /* LOGIN */
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        const credential = (email || '').trim();
 
-        const user = await User.findOne({ email }).select('+password');
+        // Detect phone vs email: phone contains only digits, spaces, +, -, ()
+        const isPhone = credential.length > 0 && !credential.includes('@') &&
+            /^[\d\s+\-()/]{7,20}$/.test(credential);
+
+        let user;
+        if (isPhone) {
+            const formatLKNumber = require('../utils/phone');
+            const normalisedPhone = '+' + formatLKNumber(credential);
+            user = await User.findOne({ phone: normalisedPhone }).select('+password');
+        } else {
+            user = await User.findOne({ email: credential.toLowerCase() }).select('+password');
+        }
+
         if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+
+        // Enforce account status
+        if (user.status === 'pending') {
+            return res.status(403).json({ message: 'Account is pending approval' });
+        }
+        if (user.status === 'suspended') {
+            return res.status(403).json({ message: 'Account has been suspended' });
+        }
+        if (user.status === 'rejected') {
+            return res.status(403).json({ message: 'Account registration was rejected' });
+        }
 
         const match = await bcrypt.compare(password, user.password);
         if (!match) return res.status(401).json({ message: 'Invalid credentials' });
 
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-            expiresIn: '1d',
-        });
+        const token = jwt.sign(
+            { id: user._id, role: user.role, status: user.status },
+            process.env.JWT_SECRET,
+            { expiresIn: '1d' }
+        );
 
         res.json({
             token,
@@ -51,7 +100,22 @@ exports.login = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                status: user.status,
             },
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/* GET ALL PHARMACISTS */
+exports.getAllPharmacists = async (req, res) => {
+    try {
+        const pharmacists = await User.find({ role: { $in: ['pharmacist', 'pharmacy'] } }).select('name email _id province district city address phone');
+        res.json({
+            success: true,
+            data: pharmacists,
+            message: 'Pharmacists fetched successfully',
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
