@@ -6,10 +6,10 @@ import '../../services/prescription_service.dart';
 class CreatePrescriptionScreen extends StatefulWidget {
   final String doctorToken;
 
-  const CreatePrescriptionScreen({Key? key, required this.doctorToken}) : super(key: key);
+  const CreatePrescriptionScreen({super.key, required this.doctorToken});
 
   @override
-  _CreatePrescriptionScreenState createState() => _CreatePrescriptionScreenState();
+  State<CreatePrescriptionScreen> createState() => _CreatePrescriptionScreenState();
 }
 
 class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
@@ -172,7 +172,7 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
                       ),
                     ),
                   );
-                }).toList(),
+                }),
                 
                 const SizedBox(height: 8),
                 OutlinedButton.icon(

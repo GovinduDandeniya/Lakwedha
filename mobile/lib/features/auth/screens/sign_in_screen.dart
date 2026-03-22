@@ -5,8 +5,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../presentation/providers/auth_provider.dart';
 import '../../../presentation/widgets/lakwedha_logo.dart';
-import '../widgets/custom_text_field.dart';
 import '../widgets/auth_button.dart';
+import '../widgets/custom_text_field.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -16,17 +16,19 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _credentialController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isLoading = false;
+  final _formKey            = GlobalKey<FormState>();
+  final _credentialCtrl     = TextEditingController();
+  final _passwordCtrl       = TextEditingController();
+  bool  _isLoading          = false;
 
   @override
   void dispose() {
-    _credentialController.dispose();
-    _passwordController.dispose();
+    _credentialCtrl.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
   }
+
+  // ── Sign In ──────────────────────────────────────────────────────────────
 
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
@@ -34,8 +36,8 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       final success = await auth.login(
-        _credentialController.text.trim(),
-        _passwordController.text,
+        _credentialCtrl.text.trim(),
+        _passwordCtrl.text,
       );
       if (!mounted) return;
       if (success) {
@@ -43,15 +45,7 @@ class _SignInScreenState extends State<SignInScreen> {
       } else if (auth.isSuspended) {
         Navigator.pushReplacementNamed(context, '/suspended');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(auth.error ?? AppStrings.invalidCredentials),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        _showError(auth.error ?? AppStrings.invalidCredentials);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -59,11 +53,23 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _continueAsGuest() async {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    auth.continueAsGuest();
+    Provider.of<AuthProvider>(context, listen: false).continueAsGuest();
     if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/home');
   }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  // ── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +77,7 @@ class _SignInScreenState extends State<SignInScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background gradient
+          // ── Background gradient
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -81,32 +87,30 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
             ),
           ),
-          // Decorative circles
+
+          // ── Decorative circles
           Positioned(
-            top: -60,
-            right: -60,
+            top: -60, right: -60,
             child: Container(
-              width: 200,
-              height: 200,
+              width: 200, height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.accentLight.withOpacity(0.08),
+                color: AppColors.accentLight.withValues(alpha: 0.08),
               ),
             ),
           ),
           Positioned(
-            bottom: -80,
-            left: -80,
+            bottom: -80, left: -80,
             child: Container(
-              width: 250,
-              height: 250,
+              width: 250, height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.15),
+                color: AppColors.primary.withValues(alpha: 0.15),
               ),
             ),
           ),
-          // Main content
+
+          // ── Card content
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -118,7 +122,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.25),
+                        color: Colors.black.withValues(alpha: 0.25),
                         blurRadius: 30,
                         offset: const Offset(0, 10),
                       ),
@@ -132,6 +136,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         // Logo
                         const LakwedhaLogo(size: 80),
                         const SizedBox(height: 16),
+
                         Text(
                           AppStrings.signIn,
                           style: GoogleFonts.playfairDisplay(
@@ -150,31 +155,35 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                         ),
                         const SizedBox(height: 28),
-                        // Credential field
+
+                        // Credential
                         CustomTextField(
                           label: AppStrings.credentialLabel,
                           hint: AppStrings.credentialHint,
-                          controller: _credentialController,
+                          controller: _credentialCtrl,
                           keyboardType: TextInputType.text,
                           validator: (v) =>
                               (v == null || v.trim().isEmpty) ? AppStrings.fieldRequired : null,
                         ),
                         const SizedBox(height: 16),
-                        // Password field
+
+                        // Password
                         CustomTextField(
                           label: AppStrings.passwordLabel,
                           hint: AppStrings.passwordHint,
-                          controller: _passwordController,
+                          controller: _passwordCtrl,
                           isPassword: true,
                           validator: (v) =>
                               (v == null || v.isEmpty) ? AppStrings.fieldRequired : null,
                         ),
                         const SizedBox(height: 8),
+
                         // Forgot password
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+                            onPressed: () =>
+                                Navigator.pushNamed(context, '/forgot-password'),
                             style: TextButton.styleFrom(
                               padding: EdgeInsets.zero,
                               minimumSize: Size.zero,
@@ -193,6 +202,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
+
                         // Sign In button
                         AuthButton(
                           label: AppStrings.signIn,
@@ -200,6 +210,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           isLoading: _isLoading,
                         ),
                         const SizedBox(height: 12),
+
                         // Continue as Guest
                         AuthButton(
                           label: AppStrings.continueAsGuest,
@@ -207,6 +218,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           style: AuthButtonStyle.secondary,
                         ),
                         const SizedBox(height: 20),
+
                         // Sign Up link
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -220,7 +232,8 @@ class _SignInScreenState extends State<SignInScreen> {
                               ),
                             ),
                             GestureDetector(
-                              onTap: () => Navigator.pushNamed(context, '/sign-up'),
+                              onTap: () =>
+                                  Navigator.pushNamed(context, '/sign-up'),
                               child: Text(
                                 AppStrings.signUpLink,
                                 style: GoogleFonts.inter(
@@ -245,7 +258,4 @@ class _SignInScreenState extends State<SignInScreen> {
       ),
     );
   }
-
-
-
 }

@@ -571,7 +571,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (!mounted) return;
 
       // ── Gateway result ───────────────────────────────────────────────────
-      // ignore: unnecessary_const — replace with gateway response when integrated
+      // TODO: Replace with real gateway response when payment is integrated
       bool paymentSuccess = true; // ← set from gateway response
       String declineReason =
           'Your payment could not be processed. Please check your card details and try again.';
@@ -606,7 +606,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
           ),
         );
-      } else {
+      } else { // ignore: dead_code
         setState(() => _isProcessing = false);
         Navigator.pushReplacement(
           context,

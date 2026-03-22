@@ -456,6 +456,7 @@ class _BookingScreenState extends State<BookingScreen> {
     final success = await provider.bookAppointment(_symptomsController.text);
 
     if (!success && provider.error != null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${provider.error}')),
       );

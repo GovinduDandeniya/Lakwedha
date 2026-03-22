@@ -5,10 +5,10 @@ import '../../services/emr_service.dart';
 class EmrViewScreen extends StatefulWidget {
   final String patientToken; 
 
-  const EmrViewScreen({Key? key, required this.patientToken}) : super(key: key);
+  const EmrViewScreen({super.key, required this.patientToken});
 
   @override
-  _EmrViewScreenState createState() => _EmrViewScreenState();
+  State<EmrViewScreen> createState() => _EmrViewScreenState();
 }
 
 class _EmrViewScreenState extends State<EmrViewScreen> {
