@@ -50,4 +50,10 @@ router.patch('/:appointmentId/status',
     appointmentController.updateStatus
 );
 
+// Patient: request cancellation
+router.post('/:id/cancel-request',
+    roleMiddleware(['patient']),
+    appointmentController.requestCancellation
+);
+
 module.exports = router;

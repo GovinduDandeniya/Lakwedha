@@ -13,10 +13,13 @@ const notificationSchema = new mongoose.Schema({
         type: String,
         enum: [
             'BOOKING',
+            'CHANNEL_CONFIRMED',
             'REMINDER',
             'STATUS_UPDATE',
             'SLOT_AVAILABLE',
             'SESSION_CANCELLED',
+            'PAYMENT_CONFIRMED',
+            'PAYMENT_FAILED',
             'EMERGENCY_APPROVED',
             'EMERGENCY_REJECTED',
         ],

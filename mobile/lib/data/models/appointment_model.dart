@@ -10,6 +10,7 @@ enum AppointmentStatus {
   confirmed,
   completed,
   cancelled,
+  cancelRequested,
   rescheduled,
   noShow,
 }
@@ -25,6 +26,8 @@ extension AppointmentStatusExtension on AppointmentStatus {
         return 'completed';
       case AppointmentStatus.cancelled:
         return 'cancelled';
+      case AppointmentStatus.cancelRequested:
+        return 'cancel_requested';
       case AppointmentStatus.rescheduled:
         return 'rescheduled';
       case AppointmentStatus.noShow:
@@ -42,6 +45,8 @@ extension AppointmentStatusExtension on AppointmentStatus {
         return 'Completed';
       case AppointmentStatus.cancelled:
         return 'Cancelled';
+      case AppointmentStatus.cancelRequested:
+        return 'Cancel Requested';
       case AppointmentStatus.rescheduled:
         return 'Rescheduled';
       case AppointmentStatus.noShow:
@@ -59,6 +64,8 @@ extension AppointmentStatusExtension on AppointmentStatus {
         return Colors.blue;
       case AppointmentStatus.cancelled:
         return Colors.red;
+      case AppointmentStatus.cancelRequested:
+        return Colors.deepOrange;
       case AppointmentStatus.rescheduled:
         return Colors.purple;
       case AppointmentStatus.noShow:
@@ -74,6 +81,8 @@ extension AppointmentStatusExtension on AppointmentStatus {
         return AppointmentStatus.completed;
       case 'cancelled':
         return AppointmentStatus.cancelled;
+      case 'cancel_requested':
+        return AppointmentStatus.cancelRequested;
       case 'rescheduled':
         return AppointmentStatus.rescheduled;
       case 'no-show':

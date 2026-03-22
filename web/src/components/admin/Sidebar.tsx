@@ -14,6 +14,7 @@ import {
   Settings,
   MapPin,
   Pill,
+  Building2,
 } from "lucide-react";
 import LakwedhaLogo from "@/components/LakwedhaLogo";
 
@@ -26,6 +27,7 @@ const menu = [
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
   { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  { name: "Hospitals / Clinics", href: "/admin/hospitals", icon: Building2 },
   { name: "Emergency Centers", href: "/admin/emergency-centers", icon: MapPin },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];

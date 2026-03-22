@@ -177,7 +177,7 @@ class NotificationService {
             if (patient) {
                 const message =
                     `Reminder from Lakwedha ⏰\n` +
-                    `Your appointment is in 10 hours\n` +
+                    `Your appointment is in 12 hours\n` +
                     `Doctor: ${doctorName}\n` +
                     `Time: ${timeStr}`;
 
@@ -192,6 +192,110 @@ class NotificationService {
             }
         } catch (err) {
             console.error('Notification error (reminder):', err.message);
+        }
+    }
+
+    /**
+     * Channel confirmed — sent when a channeling session appointment is confirmed after payment.
+     * Distinct from the generic BOOKING type; tied to channeling session flow.
+     */
+    async sendChannelConfirmed(appointment) {
+        try {
+            await this._notify(
+                appointment.patientId,
+                'Channel Confirmed',
+                'Your channeling appointment has been confirmed. Please arrive on time.',
+                'CHANNEL_CONFIRMED',
+                appointment._id
+            );
+
+            const { patient, dateStr, timeStr, doctorName, hospital } =
+                await this._getContactDetails(appointment);
+
+            if (patient) {
+                const message =
+                    `Channeling Confirmed ✅\n` +
+                    `Doctor: ${doctorName}\n` +
+                    `Hospital: ${hospital}\n` +
+                    `Date: ${dateStr}\n` +
+                    `Time: ${timeStr}`;
+
+                await Promise.all([
+                    this._sendSms(patient.phone, message),
+                    this._sendEmail(
+                        patient.email,
+                        'Channel Confirmed - Lakwedha',
+                        message
+                    ),
+                ]);
+            }
+        } catch (err) {
+            console.error('Notification error (channel confirmed):', err.message);
+        }
+    }
+
+    /**
+     * Payment confirmed — sent to the patient when payment is successfully processed.
+     */
+    async sendPaymentConfirmed(appointment, amount) {
+        try {
+            const amountStr = amount ? `LKR ${Number(amount).toFixed(2)}` : '';
+            const msg = amountStr
+                ? `Payment of ${amountStr} received. Your appointment is confirmed.`
+                : 'Your payment was successful. Your appointment is confirmed.';
+
+            await this._notify(
+                appointment.patientId,
+                'Payment Confirmed',
+                msg,
+                'PAYMENT_CONFIRMED',
+                appointment._id
+            );
+
+            const { patient, doctorName, hospital, dateStr, timeStr } =
+                await this._getContactDetails(appointment);
+
+            if (patient) {
+                const smsMsg =
+                    `Payment Confirmed ✅\n` +
+                    (amountStr ? `Amount: ${amountStr}\n` : '') +
+                    `Doctor: ${doctorName}\n` +
+                    `Hospital: ${hospital}\n` +
+                    `Date: ${dateStr}\n` +
+                    `Time: ${timeStr}`;
+
+                await Promise.all([
+                    this._sendSms(patient.phone, smsMsg),
+                    this._sendEmail(
+                        patient.email,
+                        'Payment Confirmed - Lakwedha',
+                        smsMsg
+                    ),
+                ]);
+            }
+        } catch (err) {
+            console.error('Notification error (payment confirmed):', err.message);
+        }
+    }
+
+    /**
+     * Payment failed — sent to the patient when payment processing fails.
+     */
+    async sendPaymentFailed(patientId, appointmentId = null, reason = null) {
+        try {
+            const message = reason
+                ? `Your payment could not be processed: ${reason}. Please try again.`
+                : 'Your payment could not be processed. Please check your payment details and try again.';
+
+            await this._notify(
+                patientId,
+                'Payment Failed',
+                message,
+                'PAYMENT_FAILED',
+                appointmentId
+            );
+        } catch (err) {
+            console.error('Notification error (payment failed):', err.message);
         }
     }
 

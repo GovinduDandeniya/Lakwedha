@@ -33,7 +33,11 @@ class Doctor {
   factory Doctor.fromJson(Map<String, dynamic> json) {
     return Doctor(
       id: json['_id'] ?? json['id'] ?? '',
-      name: json['name'] ?? '',
+      name: json['name'] ??
+          json['fullName'] ??
+          ('${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'.trim().isEmpty
+              ? ''
+              : '${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'.trim()),
       specialization: json['specialization'] ?? '',
       qualification: json['qualification'] ?? '',
       experience: json['experience'] ?? 0,

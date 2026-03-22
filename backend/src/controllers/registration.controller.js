@@ -135,12 +135,14 @@ async function register(req, res) {
         email, birthday,
         nic_type, nic_number,
         password,
+        province, district, city, address,
     } = req.body;
 
     // Required field check
     const missing = [
         'verifyToken', 'title', 'first_name', 'last_name', 'nationality',
         'phone', 'country_code', 'email', 'birthday', 'nic_type', 'nic_number', 'password',
+        'province', 'district', 'city', 'address',
     ].filter((f) => !req.body[f]);
     if (missing.length) {
         return res.status(400).json({ message: `Missing required fields: ${missing.join(', ')}.` });
@@ -212,6 +214,10 @@ async function register(req, res) {
             phone_verified: true,
             is_verified: true,
             role: 'patient',
+            province: province.trim(),
+            district: district.trim(),
+            city: city.trim(),
+            address: address.trim(),
         });
 
         // Clean up OTP record

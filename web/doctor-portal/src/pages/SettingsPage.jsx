@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box, Typography, Paper, Switch, Divider,
-    TextField, Button, Grid, Alert,
+    TextField, Button, Grid, Alert, InputAdornment,
 } from '@mui/material';
-import { Notifications, Lock, Settings } from '@mui/icons-material';
+import { Notifications, Lock, Settings, LocalAtm } from '@mui/icons-material';
+import api from '../services/api';
 
 const Section = ({ icon, title, children }) => (
     <Paper elevation={0} sx={{ borderRadius: 3, p: 3, mb: 3, border: '1px solid #E8EDF2', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
@@ -44,6 +45,36 @@ const SettingsPage = () => {
     const [saved, setSaved] = useState(false);
     const [pwError, setPwError] = useState('');
 
+    // Consultation fee state
+    const [consultationFee, setConsultationFee] = useState('');
+    const [feeLoading, setFeeLoading] = useState(true);
+    const [feeSaved, setFeeSaved] = useState(false);
+    const [feeError, setFeeError] = useState('');
+    const [feeSaving, setFeeSaving] = useState(false);
+
+    useEffect(() => {
+        api.get('/doctor-channeling/doctors/me/fee')
+            .then(res => setConsultationFee(String(res.data?.consultationFee ?? '')))
+            .catch(() => {})
+            .finally(() => setFeeLoading(false));
+    }, []);
+
+    const handleFeeUpdate = async () => {
+        setFeeError('');
+        const fee = Number(consultationFee);
+        if (isNaN(fee) || fee < 0) { setFeeError('Enter a valid non-negative amount.'); return; }
+        setFeeSaving(true);
+        try {
+            await api.put('/doctor-channeling/doctors/me/fee', { consultationFee: fee });
+            setFeeSaved(true);
+            setTimeout(() => setFeeSaved(false), 3000);
+        } catch {
+            setFeeError('Failed to update fee. Please try again.');
+        } finally {
+            setFeeSaving(false);
+        }
+    };
+
     const handleNotifChange = (key) => () => setNotifs(prev => ({ ...prev, [key]: !prev[key] }));
 
     const handlePasswordChange = () => {
@@ -74,6 +105,41 @@ const SettingsPage = () => {
                     <Typography variant="body2" color="text.secondary">Manage your preferences</Typography>
                 </Box>
             </Box>
+
+            {/* Consultation Fee */}
+            <Section icon={<LocalAtm />} title="Consultation Fee">
+                {feeSaved && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>Fee updated successfully!</Alert>}
+                {feeError && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{feeError}</Alert>}
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Set your channeling consultation fee. The platform adds a 10% channeling fee on top of your fee plus the hospital charge.
+                </Typography>
+                <Grid container spacing={2} alignItems="flex-end">
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            fullWidth size="small" type="number"
+                            label="Consultation Fee (LKR)"
+                            disabled={feeLoading}
+                            value={consultationFee}
+                            onChange={e => setConsultationFee(e.target.value)}
+                            inputProps={{ min: 0 }}
+                            InputProps={{
+                                startAdornment: <InputAdornment position="start">Rs.</InputAdornment>,
+                            }}
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Button
+                            variant="contained"
+                            disabled={feeLoading || feeSaving}
+                            onClick={handleFeeUpdate}
+                            sx={{ bgcolor: '#2E7D32', borderRadius: 2, px: 3, '&:hover': { bgcolor: '#1B5E20' } }}
+                        >
+                            {feeSaving ? 'Saving…' : 'Update Fee'}
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Section>
 
             {/* Notification Settings */}
             <Section icon={<Notifications />} title="Notification Preferences">

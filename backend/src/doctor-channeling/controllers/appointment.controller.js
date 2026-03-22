@@ -2,9 +2,27 @@ const Appointment = require('../models/appointment.model');
 const Availability = require('../models/availability.model');
 const ExtraAppointmentRequest = require('../models/extra_appointment_request.model');
 const ChannelingSession = require('../models/channelingSession.model');
+const RegisteredDoctor = require('../../models/RegisteredDoctor');
+const LegacyDoctor = require('../models/doctor.model');
 const queueService = require('../services/queue.service');
 const notificationService = require('../services/notification.service');
 const { validateAppointment, validateStatusUpdate } = require('../validators/appointment.validator');
+
+async function resolveDoctorName(doctorId) {
+    const reg = await RegisteredDoctor.findById(doctorId).select('fullName firstName lastName specialization').lean();
+    if (reg) {
+        return {
+            _id: reg._id,
+            name: reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim() || 'Doctor',
+            specialization: reg.specialization || '',
+        };
+    }
+    const leg = await LegacyDoctor.findById(doctorId).select('name specialization').lean();
+    if (leg) {
+        return { _id: leg._id, name: leg.name || 'Doctor', specialization: leg.specialization || '' };
+    }
+    return null;
+}
 
 /**
  * Book appointment (queue-based)
@@ -244,14 +262,24 @@ exports.getHistory = async (req, res) => {
         }
 
         const appointments = await Appointment.find(query)
-            .populate('doctorId', 'name specialization profileImage')
             .populate('patientId', 'name age gender')
-            .sort({ slotTime: -1 });
+            .sort({ slotTime: -1 })
+            .lean();
+
+        // Resolve doctor names — populate may fail when ref mismatches legacy Doctor IDs
+        await Promise.all(appointments.map(async (appt) => {
+            if (appt.doctorId && typeof appt.doctorId !== 'object') {
+                appt.doctorId = await resolveDoctorName(appt.doctorId);
+            } else if (appt.doctorId && typeof appt.doctorId === 'object' && !appt.doctorId.name) {
+                const resolved = await resolveDoctorName(appt.doctorId._id || appt.doctorId);
+                if (resolved) appt.doctorId = resolved;
+            }
+        }));
 
         // Group by status
         const grouped = {
-            upcoming: appointments.filter(a => ['pending', 'confirmed'].includes(a.status)),
-            past: appointments.filter(a => ['completed', 'cancelled', 'no-show'].includes(a.status))
+            upcoming: appointments.filter(a => ['pending', 'confirmed', 'cancel_requested'].includes(a.status)),
+            past: appointments.filter(a => ['completed', 'cancelled', 'no-show', 'rescheduled'].includes(a.status))
         };
 
         res.status(200).json({
@@ -276,7 +304,7 @@ exports.getAppointmentById = async (req, res) => {
         const { appointmentId } = req.params;
 
         const appointment = await Appointment.findById(appointmentId)
-            .populate('doctorId', 'name specialization profileImage consultationFee')
+            .populate('doctorId', 'fullName firstName lastName specialization consultationFee')
             .populate('patientId', 'name age gender phone');
 
         if (!appointment) {
@@ -394,7 +422,7 @@ exports.getExtraRequests = async (req, res) => {
  */
 exports.respondToExtraRequest = async (req, res) => {
     try {
-        const { action, doctorResponse } = req.body;
+        const { action, doctorResponse, sessionId } = req.body;
         if (!['accepted', 'rejected'].includes(action)) {
             return res.status(400).json({ success: false, error: 'action must be accepted or rejected' });
         }
@@ -411,9 +439,121 @@ exports.respondToExtraRequest = async (req, res) => {
         request.status = action;
         request.doctorResponse = doctorResponse || '';
         request.updatedAt = new Date();
+
+        let appointment = null;
+
+        if (action === 'accepted') {
+            // Find the session: use provided sessionId, or the one linked to the request, or next upcoming
+            let session;
+            const targetSessionId = sessionId || request.sessionId;
+            if (targetSessionId) {
+                session = await ChannelingSession.findOne({ _id: targetSessionId, doctorId: req.user.id });
+            }
+            if (!session) {
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                session = await ChannelingSession.findOne({
+                    doctorId: req.user.id,
+                    date: { $gte: today },
+                    status: { $in: ['open', 'full'] },
+                }).sort({ date: 1, startTime: 1 });
+            }
+            if (!session) {
+                return res.status(404).json({ success: false, error: 'No upcoming session found to attach this appointment to' });
+            }
+            if (['cancelled', 'closed', 'completed'].includes(session.status)) {
+                return res.status(400).json({ success: false, error: `Session is ${session.status} and cannot accept appointments` });
+            }
+
+            // Increment bookedCount — extra request bypasses the full limit
+            session.bookedCount += 1;
+            const appointmentNumber = session.bookedCount;
+            if (session.bookedCount >= session.totalAppointments && session.status === 'open') {
+                session.status = 'full';
+            }
+            session.updatedAt = new Date();
+            await session.save();
+
+            const [startHour, startMin] = session.startTime.split(':').map(Number);
+            const slotTime = new Date(session.date);
+            slotTime.setHours(startHour, startMin, 0, 0);
+
+            appointment = new Appointment({
+                doctorId: session.doctorId,
+                patientId: request.patientId,
+                slotTime,
+                hospitalName: session.hospitalName,
+                appointmentNumber,
+                symptoms: request.reason,
+                status: 'confirmed',
+            });
+            await appointment.save();
+
+            request.sessionId = session._id;
+
+            await notificationService.sendEmergencyApproval(request.patientId, appointment);
+        } else {
+            await notificationService.sendEmergencyRejection(request.patientId, doctorResponse || '');
+        }
+
         await request.save();
 
-        res.json({ success: true, data: request });
+        res.json({ success: true, data: { request, appointment } });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
+ * POST /api/v1/doctor-channeling/appointments/:id/cancel-request
+ * Patient: request cancellation of their appointment (≥ 12 hours before, with reason)
+ */
+exports.requestCancellation = async (req, res) => {
+    try {
+        const { reason } = req.body;
+        if (!reason || !reason.trim()) {
+            return res.status(400).json({ success: false, error: 'Cancellation reason is required' });
+        }
+
+        const appointment = await Appointment.findById(req.params.id);
+        if (!appointment) {
+            return res.status(404).json({ success: false, error: 'Appointment not found' });
+        }
+
+        // Only the patient who owns the appointment can request cancellation
+        if (appointment.patientId.toString() !== req.user.id) {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+
+        // Only active appointments can be cancelled
+        if (!['pending', 'confirmed'].includes(appointment.status)) {
+            return res.status(400).json({
+                success: false,
+                error: `Cannot cancel an appointment with status: ${appointment.status}`
+            });
+        }
+
+        // 12-hour rule
+        const hoursUntil = (new Date(appointment.slotTime) - new Date()) / (1000 * 60 * 60);
+        if (hoursUntil < 12) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cancellation is only allowed at least 12 hours before the appointment'
+            });
+        }
+
+        appointment.status = 'cancel_requested';
+        appointment.cancellation = {
+            reason: reason.trim(),
+            requestedAt: new Date(),
+        };
+        appointment.updatedAt = new Date();
+        await appointment.save();
+
+        res.json({
+            success: true,
+            message: 'Cancellation request sent to admin for approval',
+            data: appointment,
+        });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
@@ -437,19 +577,6 @@ exports.submitExtraRequest = async (req, res) => {
         }
         if (session.status !== 'full') {
             return res.status(400).json({ success: false, error: 'Extra requests are only allowed when the session is fully booked' });
-        }
-
-        // Only patients with a previous appointment history with this doctor can request
-        const hasHistory = await Appointment.findOne({
-            doctorId: session.doctorId,
-            patientId: req.user.id,
-            status: { $in: ['completed', 'confirmed'] },
-        });
-        if (!hasHistory) {
-            return res.status(403).json({
-                success: false,
-                error: 'You can only request an extra appointment with a doctor you have previously visited.',
-            });
         }
 
         const existing = await ExtraAppointmentRequest.findOne({
