@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 @theme {
-  --color-secondary: #5D4037;
-  --color-accent: #FFB300;
-  --color-primary: #2E7D32;
-  --color-background: #FFF8E1;
-  --color-background: #D7CCC8;
+  --color-earth: #5D4037;
+  --color-turmeric: #FFB300;
+  --color-herbal: #2E7D32;
+  --color-sand: #FFF8E1;
+  --color-clay: #D7CCC8;
 }
 
 @layer base {
   body {
-    @apply bg-background text-secondary min-h-screen font-sans;
+    @apply bg-sand text-earth min-h-screen font-sans;
   }
 }
