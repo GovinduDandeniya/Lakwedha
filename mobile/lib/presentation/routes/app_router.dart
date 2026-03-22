@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../screens/splash/splash_screen.dart';
-import '../screens/auth/login_screen.dart';
-import '../screens/auth/register_screen.dart';
 import '../screens/shell/main_shell.dart';
 import '../screens/notifications/notifications_screen.dart';
 import '../../features/auth/screens/sign_in_screen.dart';
@@ -18,8 +16,6 @@ class AppRouter {
   static const String signUp         = '/sign-up';
   static const String forgotPassword = '/forgot-password';
   static const String home           = '/home';
-  static const String login          = '/login';
-  static const String register       = '/register';
   static const String suspended      = '/suspended';
   static const String notifications  = '/notifications';
 
@@ -35,10 +31,6 @@ class AppRouter {
         return _route(const ForgotPasswordScreen());
       case home:
         return _route(const MainShell());
-      case login:
-        return _route(const LoginScreen());
-      case register:
-        return _route(const RegisterScreen());
       case suspended:
         return _route(const SuspendedScreen());
       case notifications:

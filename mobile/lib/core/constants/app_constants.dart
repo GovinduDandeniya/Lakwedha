@@ -4,10 +4,13 @@ class AppConstants {
   AppConstants._();
 
   // ── API Base URL ─────────────────────────────────────────────────────────────
-  // Android emulator  → 10.0.2.2  (maps to host machine's localhost)
-  // iOS simulator     → 127.0.0.1
-  // Physical device   → your machine's LAN IP (e.g. 192.168.1.x)
-  static const String baseUrl = 'http://10.0.2.2:5000';
+  // Android emulator  → flutter run --dart-define=API_URL=http://10.0.2.2:5000
+  // Physical device   → flutter run --dart-define=API_URL=http://192.168.x.x:5000
+  // Default fallback is the emulator address for convenience.
+  static const String baseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://10.0.2.2:5000',
+  );
 
   // ── Endpoints ────────────────────────────────────────────────────────────────
   static const String loginEndpoint               = '/api/v1/users/login';
