@@ -3,7 +3,10 @@ const router = express.Router();
 const appointmentController = require('../controllers/appointment.controller');
 const { authMiddleware, roleMiddleware } = require('../../middleware/auth.middleware');
 
-// All routes require authentication
+// ── PayHere webhook (no auth — PayHere calls this directly) ──────────────────
+router.post('/pay/notify', appointmentController.handleAppointmentPayhereNotification);
+
+// All other routes require authentication
 router.use(authMiddleware);
 
 // ── Extra appointment request routes ─────────────────────────────────────────
@@ -54,6 +57,12 @@ router.patch('/:appointmentId/status',
 router.post('/:id/cancel-request',
     roleMiddleware(['patient']),
     appointmentController.requestCancellation
+);
+
+// Patient: initiate PayHere payment for a pending appointment
+router.post('/:id/pay/initiate',
+    roleMiddleware(['patient']),
+    appointmentController.initiateAppointmentPayment
 );
 
 module.exports = router;

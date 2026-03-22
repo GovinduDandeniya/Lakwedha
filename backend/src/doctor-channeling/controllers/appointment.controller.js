@@ -7,6 +7,18 @@ const LegacyDoctor = require('../models/doctor.model');
 const queueService = require('../services/queue.service');
 const notificationService = require('../services/notification.service');
 const { validateAppointment, validateStatusUpdate } = require('../validators/appointment.validator');
+const crypto = require('crypto');
+
+const HOSPITAL_CHARGE = 500;
+const CHANNELING_CHARGE = 300;
+
+function generatePayhereHash(merchantId, orderId, amount, currency, merchantSecret) {
+    const hashedSecret = crypto.createHash('md5').update(merchantSecret).digest('hex').toUpperCase();
+    return crypto.createHash('md5')
+        .update(merchantId + orderId + amount + currency + hashedSecret)
+        .digest('hex')
+        .toUpperCase();
+}
 
 async function resolveDoctorName(doctorId) {
     const reg = await RegisteredDoctor.findById(doctorId).select('fullName firstName lastName specialization').lean();
@@ -57,14 +69,21 @@ exports.bookAppointment = async (req, res) => {
 
         // Check if slot is available
         if (!slot.isBooked) {
-            // Create appointment
+            // Calculate total fee
+            const doctor = await RegisteredDoctor.findById(doctorId).select('consultationFee').lean();
+            const consultationFee = (doctor && doctor.consultationFee) ? doctor.consultationFee : 1500;
+            const totalFee = consultationFee + HOSPITAL_CHARGE + CHANNELING_CHARGE;
+
+            // Create appointment — status is 'pending' until payment is confirmed
             const appointment = new Appointment({
                 doctorId,
                 patientId,
                 slotId,
                 slotTime: new Date(`${availability.date.toDateString()} ${slot.startTime}`),
                 symptoms,
-                status: 'confirmed'
+                status: 'pending',
+                paymentStatus: 'pending',
+                totalFee
             });
 
             await appointment.save();
@@ -74,13 +93,12 @@ exports.bookAppointment = async (req, res) => {
             slot.bookedBy = patientId;
             await availability.save();
 
-            // Send notifications
-            await notificationService.sendAppointmentConfirmation(appointment);
-
             return res.status(201).json({
                 success: true,
                 data: appointment,
-                message: 'Appointment booked successfully'
+                message: 'Appointment reserved. Please complete payment to confirm.',
+                paymentRequired: true,
+                totalFee
             });
         } else {
             // Add to queue
@@ -597,6 +615,103 @@ exports.submitExtraRequest = async (req, res) => {
         });
 
         res.status(201).json({ success: true, data: request });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
+ * POST /api/v1/doctor-channeling/appointments/:id/pay/initiate
+ * Patient: get PayHere payment parameters for a pending appointment
+ */
+exports.initiateAppointmentPayment = async (req, res) => {
+    try {
+        const appointment = await Appointment.findById(req.params.id);
+        if (!appointment) {
+            return res.status(404).json({ success: false, error: 'Appointment not found' });
+        }
+        if (appointment.patientId.toString() !== req.user.id) {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+        if (appointment.paymentStatus === 'paid') {
+            return res.status(400).json({ success: false, error: 'This appointment has already been paid' });
+        }
+
+        const merchantId = process.env.PAYHERE_MERCHANT_ID?.trim();
+        const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET?.trim();
+        const orderId = appointment._id.toString();
+        const amount = appointment.totalFee.toFixed(2);
+        const currency = 'LKR';
+
+        const hash = generatePayhereHash(merchantId, orderId, amount, currency, merchantSecret);
+
+        res.json({
+            success: true,
+            data: {
+                sandbox: process.env.PAYHERE_SANDBOX?.trim() === 'true',
+                merchant_id: merchantId,
+                return_url: `${process.env.BACKEND_URL}/api/v1/doctor-channeling/appointments/pay/return`,
+                cancel_url: `${process.env.BACKEND_URL}/api/v1/doctor-channeling/appointments/pay/cancel`,
+                notify_url: `${process.env.BACKEND_URL}/api/v1/doctor-channeling/appointments/pay/notify`,
+                order_id: orderId,
+                items: 'Doctor Channeling Fee',
+                amount,
+                currency,
+                hash,
+                first_name: 'Patient',
+                last_name: '',
+                email: 'patient@lakwedha.com',
+                phone: '0771234567',
+                address: 'Sri Lanka',
+                city: 'Colombo',
+                country: 'Sri Lanka'
+            },
+            message: 'Payment parameters generated'
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
+ * POST /api/v1/doctor-channeling/appointments/pay/notify
+ * PayHere server-to-server webhook — no auth middleware, must verify signature
+ */
+exports.handleAppointmentPayhereNotification = async (req, res) => {
+    try {
+        const { merchant_id, order_id, payhere_amount, payhere_currency, status_code, md5sig } = req.body;
+        const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET?.trim();
+
+        // Verify PayHere signature
+        const hashedSecret = crypto.createHash('md5').update(merchantSecret).digest('hex').toUpperCase();
+        const localSig = crypto.createHash('md5')
+            .update(merchant_id + order_id + payhere_amount + payhere_currency + status_code + hashedSecret)
+            .digest('hex')
+            .toUpperCase();
+
+        if (localSig !== md5sig) {
+            return res.status(400).json({ success: false, error: 'Invalid signature' });
+        }
+
+        // status_code 2 = successful payment
+        if (status_code != 2) {
+            return res.status(200).json({ success: true, message: 'Notification received' });
+        }
+
+        const appointment = await Appointment.findById(order_id);
+        if (!appointment) return res.status(404).json({ success: false, error: 'Appointment not found' });
+        if (appointment.paymentStatus === 'paid') return res.status(200).json({ success: true, message: 'Already paid' });
+
+        appointment.paymentStatus = 'paid';
+        appointment.paidAt = new Date();
+        appointment.status = 'confirmed';
+        appointment.updatedAt = new Date();
+        await appointment.save();
+
+        // Now send confirmation notification
+        await notificationService.sendAppointmentConfirmation(appointment);
+
+        res.status(200).json({ success: true, message: 'Payment confirmed' });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
