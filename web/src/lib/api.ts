@@ -24,13 +24,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 /* ── Auth ── */
 export const authApi = {
     login: (email: string, password: string) =>
-        request<{ token: string; user: Record<string, unknown> }>('/v1/users/login', {
+        request<{ token: string; user: Record<string, unknown> }>('/users/login', {
             method: 'POST',
             body: JSON.stringify({ email, password }),
         }),
 
     register: (data: Record<string, unknown>) =>
-        request<{ token: string; user: Record<string, unknown> }>('/v1/users/register', {
+        request<{ token: string; user: Record<string, unknown> }>('/users/register', {
             method: 'POST',
             body: JSON.stringify(data),
         }),
@@ -83,15 +83,6 @@ export const channelingSessionApi = {
         const query = new URLSearchParams(params as Record<string, string>).toString();
         return request<unknown[]>(`/admin/channeling-sessions${query ? `?${query}` : ''}`);
     },
-    setHospitalCharge: (id: string, hospitalCharge: number) =>
-        request<{
-            message: string;
-            session: unknown;
-            feeBreakdown: { doctorFee: number; hospitalCharge: number; channelingFee: number; totalAmount: number };
-        }>(`/admin/channeling-sessions/${id}/hospital-charge`, {
-            method: 'PUT',
-            body: JSON.stringify({ hospitalCharge }),
-        }),
 };
 
 /* ── Admin — Orders ── */
@@ -105,27 +96,6 @@ export const orderApi = {
 /* ── Admin — Analytics ── */
 export const analyticsApi = {
     getOverview: () => request<Record<string, unknown>>('/admin/analytics/overview'),
-};
-
-/* ── EMR ── */
-export const emrApi = {
-    getByPatientId: (patientId: string) =>
-        request<any[]>(`/emr/patient/${patientId}`),
-
-    upload: (formData: FormData): Promise<any> => {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        return fetch(`${BASE_URL}/emr/upload`, {
-            method: 'POST',
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            body: formData,
-        }).then(async (res) => {
-            if (!res.ok) {
-                const body = await res.json().catch(() => ({}));
-                throw new Error(body.error || body.message || `Upload failed (${res.status})`);
-            }
-            return res.json();
-        });
-    },
 };
 
 /* ── Admin — Emergency Centers ── */
