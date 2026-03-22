@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback, cloneElement } from 'react';
 import {
   Box, Typography, Paper, Button, Grid, Chip, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, IconButton,
-  Divider, CircularProgress, Tooltip, Card, CardContent,
+  Divider, CircularProgress, Tooltip, Card, CardContent, Switch, FormControlLabel,
 } from '@mui/material';
 import {
-  Add, CalendarMonth, EventAvailable, Cancel, Edit, Close,
-  ChevronLeft, ChevronRight, CheckCircle, Pending, Block,
+  Add, CalendarMonth, EventAvailable, Cancel, Edit,
+  ChevronLeft, ChevronRight, CheckCircle, Pending, Block, PriorityHigh,
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import api from '../services/api';
@@ -22,12 +22,7 @@ const STATUS_CONFIG = {
   cancelled: { label: 'Cancelled', color: 'error'   },
 };
 
-const HOSPITALS = [
-  'Lakwedha Ayurveda Hospital - Colombo',
-  'Lakwedha Ayurveda Hospital - Kandy',
-  'Lakwedha Ayurveda Hospital - Galle',
-  'Lakwedha Wellness Center - Negombo',
-];
+// Hospitals loaded from API (admin-managed master list)
 
 const EMPTY_FORM = {
   hospitalName: '',
@@ -66,10 +61,12 @@ function StatusChip({ status }) {
   return <Chip label={cfg.label} color={cfg.color} size="small" />;
 }
 
-function SessionCard({ session, onEdit, onCancel, onClose }) {
+function SessionCard({ session, onEdit, onCancel, onClose, onToggleExtraRequests, togglingId }) {
   const canEdit   = session.status === 'open' || session.status === 'full';
   const canCancel = session.status === 'open' || session.status === 'full';
   const canClose  = session.status === 'open';
+  const canToggle = !['cancelled', 'completed'].includes(session.status);
+  const toggling  = togglingId === session._id;
 
   return (
     <Paper
@@ -115,6 +112,32 @@ function SessionCard({ session, onEdit, onCancel, onClose }) {
           )}
         </Box>
       </Box>
+
+      {canToggle && (
+        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #F0F0F0', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PriorityHigh sx={{ fontSize: 16, color: session.extraRequestsEnabled ? 'warning.main' : 'text.disabled' }} />
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={!!session.extraRequestsEnabled}
+                disabled={toggling}
+                onChange={() => onToggleExtraRequests(session)}
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': { color: '#F57C00' },
+                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: '#F57C00' },
+                }}
+              />
+            }
+            label={
+              <Typography variant="caption" fontWeight={600} color={session.extraRequestsEnabled ? 'warning.dark' : 'text.secondary'}>
+                {toggling ? 'Updating…' : session.extraRequestsEnabled ? 'Extra Requests Enabled' : 'Extra Requests Disabled'}
+              </Typography>
+            }
+            sx={{ m: 0 }}
+          />
+        </Box>
+      )}
     </Paper>
   );
 }
@@ -231,6 +254,8 @@ export default function AvailabilityPage() {
   const [selectedMonth, setSelectedMonth] = useState(dayjs());
   const [statusFilter, setStatusFilter]   = useState('all');
 
+  const [hospitals, setHospitals] = useState([]);
+
   // dialogs
   const [releaseOpen, setReleaseOpen] = useState(false);
   const [editOpen, setEditOpen]       = useState(false);
@@ -243,6 +268,24 @@ export default function AvailabilityPage() {
   const [form, setForm]     = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // extra requests toggle
+  const [togglingId, setTogglingId] = useState(null);
+
+  const handleToggleExtraRequests = async (session) => {
+    setTogglingId(session._id);
+    try {
+      const res = await api.patch(`/channeling-sessions/${session._id}/extra-requests/toggle`);
+      setSessions(prev => prev.map(s =>
+        s._id === session._id ? { ...s, extraRequestsEnabled: res.data.extraRequestsEnabled } : s
+      ));
+      toast.success(res.data.extraRequestsEnabled ? 'Extra requests enabled' : 'Extra requests disabled');
+    } catch {
+      toast.error('Failed to update extra requests setting');
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const todayStr = dayjs().format('YYYY-MM-DD');
 
@@ -262,6 +305,13 @@ export default function AvailabilityPage() {
   }, []);
 
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
+
+  // Fetch hospital master list from admin-managed API
+  useEffect(() => {
+    api.get('/hospitals')
+      .then(res => setHospitals(res.data || []))
+      .catch(() => {});
+  }, []);
 
   // ── Summary counts ───────────────────────────────────────────────────────
 
@@ -473,6 +523,8 @@ export default function AvailabilityPage() {
                     onEdit={openEdit}
                     onCancel={sess => openConfirm('cancel', sess)}
                     onClose={sess => openConfirm('close', sess)}
+                    onToggleExtraRequests={handleToggleExtraRequests}
+                    togglingId={togglingId}
                   />
                 ))}
               </Box>
@@ -494,7 +546,7 @@ export default function AvailabilityPage() {
                 onChange={e => setForm(f => ({ ...f, hospitalName: e.target.value }))}
                 error={!!errors.hospitalName} helperText={errors.hospitalName}
               >
-                {HOSPITALS.map(h => <MenuItem key={h} value={h}>{h}</MenuItem>)}
+                {hospitals.map(h => <MenuItem key={h._id} value={h.name}>{h.name} — {h.location}</MenuItem>)}
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -556,7 +608,7 @@ export default function AvailabilityPage() {
                 onChange={e => setForm(f => ({ ...f, hospitalName: e.target.value }))}
                 error={!!errors.hospitalName} helperText={errors.hospitalName}
               >
-                {HOSPITALS.map(h => <MenuItem key={h} value={h}>{h}</MenuItem>)}
+                {hospitals.map(h => <MenuItem key={h._id} value={h.name}>{h.name} — {h.location}</MenuItem>)}
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -644,6 +696,8 @@ export default function AvailabilityPage() {
                 onEdit={sess => { setDayDialog(null); openEdit(sess); }}
                 onCancel={sess => { setDayDialog(null); openConfirm('cancel', sess); }}
                 onClose={sess => { setDayDialog(null); openConfirm('close', sess); }}
+                onToggleExtraRequests={handleToggleExtraRequests}
+                togglingId={togglingId}
               />
             ))}
           </Box>

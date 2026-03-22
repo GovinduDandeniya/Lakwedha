@@ -3,6 +3,7 @@ const Availability = require('../models/availability.model');
 const ClinicLocation = require('../models/clinicLocation.model');
 const ChannelingSession = require('../models/channelingSession.model');
 const RegisteredDoctor = require('../../models/RegisteredDoctor');
+const Hospital = require('../../models/Hospital');
 const AYURVEDA_SPECIALIZATIONS = require('../constants/ayurvedaSpecializations');
 
 function formatRegisteredDoctor(d) {
@@ -84,6 +85,14 @@ exports.addMyHospital = async (req, res) => {
             { new: true, select: 'hospitals' }
         );
         if (!doctor) return res.status(404).json({ success: false, error: 'Doctor not found' });
+
+        // Sync new hospital into master Hospital collection (upsert by name, preserve admin fee)
+        await Hospital.updateOne(
+            { name: { $regex: `^${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' } },
+            { $setOnInsert: { name: name.trim(), location: location.trim(), city: '', type: 'hospital', adminCharge: 0, isActive: true } },
+            { upsert: true }
+        );
+
         res.json({ success: true, hospitals: doctor.hospitals });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -365,16 +374,17 @@ exports.getDoctorAvailabilityById = async (req, res) => {
         const totalAmount   = doctorFee + hospCharge + channelingFee;
 
         hospitalMap[h].sessions.push({
-                session_id:       s._id.toString(),
-                date:             s.date.toISOString().split('T')[0],
-                start_time:       s.startTime,
-                end_time:         s.startTime,
-                total_slots:      s.totalAppointments,
-                booked_slots:     s.bookedCount,
-                doctor_fee:       doctorFee,
-                hospital_charge:  hospCharge,
-                channeling_fee:   channelingFee,
-                total_amount:     totalAmount,
+                session_id:               s._id.toString(),
+                date:                     s.date.toISOString().split('T')[0],
+                start_time:               s.startTime,
+                end_time:                 s.startTime,
+                total_slots:              s.totalAppointments,
+                booked_slots:             s.bookedCount,
+                doctor_fee:               doctorFee,
+                hospital_charge:          hospCharge,
+                channeling_fee:           channelingFee,
+                total_amount:             totalAmount,
+                extra_requests_enabled:   s.extraRequestsEnabled || false,
             });
         });
 
@@ -466,16 +476,17 @@ exports.getDoctorAvailabilityByName = async (req, res) => {
         const totalAmountByName   = doctorFeeByName + hospChargeByName + channelingFeeByName;
 
         hospitalMap[h].sessions.push({
-                session_id:       s._id.toString(),
-                date:             s.date.toISOString().split('T')[0],
-                start_time:       s.startTime,
-                end_time:         s.startTime,
-                total_slots:      s.totalAppointments,
-                booked_slots:     s.bookedCount,
-                doctor_fee:       doctorFeeByName,
-                hospital_charge:  hospChargeByName,
-                channeling_fee:   channelingFeeByName,
-                total_amount:     totalAmountByName,
+                session_id:               s._id.toString(),
+                date:                     s.date.toISOString().split('T')[0],
+                start_time:               s.startTime,
+                end_time:                 s.startTime,
+                total_slots:              s.totalAppointments,
+                booked_slots:             s.bookedCount,
+                doctor_fee:               doctorFeeByName,
+                hospital_charge:          hospChargeByName,
+                channeling_fee:           channelingFeeByName,
+                total_amount:             totalAmountByName,
+                extra_requests_enabled:   s.extraRequestsEnabled || false,
             });
         });
 

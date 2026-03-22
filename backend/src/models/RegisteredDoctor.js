@@ -34,6 +34,9 @@ const registeredDoctorSchema = new mongoose.Schema({
     {
       name: String,
       location: String,
+      city: { type: String, default: '' },
+      type: { type: String, enum: ['hospital', 'clinic'], default: 'hospital' },
+      contactNumber: { type: String, default: '' },
       startTime: String,
       maxAppointments: Number,
     },

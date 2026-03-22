@@ -140,6 +140,10 @@ class AuthService {
     required String nicType,
     required String nicNumber,
     required String password,
+    required String province,
+    required String district,
+    required String city,
+    required String address,
   }) async {
     try {
       final response = await http.post(
@@ -158,6 +162,10 @@ class AuthService {
           'nic_type': nicType,
           'nic_number': nicNumber,
           'password': password,
+          'province': province,
+          'district': district,
+          'city': city,
+          'address': address,
         }),
       ).timeout(const Duration(seconds: 20));
       final data = jsonDecode(response.body) as Map<String, dynamic>;

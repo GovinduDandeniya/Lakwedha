@@ -18,6 +18,7 @@ const Patient = require("./models/patient.model");
 const Doctor = require("./doctor-channeling/models/doctor.model");
 const RegisteredDoctor = require("./models/RegisteredDoctor");
 const ChannelingSession = require("./doctor-channeling/models/channelingSession.model");
+const Hospital = require("./models/Hospital");
 const User = require("./models/user");
 const Notification = require("./models/Notification");
 const notificationService = require("./doctor-channeling/services/notification.service");
@@ -608,27 +609,22 @@ app.post("/api/v1/dashboard/cancel-session", async (req, res) => {
   }
 });
 
-// Patient: get their notifications (DB-backed)
-app.get("/api/v1/patient-notifications", async (req, res) => {
+// Patient: get their notifications (DB-backed, auth-protected)
+app.get("/api/v1/patient-notifications", requireAuth, async (req, res) => {
   try {
-    const { patientId } = req.query;
-    if (!patientId) {
-      return res.status(400).json({ success: false, error: 'patientId is required' });
-    }
-    const data = await Notification.find({ userId: patientId })
-      .sort({ createdAt: -1 });
+    const data = await Notification.find({ userId: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(100);
     res.json({ success: true, data, unreadCount: data.filter(n => !n.read).length });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Patient: mark all notifications as read (must be before /:id/read to avoid route conflict)
-app.patch("/api/v1/patient-notifications/read-all", async (req, res) => {
+// Patient: mark all notifications as read (must be before /:id routes to avoid conflicts)
+app.patch("/api/v1/patient-notifications/read-all", requireAuth, async (req, res) => {
   try {
-    const { patientId } = req.body;
-    if (!patientId) return res.status(400).json({ success: false, error: 'patientId is required' });
-    await Notification.updateMany({ userId: patientId, read: false }, { read: true });
+    await Notification.updateMany({ userId: req.user.id, read: false }, { read: true });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -636,9 +632,22 @@ app.patch("/api/v1/patient-notifications/read-all", async (req, res) => {
 });
 
 // Patient: mark a single notification as read
-app.patch("/api/v1/patient-notifications/:id/read", async (req, res) => {
+app.patch("/api/v1/patient-notifications/:id/read", requireAuth, async (req, res) => {
   try {
-    await Notification.findByIdAndUpdate(req.params.id, { read: true });
+    await Notification.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      { read: true }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Patient: delete a single notification
+app.delete("/api/v1/patient-notifications/:id", requireAuth, async (req, res) => {
+  try {
+    await Notification.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -675,6 +684,12 @@ app.post('/api/v1/channeling-sessions', requireAuth, async (req, res) => {
       return res.status(409).json({ success: false, error: 'A session already exists for this hospital, date, and time' });
     }
 
+    // Auto-fill hospital charge from the master Hospital record set by admin
+    const masterHospital = await Hospital.findOne({
+      name: { $regex: `^${hospitalName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+      isActive: true,
+    });
+
     const session = new ChannelingSession({
       doctorId: req.user.id,
       hospitalName,
@@ -682,6 +697,7 @@ app.post('/api/v1/channeling-sessions', requireAuth, async (req, res) => {
       startTime,
       totalAppointments: parseInt(totalAppointments),
       note: note || '',
+      hospitalCharge: masterHospital ? masterHospital.adminCharge : 0,
     });
     await session.save();
 
@@ -923,6 +939,11 @@ app.get('/api/v1/channeling-sessions/public/:doctorId', async (req, res) => {
   }
 });
 
+// ── Hospital / Clinic routes ──────────────────────────────────────────────────
+const hospitalRoutes = require('./routes/hospitalRoutes');
+app.use('/api/hospitals', hospitalRoutes);
+app.use('/api/v1/hospitals', hospitalRoutes); // alias for doctor portal
+
 // ── Emergency center routes ───────────────────────────────────────────────────
 const emergencyCenterRoutes = require('./routes/emergencyCenterRoutes');
 app.use('/api/emergency-centers', emergencyCenterRoutes);
@@ -930,6 +951,7 @@ app.use('/api/emergency-centers', emergencyCenterRoutes);
 // ── EMR & Prescription routes ─────────────────────────────────────────────────
 const emrRoutes = require('./routes/emr.routes');
 app.use('/api/emr', emrRoutes);
+app.use('/api/v1/emr', emrRoutes); // v1 alias for doctor portal
 
 const prescriptionRoutes = require('./routes/prescription.routes');
 app.use('/api/prescriptions', prescriptionRoutes);

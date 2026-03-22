@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/sri_lanka_locations.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../presentation/widgets/lakwedha_logo.dart';
 
@@ -96,10 +97,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String    _nicType   = 'NIC';
   bool      _showPw    = false;
   bool      _showCpw   = false;
-  final  _emailCtrl = TextEditingController();
-  final  _nicCtrl   = TextEditingController();
-  final  _pwCtrl    = TextEditingController();
-  final  _cpwCtrl   = TextEditingController();
+  final  _emailCtrl   = TextEditingController();
+  final  _nicCtrl     = TextEditingController();
+  final  _pwCtrl      = TextEditingController();
+  final  _cpwCtrl     = TextEditingController();
+  final  _addressCtrl = TextEditingController();
+
+  // ── Location fields ──────────────────────────────────────────────────────
+  String _province = '';
+  String _district = '';
+  String _city     = '';
 
   @override
   void initState() {
@@ -117,6 +124,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _nicCtrl.dispose();
     _pwCtrl.dispose();
     _cpwCtrl.dispose();
+    _addressCtrl.dispose();
     for (final c in _otpCtrl)  { c.dispose(); }
     for (final f in _otpFocus) { f.dispose(); }
     _expiryTimer?.cancel();
@@ -266,6 +274,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
     if (_birthday == null) errs['birthday'] = 'Date of birth is required.';
     if (_nicCtrl.text.trim().isEmpty) errs['nic'] = '$_nicType number is required.';
+    if (_province.isEmpty) errs['province'] = 'Province is required.';
+    if (_district.isEmpty) errs['district'] = 'District is required.';
+    if (_city.isEmpty)     errs['city']     = 'City is required.';
+    if (_addressCtrl.text.trim().isEmpty) errs['address'] = 'Address is required.';
     final pw = _pwCtrl.text;
     if (pw.isEmpty) {
       errs['password'] = 'Password is required.';
@@ -300,6 +312,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
         nicType:     _nicType,
         nicNumber:   _nicCtrl.text.trim(),
         password:    pw,
+        province:    _province,
+        district:    _district,
+        city:        _city,
+        address:     _addressCtrl.text.trim(),
       );
       setState(() => _step = 4);
     } catch (e) {
@@ -910,6 +926,94 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
         ]),
+
+        // ── Location ────────────────────────────────────────────────────────
+        _fieldWrap(
+          label: 'Province',
+          error: _fieldErrors['province'],
+          child: _styledDropdown<String>(
+            value: _province.isEmpty ? '' : _province,
+            items: [
+              const DropdownMenuItem(value: '', child: Text('Select Province',
+                  style: TextStyle(fontSize: 14, color: AppColors.textLight))),
+              ...getProvinces().map((p) => DropdownMenuItem(
+                  value: p,
+                  child: Text(p, style: const TextStyle(fontSize: 14, color: AppColors.textDark)))),
+            ],
+            onChanged: (v) => setState(() {
+              _province = v ?? '';
+              _district = '';
+              _city     = '';
+              _fieldErrors.remove('province');
+            }),
+          ),
+        ),
+
+        _fieldWrap(
+          label: 'District',
+          error: _fieldErrors['district'],
+          child: _styledDropdown<String>(
+            value: _district.isEmpty ? '' : _district,
+            items: [
+              DropdownMenuItem(
+                value: '',
+                child: Text(
+                  _province.isEmpty ? 'Select Province first' : 'Select District',
+                  style: const TextStyle(fontSize: 14, color: AppColors.textLight),
+                ),
+              ),
+              ...getDistricts(_province).map((d) => DropdownMenuItem(
+                  value: d,
+                  child: Text(d, style: const TextStyle(fontSize: 14, color: AppColors.textDark)))),
+            ],
+            onChanged: (v) {
+              if (_province.isEmpty) return;
+              setState(() {
+                _district = v ?? '';
+                _city     = '';
+                _fieldErrors.remove('district');
+              });
+            },
+          ),
+        ),
+
+        _fieldWrap(
+          label: 'City',
+          error: _fieldErrors['city'],
+          child: _styledDropdown<String>(
+            value: _city.isEmpty ? '' : _city,
+            items: [
+              DropdownMenuItem(
+                value: '',
+                child: Text(
+                  _district.isEmpty ? 'Select District first' : 'Select City',
+                  style: const TextStyle(fontSize: 14, color: AppColors.textLight),
+                ),
+              ),
+              ...getCities(_province, _district).map((c) => DropdownMenuItem(
+                  value: c,
+                  child: Text(c, style: const TextStyle(fontSize: 14, color: AppColors.textDark)))),
+            ],
+            onChanged: (v) {
+              if (_district.isEmpty) return;
+              setState(() {
+                _city = v ?? '';
+                _fieldErrors.remove('city');
+              });
+            },
+          ),
+        ),
+
+        _fieldWrap(
+          label: 'Address',
+          error: _fieldErrors['address'],
+          child: TextFormField(
+            controller: _addressCtrl,
+            decoration: _inputDeco('Street address, No., Lane...'),
+            style: const TextStyle(fontSize: 14, color: AppColors.textDark),
+            onChanged: (_) => setState(() => _fieldErrors.remove('address')),
+          ),
+        ),
 
         // Password
         _fieldWrap(
