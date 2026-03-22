@@ -9,6 +9,12 @@ const orderSchema = new mongoose.Schema(
             required: true,
             index: true,
         },
+        pharmacyId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
+            index: true,
+        },
         medicines: [
             {
                 name: String,
@@ -23,19 +29,33 @@ const orderSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ['pending', 'approved', 'processing', 'shipped', 'completed'],
+            enum: ['pending', 'approved', 'processing', 'shipped', 'completed', 'cancelled', 'rejected'],
             default: 'pending'
         },
         paymentStatus: {
-            type: String,
-            enum: ['pending', 'paid', 'failed'],
-            default: 'pending'
+          type: String,
+          enum: ['pending', 'paid', 'failed'],
+          default: 'pending'
+        },
+        paidAt: {
+          type: Date,
+          default: null
         },
         paymentMethod: {
             type: String,
             enum: ['online', 'cod'],
             default: 'online'
         },
+
+        statusHistory: [
+            {
+                from: String,
+                to: String,
+                changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+                changedAt: { type: Date, default: Date.now },
+                reason: String
+            }
+        ]
     },
     { timestamps: true }
 );

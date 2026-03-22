@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema(
     {
-        // ── Legacy / shared fields ─────────────────────────
         name: {
             type: String,
             trim: true,
@@ -13,6 +12,7 @@ const userSchema = new mongoose.Schema(
             unique: true,
             lowercase: true,
         },
+<<<<<<< HEAD
         phone: {
             type: String,
             unique: true,
@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ['user', 'admin', 'doctor', 'pharmacy', 'patient', 'DOCTOR', 'PATIENT'],
+            enum: ['user', 'admin', 'doctor', 'pharmacy', 'pharmacist', 'patient', 'DOCTOR', 'PATIENT'],
             default: 'user',
         },
         status: {
@@ -87,6 +87,9 @@ const userSchema = new mongoose.Schema(
         pharmacyName: { type: String, trim: true },
         licenseNumber: { type: String, trim: true },
         address: { type: String, trim: true },
+        province: { type: String, trim: true },
+        district: { type: String, trim: true },
+        city:     { type: String, trim: true },
     },
     { timestamps: true }
 );

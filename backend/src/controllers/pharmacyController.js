@@ -1,102 +1,241 @@
 const Prescription = require('../models/Prescription');
 const Order = require('../models/Order');
-const { reviewPrescriptionSchema, updateMedicinesSchema } = require('../utils/validationSchemas');
-const logger = require('../utils/logger');
+const User = require('../models/user');
 
-// GET all prescriptions
-exports.getAllPrescriptions = async (req, res, next) => {
-    try {
-        logger.info('Fetching all prescriptions');
-        const prescriptions = await Prescription.find().sort({ issuedDate: -1, createdAt: -1 });
-        res.json(prescriptions);
-    } catch (err) {
-        logger.error(`Error fetching prescriptions: ${err.message}`);
-        next(err);
+const asyncHandler = require('../utils/asyncHandler');
+const { ORDER_STATUSES } = require('../utils/orderStateMachine');
+
+/**
+ * Handle Pharmacy Admin Operations
+ * Strictly for Pharmacist Admin use.
+ */
+
+// GET Dashboard Stats for the logged-in pharmacy
+exports.getPharmacyStats = asyncHandler(async (req, res) => {
+    const pharmacyId = req.user.id;
+    
+    // Counts for the pharmacist dashboard
+    const pendingPrescriptions = await Prescription.countDocuments({ 
+        pharmacyId, 
+        pharmacyStatus: 'pending' 
+    });
+
+    const activeOrders = await Order.countDocuments({ 
+        pharmacyId, 
+        status: { $in: [ORDER_STATUSES.APPROVED, ORDER_STATUSES.PROCESSING, ORDER_STATUSES.SHIPPED] } 
+    });
+
+    // Completed Today
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const completedToday = await Order.countDocuments({
+        pharmacyId,
+        status: ORDER_STATUSES.COMPLETED,
+        updatedAt: { $gte: startOfToday }
+    });
+
+    res.json({
+        success: true,
+        data: {
+            pendingPrescriptions,
+            activeOrders,
+            completedToday
+        },
+        message: 'Pharmacy statistics fetched successfully'
+    });
+});
+
+// GET all prescriptions for this pharmacy
+exports.getAllPrescriptions = asyncHandler(async (req, res) => {
+    const filter = req.user && req.user.role === 'pharmacist' ? { pharmacyId: req.user.id } : {};
+    const prescriptions = await Prescription.find(filter).sort({ createdAt: -1 }).lean();
+
+    const orders = await Order.find({
+        prescriptionId: { $in: prescriptions.map((p) => p._id) },
+    }).lean();
+
+    const orderMap = {};
+    orders.forEach((order) => {
+        orderMap[order.prescriptionId.toString()] = order;
+    });
+
+    const enrichedPrescriptions = prescriptions.map((p) => {
+        const order = orderMap[p._id.toString()];
+        return order
+            ? {
+                  ...p,
+                  orderId: order._id.toString(),
+                  orderStatus: order.status,
+                  paymentStatus: order.paymentStatus,
+              }
+            : p;
+    });
+
+    res.json({
+        success: true,
+        data: enrichedPrescriptions,
+        message: 'Prescriptions fetched successfully',
+    });
+});
+
+// GET nearby pharmacies
+exports.getNearbyPharmacies = asyncHandler(async (req, res) => {
+    const { province, district, city } = req.query;
+
+    const filter = { role: 'pharmacy' };
+    if (province) filter.province = { $regex: new RegExp(`^${province}$`, 'i') };
+    if (district) filter.district = { $regex: new RegExp(`^${district}$`, 'i') };
+    if (city)     filter.city     = { $regex: new RegExp(city, 'i') };
+
+    const pharmacies = await User.find(filter)
+        .select('name address phone province district city')
+        .lean();
+
+    res.json({
+        success: true,
+        data: pharmacies,
+        message: 'Pharmacies fetched successfully',
+    });
+});
+
+// Patient: Upload Prescription
+exports.uploadPrescription = asyncHandler(async (req, res) => {
+    const { imageUrl, patientName, pharmacyId } = req.body;
+    const userId = req.body.userId || (req.user ? req.user.id : null);
+
+    if (!userId) {
+        return res.status(400).json({ success: false, data: null, message: 'User ID is required context.' });
     }
-};
+
+    if (!imageUrl) {
+        return res.status(400).json({ success: false, data: null, message: 'Prescription image is required.' });
+    }
+
+    if (!pharmacyId) {
+        return res.status(400).json({ success: false, data: null, message: 'Pharmacy ID is required.' });
+    }
+
+    const pharmacy = await User.findOne({ _id: pharmacyId, role: 'pharmacist' });
+    if (!pharmacy) {
+        return res.status(404).json({ success: false, data: null, message: 'Selected pharmacy not found.' });
+    }
+
+    const prescription = await Prescription.create({
+        userId,
+        pharmacyId,
+        imageUrl,
+        patientName: patientName || req.user.name || 'Guest Patient',
+        pharmacyStatus: 'pending',
+    });
+
+    res.status(201).json({
+        success: true,
+        data: prescription,
+        message: 'Prescription submitted successfully',
+    });
+});
 
 // Review prescription (Approve/Reject)
-exports.reviewPrescription = async (req, res, next) => {
-    try {
-        const { error } = reviewPrescriptionSchema.validate(req.body);
-        if (error) return res.status(400).json({ message: error.details[0].message });
+exports.reviewPrescription = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { status, medicines, rejectionReason } = req.body;
 
-        const { id } = req.params;
-        const { status, medicines, totalAmount } = req.body;
+    const prescription = await Prescription.findById(id);
+    if (!prescription) {
+        return res.status(404).json({ success: false, data: null, message: 'Prescription not found' });
+    }
 
-        logger.info(`Reviewing prescription ${id} | Total: ${totalAmount} | Status: ${status}`);
+    if (req.user && req.user.role === 'pharmacist' && prescription.pharmacyId.toString() !== req.user.id.toString()) {
+        return res.status(403).json({ success: false, data: null, message: 'Unauthorized review access.' });
+    }
 
-        const prescription = await Prescription.findById(id);
-        if (!prescription) {
-            return res.status(404).json({ message: 'Prescription not found' });
+    if (prescription.pharmacyStatus !== 'pending') {
+        return res.status(400).json({ success: false, data: null, message: `Prescription is already ${prescription.pharmacyStatus}` });
+    }
+
+    if (status === 'rejected') {
+        if (!rejectionReason || rejectionReason.trim().length < 10) {
+            return res.status(400).json({ success: false, data: null, message: 'Rejection reason must be at least 10 characters long.' });
         }
-
-        // 1. Synchronize Prescription State
-        if (medicines) {
-            prescription.medications = medicines.map(m => ({
-                name: m.name,
-                dosage: m.dosage || m.qty || '',
-                duration: m.duration || '',
-                quantity: Number(m.qty) || 0,
-                price: Number(m.unitPrice) || 0
-            }));
-        }
-
-        prescription.pharmacyStatus = status;
+        prescription.pharmacyStatus = 'rejected';
+        prescription.rejectionReason = rejectionReason;
         await prescription.save();
 
-        // 2. Spawn Order Record
-        if (status === 'approved') {
-            const order = await Order.create({
-                userId: prescription.patientId, // map to patientId
-                prescriptionId: prescription._id,
-                medicines: prescription.medications || [],
-                totalAmount: Number(totalAmount), // Direct trust of FE value
-                status: 'pending',
-                paymentStatus: 'pending'
-            });
-            logger.info(`Financial Checkpoint: Order ${order._id} initialized with FE total: ${totalAmount}`);
+        return res.json({ success: true, data: prescription, message: 'Prescription rejected successfully' });
+    }
+
+    if (status === 'approved') {
+        if (!medicines || medicines.length === 0) {
+            return res.status(400).json({ success: false, data: null, message: 'Medicines and prices required for approval.' });
         }
 
-        res.json({
-            message: `Prescription ${prescription.pharmacyStatus}`,
-            prescription
+        prescription.medicines = medicines.map((m) => ({
+            name: m.name,
+            quantity: Number(m.qty || m.quantity),
+            price: Number(m.unitPrice || m.price),
+        }));
+
+        prescription.pharmacyStatus = 'approved';
+        await prescription.save();
+
+        const subtotal = prescription.medicines.reduce((sum, item) => sum + item.quantity * item.price, 0);
+        const tax = subtotal * 0.05;
+        const deliveryFee = 350;
+        const totalAmount = subtotal + tax + deliveryFee;
+
+        const order = await Order.create({
+            userId: prescription.userId,
+            prescriptionId: prescription._id,
+            pharmacyId: prescription.pharmacyId,
+            medicines: prescription.medicines,
+            subtotal,
+            tax,
+            deliveryFee,
+            totalAmount,
+            status: ORDER_STATUSES.APPROVED,
+            paymentStatus: 'pending',
+            statusHistory: [
+                {
+                    from: 'none',
+                    to: ORDER_STATUSES.APPROVED,
+                    changedBy: req.user ? req.user.id : null,
+                    changedAt: new Date(),
+                    reason: 'Order automatically generated on prescription approval',
+                },
+            ],
         });
-    } catch (err) {
-        logger.error(`Error reviewing prescription: ${err.message}`);
-        next(err);
+
+        return res.json({ success: true, data: { prescription, order }, message: 'Prescription approved and order generated' });
     }
-};
+
+    return res.status(400).json({ success: false, data: null, message: 'Invalid status update.' });
+});
 
 // Update medicines
-exports.updatePrescriptionMedicines = async (req, res, next) => {
-    try {
-        const { error } = updateMedicinesSchema.validate(req.body);
-        if (error) return res.status(400).json({ message: error.details[0].message });
+exports.updatePrescriptionMedicines = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { medicines } = req.body;
 
-        const { id } = req.params;
-        const { medicines } = req.body;
-
-        logger.info(`Updating medicines for prescription ${id}`);
-
-        const prescription = await Prescription.findById(id);
-        if (!prescription) {
-            return res.status(404).json({ message: 'Prescription not found' });
-        }
-
-        prescription.medications = medicines.map(m => ({
-            name: m.name,
-            dosage: m.dosage || m.qty || '',
-            duration: m.duration || '',
-            quantity: Number(m.qty) || 0,
-            price: Number(m.unitPrice) || 0
-        }));
-        await prescription.save();
-
-        logger.info(`Medicines updated for prescription ${id}`);
-        res.json({ message: 'Medicines updated successfully', prescription });
-    } catch (err) {
-        logger.error(`Error updating medicines: ${err.message}`);
-        next(err);
+    const prescription = await Prescription.findById(id);
+    if (!prescription) {
+        return res.status(404).json({ success: false, data: null, message: 'Prescription not found' });
     }
-};
+
+    if (req.user && req.user.role === 'pharmacist' && prescription.pharmacyId.toString() !== req.user.id.toString()) {
+        return res.status(403).json({ success: false, data: null, message: 'Unauthorized edit access.' });
+    }
+
+    if (prescription.pharmacyStatus !== 'pending') {
+        return res.status(400).json({ success: false, data: null, message: 'Denied: Prescription processed.' });
+    }
+
+    prescription.medicines = medicines.map((m) => ({
+        name: m.name,
+        quantity: Number(m.qty || m.quantity),
+        price: Number(m.unitPrice || m.price),
+    }));
+    await prescription.save();
+
+    res.json({ success: true, data: prescription, message: 'Medicines updated explicitly' });
+});
