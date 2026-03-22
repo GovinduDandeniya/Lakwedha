@@ -1,5 +1,6 @@
 const User = require('../models/user');
 const RegisteredDoctor = require('../models/RegisteredDoctor');
+const Pharmacy = require('../models/pharmacy.model');
 const Order = require('../models/Order');
 const Appointment = require('../doctor-channeling/models/appointment.model');
 const ChannelingSession = require('../doctor-channeling/models/channelingSession.model');
@@ -56,11 +57,24 @@ exports.rejectDoctor = async (req, res) => {
 /** GET /api/admin/pharmacies — list all pharmacy accounts */
 exports.getPharmacies = async (req, res) => {
     try {
-        const filter = { role: 'pharmacy' };
-        if (req.query.status) filter.status = req.query.status;
+        const status = req.query.status;
 
-        const pharmacies = await User.find(filter).sort({ createdAt: -1 });
-        res.json(pharmacies);
+        const registrationFilter = {};
+        if (status) registrationFilter.status = status;
+        const registrationPharmacies = await Pharmacy.find(registrationFilter, { password: 0 })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Backward compatibility for legacy records stored in User collection
+        const legacyFilter = { role: 'pharmacy' };
+        if (status) legacyFilter.status = status;
+        const legacyPharmacies = await User.find(legacyFilter).sort({ createdAt: -1 }).lean();
+
+        res.json({
+            registrations: registrationPharmacies,
+            legacy: legacyPharmacies,
+            total: registrationPharmacies.length + legacyPharmacies.length,
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -69,13 +83,26 @@ exports.getPharmacies = async (req, res) => {
 /** PUT /api/admin/pharmacies/:id/approve */
 exports.approvePharmacy = async (req, res) => {
     try {
-        const pharmacy = await User.findOneAndUpdate(
+        // Primary source for patient-visible pharmacies
+        const registrationPharmacy = await Pharmacy.findByIdAndUpdate(
+            req.params.id,
+            { status: 'approved', rejectionReason: null },
+            { new: true }
+        ).select('-password');
+
+        if (registrationPharmacy) {
+            return res.json({ message: 'Pharmacy approved', pharmacy: registrationPharmacy, source: 'registration' });
+        }
+
+        // Backward compatibility for legacy user records
+        const legacyPharmacy = await User.findOneAndUpdate(
             { _id: req.params.id, role: 'pharmacy' },
             { status: 'active' },
             { new: true }
         );
-        if (!pharmacy) return res.status(404).json({ message: 'Pharmacy not found' });
-        res.json({ message: 'Pharmacy approved', pharmacy });
+
+        if (!legacyPharmacy) return res.status(404).json({ message: 'Pharmacy not found' });
+        res.json({ message: 'Legacy pharmacy approved', pharmacy: legacyPharmacy, source: 'legacy' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -84,13 +111,28 @@ exports.approvePharmacy = async (req, res) => {
 /** PUT /api/admin/pharmacies/:id/reject */
 exports.rejectPharmacy = async (req, res) => {
     try {
-        const pharmacy = await User.findOneAndUpdate(
+        const reason = req.body?.reason || null;
+
+        // Primary source for patient-visible pharmacies
+        const registrationPharmacy = await Pharmacy.findByIdAndUpdate(
+            req.params.id,
+            { status: 'rejected', rejectionReason: reason },
+            { new: true }
+        ).select('-password');
+
+        if (registrationPharmacy) {
+            return res.json({ message: 'Pharmacy rejected', pharmacy: registrationPharmacy, source: 'registration' });
+        }
+
+        // Backward compatibility for legacy user records
+        const legacyPharmacy = await User.findOneAndUpdate(
             { _id: req.params.id, role: 'pharmacy' },
             { status: 'rejected' },
             { new: true }
         );
-        if (!pharmacy) return res.status(404).json({ message: 'Pharmacy not found' });
-        res.json({ message: 'Pharmacy rejected', pharmacy });
+
+        if (!legacyPharmacy) return res.status(404).json({ message: 'Pharmacy not found' });
+        res.json({ message: 'Legacy pharmacy rejected', pharmacy: legacyPharmacy, source: 'legacy' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

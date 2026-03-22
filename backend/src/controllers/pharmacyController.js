@@ -1,6 +1,7 @@
 const Prescription = require('../models/Prescription');
-const Order = require('../models/Order');
-const User = require('../models/user');
+const Order        = require('../models/Order');
+const User         = require('../models/user');
+const Pharmacy     = require('../models/pharmacy.model');
 
 const asyncHandler = require('../utils/asyncHandler');
 const { ORDER_STATUSES } = require('../utils/orderStateMachine');
@@ -83,18 +84,21 @@ exports.getAllPrescriptions = asyncHandler(async (req, res) => {
 exports.getNearbyPharmacies = asyncHandler(async (req, res) => {
     const { province, district, city } = req.query;
 
-    const filter = { role: 'pharmacy' };
+    const filter = { status: 'approved' };
     if (province) filter.province = { $regex: new RegExp(`^${province}$`, 'i') };
     if (district) filter.district = { $regex: new RegExp(`^${district}$`, 'i') };
     if (city)     filter.city     = { $regex: new RegExp(city, 'i') };
 
-    const pharmacies = await User.find(filter)
-        .select('name address phone province district city')
+    const pharmacies = await Pharmacy.find(filter)
+        .select('pharmacyName address phone province district city')
         .lean();
+
+    // normalise field name so mobile app gets consistent 'name' field
+    const data = pharmacies.map((p) => ({ ...p, name: p.pharmacyName }));
 
     res.json({
         success: true,
-        data: pharmacies,
+        data,
         message: 'Pharmacies fetched successfully',
     });
 });

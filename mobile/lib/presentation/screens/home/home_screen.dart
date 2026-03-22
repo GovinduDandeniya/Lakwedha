@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../patient/doctor_search_screen.dart';
 import '../../../features/emergency/screens/emergency_type_screen.dart';
+import '../../../src/screens/pharmacy_finder_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onGoToProfile;
@@ -329,10 +330,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 tag: 'PHARMACY',
                 title: 'Ayurveda Pharmacy',
-                desc: 'Order authentic herbal medicines and Ayurveda products delivered to your door.',
-                buttonLabel: 'Browse Medicines',
-                buttonIcon: Icons.arrow_forward_rounded,
-                onTap: () {},
+                desc: 'Upload your prescription and order medicines from verified pharmacies near you.',
+                buttonLabel: 'Browse Medicine',
+                buttonIcon: Icons.shopping_bag_rounded,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PharmacyFinderScreen(),
+                  ),
+                ),
               ),
               if (!isGuest) ...[
                 const SizedBox(height: 14),

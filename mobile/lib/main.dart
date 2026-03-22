@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' hide ChangeNotifierProvider;
 import 'firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'presentation/providers/auth_provider.dart';
@@ -29,7 +30,7 @@ void main() async {
     // The notification is received — UI refresh or in-app banner can be triggered here
   });
 
-  runApp(const RavanaApp());
+  runApp(const ProviderScope(child: RavanaApp()));
 }
 
 class RavanaApp extends StatelessWidget {

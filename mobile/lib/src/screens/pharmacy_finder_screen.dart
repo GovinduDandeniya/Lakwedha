@@ -4,15 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:ravana_app/src/core/api_client.dart';
 import 'package:ravana_app/src/data/sri_lanka_locations.dart';
+import 'pharmacy_order_screen.dart';
 
-// ─── Colors matching team palette ───────────────────────────────────────────
+// ─── Colors ─────────────────────────────────────────────────────────────────
 const _primary    = Color(0xFF0D5C3E);
 const _secondary  = Color(0xFFD4AF37);
 const _background = Color(0xFFF8F9FA);
-const _accent     = Color(0xFF28A745);
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
 class PharmacyFinderScreen extends ConsumerStatefulWidget {
@@ -26,23 +25,25 @@ class PharmacyFinderScreen extends ConsumerStatefulWidget {
 class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
   String? _selectedProvince;
   String? _selectedDistrict;
-  final TextEditingController _cityCtrl = TextEditingController();
+  String? _selectedCity;
 
   List<dynamic> _results = [];
   bool _isLoading = false;
   bool _hasSearched = false;
   String? _error;
 
+  // Multi-select state
+  final Set<String> _selectedIds = {};
+
   List<String> get _availableDistricts =>
       _selectedProvince != null
-          ? sriLankaLocations[_selectedProvince!] ?? []
+          ? getDistricts(_selectedProvince!)
           : [];
 
-  @override
-  void dispose() {
-    _cityCtrl.dispose();
-    super.dispose();
-  }
+  List<String> get _availableCities =>
+      _selectedProvince != null && _selectedDistrict != null
+          ? getCities(_selectedProvince!, _selectedDistrict!)
+          : [];
 
   Future<void> _search() async {
     HapticFeedback.mediumImpact();
@@ -51,6 +52,7 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
       _hasSearched = true;
       _error = null;
       _results = [];
+      _selectedIds.clear();
     });
 
     try {
@@ -58,7 +60,9 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
       final params = <String, String>{};
       if (_selectedProvince != null) params['province'] = _selectedProvince!;
       if (_selectedDistrict != null) params['district'] = _selectedDistrict!;
-      if (_cityCtrl.text.trim().isNotEmpty) params['city'] = _cityCtrl.text.trim();
+      if (_selectedCity != null && _selectedCity!.isNotEmpty) {
+        params['city'] = _selectedCity!;
+      }
 
       final response = await dio.get(
         '/api/v1/pharmacy/nearby',
@@ -87,30 +91,42 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
     setState(() {
       _selectedProvince = null;
       _selectedDistrict = null;
-      _cityCtrl.clear();
+      _selectedCity = null;
       _results = [];
       _hasSearched = false;
       _error = null;
+      _selectedIds.clear();
     });
   }
 
-  Future<void> _callPharmacy(String? phone) async {
-    if (phone == null || phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No phone number available.')),
-      );
-      return;
-    }
-    final uri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open phone dialer.')),
-        );
+  void _toggleSelect(String id) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
       }
-    }
+    });
+  }
+
+  void _proceedToOrder() {
+    final selected = _results
+        .where((p) => _selectedIds.contains((p['_id'] ?? '').toString()))
+        .toList();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PharmacyOrderScreen(
+          selectedPharmacies: selected.cast<Map<String, dynamic>>(),
+          location: {
+            'province': _selectedProvince ?? '',
+            'district': _selectedDistrict ?? '',
+            'city': _selectedCity ?? '',
+          },
+        ),
+      ),
+    );
   }
 
   // ─── Build ─────────────────────────────────────────────────────────────────
@@ -146,7 +162,49 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
           Expanded(child: _buildResultsSection()),
         ],
       ),
+      bottomNavigationBar: _selectedIds.isNotEmpty
+          ? _buildOrderNowBar()
+          : null,
     );
+  }
+
+  // ─── Order Now bottom bar ────────────────────────────────────────────────
+  Widget _buildOrderNowBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton.icon(
+            onPressed: _proceedToOrder,
+            icon: const Icon(Icons.shopping_bag_rounded),
+            label: Text(
+              'Order Now  (${_selectedIds.length} selected)',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ),
+      ),
+    ).animate().slideY(begin: 1, end: 0, duration: 300.ms, curve: Curves.easeOut);
   }
 
   // ─── Filter panel ──────────────────────────────────────────────────────────
@@ -156,54 +214,38 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Column(
         children: [
-          // Province
           _buildDropdown(
             hint: 'Select Province',
             value: _selectedProvince,
-            items: sriLankaLocations.keys.toList(),
+            items: getProvinces(),
             onChanged: (val) => setState(() {
               _selectedProvince = val;
               _selectedDistrict = null;
+              _selectedCity = null;
             }),
           ),
           const SizedBox(height: 12),
-
-          // District
           _buildDropdown(
             hint: 'Select District',
             value: _selectedDistrict,
             items: _availableDistricts,
             onChanged: _selectedProvince == null
                 ? null
-                : (val) => setState(() => _selectedDistrict = val),
+                : (val) => setState(() {
+                    _selectedDistrict = val;
+                    _selectedCity = null;
+                  }),
           ),
           const SizedBox(height: 12),
-
-          // City text field
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: TextField(
-              controller: _cityCtrl,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
-              decoration: InputDecoration(
-                hintText: 'City / Town (optional)',
-                hintStyle: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55), fontSize: 15),
-                prefixIcon:
-                    Icon(Icons.location_city_rounded,
-                        color: Colors.white.withValues(alpha: 0.7)),
-                border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-              ),
-            ),
+          _buildDropdown(
+            hint: 'Select City (optional)',
+            value: _selectedCity,
+            items: _availableCities,
+            onChanged: _selectedDistrict == null
+                ? null
+                : (val) => setState(() => _selectedCity = val),
           ),
           const SizedBox(height: 16),
-
-          // Search button
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -211,8 +253,7 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
               onPressed: _isLoading ? null : _search,
               icon: _isLoading
                   ? const SizedBox(
-                      width: 18,
-                      height: 18,
+                      width: 18, height: 18,
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.search_rounded),
@@ -257,10 +298,7 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
           icon: Icon(Icons.keyboard_arrow_down_rounded,
               color: Colors.white.withValues(alpha: 0.7)),
           items: items
-              .map((item) => DropdownMenuItem(
-                    value: item,
-                    child: Text(item),
-                  ))
+              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
               .toList(),
           onChanged: onChanged,
         ),
@@ -276,15 +314,18 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
     if (_results.isEmpty) return _buildEmpty();
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
       physics: const BouncingScrollPhysics(),
       itemCount: _results.length,
       itemBuilder: (context, index) {
         final pharmacy = _results[index] as Map<String, dynamic>;
+        final id = (pharmacy['_id'] ?? '').toString();
+        final isSelected = _selectedIds.contains(id);
         return _PharmacyCard(
           pharmacy: pharmacy,
           index: index,
-          onCall: () => _callPharmacy(pharmacy['phone']),
+          isSelected: isSelected,
+          onToggleSelect: () => _toggleSelect(id),
         );
       },
     );
@@ -307,9 +348,7 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
           const SizedBox(height: 20),
           const Text('Find Pharmacies Near You',
               style: TextStyle(
-                  color: _primary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800)),
+                  color: _primary, fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           Text('Select your province, district\nand search above.',
               textAlign: TextAlign.center,
@@ -336,9 +375,7 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
           const SizedBox(height: 20),
           const Text('No Pharmacies Found',
               style: TextStyle(
-                  color: _primary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800)),
+                  color: _primary, fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -387,8 +424,7 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: _primary,
                 foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
               ),
@@ -419,140 +455,148 @@ class _PharmacyFinderScreenState extends ConsumerState<PharmacyFinderScreen> {
   }
 }
 
-// ─── Pharmacy Card ───────────────────────────────────────────────────────────
+// ─── Pharmacy Card (with selection) ─────────────────────────────────────────
 class _PharmacyCard extends StatelessWidget {
   final Map<String, dynamic> pharmacy;
   final int index;
-  final VoidCallback onCall;
+  final bool isSelected;
+  final VoidCallback onToggleSelect;
 
   const _PharmacyCard({
     required this.pharmacy,
     required this.index,
-    required this.onCall,
+    required this.isSelected,
+    required this.onToggleSelect,
   });
 
   @override
   Widget build(BuildContext context) {
-    final name     = pharmacy['name']     as String? ?? 'Unnamed Pharmacy';
+    final name     = pharmacy['name']     as String? ?? pharmacy['pharmacyName'] as String? ?? 'Unnamed Pharmacy';
     final address  = pharmacy['address']  as String? ?? '';
     final city     = pharmacy['city']     as String? ?? '';
     final district = pharmacy['district'] as String? ?? '';
     final province = pharmacy['province'] as String? ?? '';
-    final phone    = pharmacy['phone']    as String? ?? '';
 
     final locationParts = [city, district, province]
         .where((s) => s.isNotEmpty)
         .join(', ');
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: onToggleSelect,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? _primary : Colors.transparent,
+            width: 2.5,
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? _primary.withValues(alpha: 0.15)
+                  : Colors.black.withValues(alpha: 0.05),
+              blurRadius: isSelected ? 20 : 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? _primary
+                          : _primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.local_pharmacy_rounded,
+                        color: isSelected ? Colors.white : _primary, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: TextStyle(
+                        color: isSelected ? _primary : const Color(0xFF1C2B2C),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Checkbox(
+                    value: isSelected,
+                    onChanged: (_) => onToggleSelect(),
+                    activeColor: _primary,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5)),
+                  ),
+                ],
+              ),
+              if (locationParts.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(Icons.location_on_rounded, color: _secondary, size: 16),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(locationParts,
+                          style: const TextStyle(
+                              color: _primary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              ],
+              if (address.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.home_work_rounded,
+                        color: Colors.grey.shade400, size: 16),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(address,
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 13)),
+                    ),
+                  ],
+                ),
+              ],
+              if (isSelected) ...[
+                const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: _primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.local_pharmacy_rounded,
-                      color: _primary, size: 24),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: const TextStyle(
-                      color: _primary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle_rounded, color: _primary, size: 14),
+                      SizedBox(width: 6),
+                      Text('Selected for Order',
+                          style: TextStyle(
+                              color: _primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700)),
+                    ],
                   ),
                 ),
               ],
-            ),
-            if (locationParts.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.location_on_rounded,
-                      color: _secondary, size: 16),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(locationParts,
-                        style: const TextStyle(
-                            color: _primary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                ],
-              ),
             ],
-            if (address.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.home_work_rounded,
-                      color: Colors.grey.shade400, size: 16),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(address,
-                        style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 13)),
-                  ),
-                ],
-              ),
-            ],
-            if (phone.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(Icons.phone_rounded,
-                      color: Colors.grey.shade400, size: 16),
-                  const SizedBox(width: 6),
-                  Text(phone,
-                      style:
-                          TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-                ],
-              ),
-            ],
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                onPressed: phone.isNotEmpty ? onCall : null,
-                icon: const Icon(Icons.call_rounded, size: 18),
-                label: const Text('Call Now',
-                    style:
-                        TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _accent,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     )

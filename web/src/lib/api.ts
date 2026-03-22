@@ -106,6 +106,14 @@ export const orderApi = {
     },
 };
 
+/* ── Admin — Pharmacy Prescription Requests ── */
+export const pharmacyRequestApi = {
+    getAll: (params?: { status?: string; pharmacyId?: string }) => {
+        const query = new URLSearchParams(params as Record<string, string>).toString();
+        return request<unknown[]>(`/v1/pharmacy/admin/all${query ? `?${query}` : ''}`);
+    },
+};
+
 /* ── Admin — Analytics ── */
 export const analyticsApi = {
     getOverview: () => request<Record<string, unknown>>('/admin/analytics/overview'),
