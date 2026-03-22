@@ -43,6 +43,8 @@ const appointmentSchema = new mongoose.Schema({
     enum: ['pending', 'paid', 'refunded'],
     default: 'pending'
   },
+  totalFee: { type: Number, default: 0 },
+  paidAt: { type: Date },
   cancellationFee: { type: Number, default: 0 },
   reminderSent: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
