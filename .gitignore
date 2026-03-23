@@ -1,6 +1,7 @@
 desktop.ini
 Thumbs.db
 node_modules/
+backend/uploads/
 
 # Environment files - NEVER commit these
 .env

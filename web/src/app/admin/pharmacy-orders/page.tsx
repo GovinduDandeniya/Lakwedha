@@ -64,7 +64,10 @@ export default function PharmacyOrdersAdminPage() {
     useEffect(() => {
         pharmacyRequestApi
             .getAll(statusFilter ? { status: statusFilter } : undefined)
-            .then((data) => setRequests(data as PharmacyRequest[]))
+            .then((data) => {
+                const res = data as { data?: PharmacyRequest[] };
+                setRequests(Array.isArray(data) ? (data as PharmacyRequest[]) : (res.data ?? []));
+            })
             .catch(() => {})
             .finally(() => setLoading(false));
     }, [statusFilter]);
