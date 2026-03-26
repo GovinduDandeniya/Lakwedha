@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
+const User  = require("../models/user");
 
 const SECRET_KEY = process.env.JWT_SECRET || "mysecretkey123";
 
@@ -85,22 +86,57 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required." });
     }
 
+    // Check dedicated Admin collection first
     const admin = await Admin.findOne({ email: email.toLowerCase().trim() });
-    if (!admin) {
+
+    if (admin) {
+      if (!admin.isActive) {
+        return res.status(403).json({ message: "Account is inactive. Contact support." });
+      }
+
+      const match = await bcrypt.compare(password, admin.password);
+      if (!match) {
+        return res.status(401).json({ message: "Invalid email or password." });
+      }
+
+      const token = jwt.sign(
+        { id: admin._id, email: admin.email, role: "admin" },
+        SECRET_KEY,
+        { expiresIn: "8h" }
+      );
+
+      return res.json({
+        token,
+        admin: {
+          id:    admin._id,
+          email: admin.email,
+          role:  "admin",
+          name:  admin.fullName,
+        },
+      });
+    }
+
+    // Fall back to User collection for admins seeded via user model
+    const userAdmin = await User.findOne({
+      email: email.toLowerCase().trim(),
+      role:  "admin",
+    }).select("+password");
+
+    if (!userAdmin) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    if (!admin.isActive) {
-      return res.status(403).json({ message: "Account is inactive. Contact support." });
+    if (userAdmin.status === "suspended") {
+      return res.status(403).json({ message: "Account has been suspended." });
     }
 
-    const match = await bcrypt.compare(password, admin.password);
-    if (!match) {
+    const matchUser = await bcrypt.compare(password, userAdmin.password);
+    if (!matchUser) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
     const token = jwt.sign(
-      { id: admin._id, email: admin.email, role: "admin" },
+      { id: userAdmin._id, email: userAdmin.email, role: "admin" },
       SECRET_KEY,
       { expiresIn: "8h" }
     );
@@ -108,10 +144,10 @@ exports.login = async (req, res) => {
     return res.json({
       token,
       admin: {
-        id:    admin._id,
-        email: admin.email,
+        id:    userAdmin._id,
+        email: userAdmin.email,
         role:  "admin",
-        name:  admin.fullName,
+        name:  userAdmin.name,
       },
     });
   } catch (err) {
