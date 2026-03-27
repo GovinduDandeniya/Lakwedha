@@ -6,6 +6,10 @@ const { authMiddleware, roleMiddleware } = require('../../middleware/auth.middle
 // ── PayHere webhook (no auth — PayHere calls this directly) ──────────────────
 router.post('/pay/notify', appointmentController.handleAppointmentPayhereNotification);
 
+// PayHere browser redirects after payment
+router.get('/pay/return', (req, res) => res.status(200).send('Payment complete.'));
+router.get('/pay/cancel', (req, res) => res.status(200).send('Payment cancelled.'));
+
 // All other routes require authentication
 router.use(authMiddleware);
 

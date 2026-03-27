@@ -1,11 +1,14 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/doctor_availability_model.dart';
 import '../../../data/models/doctor_model.dart';
+import '../../../src/core/payment_service.dart';
 import 'payment_declined_screen.dart';
 import 'payment_success_screen.dart';
 
@@ -18,7 +21,7 @@ const double _fallbackChangelingCharge = 300.0;
 
 enum _PayMethod { creditCard, debitCard, onlineBanking, mobileWallet }
 
-class PaymentScreen extends StatefulWidget {
+class PaymentScreen extends ConsumerStatefulWidget {
   final Doctor doctor;
   final HospitalAvailability hospital;
   final DateSlotSummary slot;
@@ -35,10 +38,10 @@ class PaymentScreen extends StatefulWidget {
   });
 
   @override
-  State<PaymentScreen> createState() => _PaymentScreenState();
+  ConsumerState<PaymentScreen> createState() => _PaymentScreenState();
 }
 
-class _PaymentScreenState extends State<PaymentScreen> {
+class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   _PayMethod _selectedMethod = _PayMethod.creditCard;
   final _cardFormKey = GlobalKey<FormState>();
 
@@ -539,15 +542,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  Future<void> _bookAppointment() async {
+  /// Books the appointment and returns its ID.
+  Future<String> _bookAppointment() async {
     final sessionId = widget.slot.sessionId;
-    if (sessionId == null) return; // no session to book
+    if (sessionId == null) throw Exception('No session selected.');
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConstants.tokenKey);
 
+    final baseUrl = kIsWeb ? 'http://localhost:5000' : AppConstants.baseUrl;
     final response = await http.post(
-      Uri.parse('${AppConstants.baseUrl}/api/v1/channeling-sessions/$sessionId/book'),
+      Uri.parse('$baseUrl/api/v1/channeling-sessions/$sessionId/book'),
       headers: {
         'Content-Type': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
@@ -555,75 +560,75 @@ class _PaymentScreenState extends State<PaymentScreen> {
       body: jsonEncode({'symptoms': widget.patient['symptoms'] ?? ''}),
     );
 
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode != 201) {
-      throw Exception('Booking failed: ${jsonDecode(response.body)['error'] ?? 'Unknown error'}');
+      throw Exception('Booking failed: ${body['error'] ?? 'Unknown error'}');
     }
+    final appointmentId = body['data']?['_id'] as String?;
+    if (appointmentId == null) throw Exception('Appointment ID missing from response.');
+    return appointmentId;
   }
 
-  void _onPayNow() {
-    if (!_cardFormKey.currentState!.validate()) return;
-
+  void _onPayNow() async {
     setState(() => _isProcessing = true);
 
-    // TODO: Replace the simulated delay below with a real payment gateway call.
-    // After gateway confirms payment, call _bookAppointment() then navigate.
-    Future.delayed(const Duration(seconds: 2), () async {
+    try {
+      final appointmentId = await _bookAppointment();
+
+      final paymentService = ref.read(paymentServiceProvider);
+      await paymentService.processAppointmentPayment(
+        appointmentId: appointmentId,
+        onSuccess: () {
+          if (!mounted) return;
+          setState(() => _isProcessing = false);
+          final txnId = _generateTransactionId();
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PaymentSuccessScreen(
+                doctor: widget.doctor,
+                hospital: widget.hospital,
+                slot: widget.slot,
+                appointmentNumber: widget.appointmentNumber,
+                patient: widget.patient,
+                doctorFee: _doctorFee,
+                hospitalCharge: _hospitalCharge,
+                channelingCharge: _channelingCharge,
+                totalAmount: _totalAmount,
+                transactionId: txnId,
+                paymentMethod: _methodLabel(_selectedMethod),
+                paidAt: DateTime.now(),
+              ),
+            ),
+          );
+        },
+        onError: (error) {
+          if (!mounted) return;
+          setState(() => _isProcessing = false);
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PaymentDeclinedScreen(
+                doctor: widget.doctor,
+                hospital: widget.hospital,
+                slot: widget.slot,
+                appointmentNumber: widget.appointmentNumber,
+                patient: widget.patient,
+                totalAmount: _totalAmount,
+                reason: error,
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
       if (!mounted) return;
-
-      // ── Gateway result ───────────────────────────────────────────────────
-      // TODO: Replace with real gateway response when payment is integrated
-      bool paymentSuccess = true; // ← set from gateway response
-      String declineReason =
-          'Your payment could not be processed. Please check your card details and try again.';
-      // ────────────────────────────────────────────────────────────────────
-
-      if (paymentSuccess) {
-        try {
-          await _bookAppointment();
-        } catch (_) {
-          // Booking failed — continue to success screen; appointment saves best-effort
-        }
-        if (!mounted) return;
-        setState(() => _isProcessing = false);
-        final txnId = _generateTransactionId();
-        final paidAt = DateTime.now();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentSuccessScreen(
-              doctor: widget.doctor,
-              hospital: widget.hospital,
-              slot: widget.slot,
-              appointmentNumber: widget.appointmentNumber,
-              patient: widget.patient,
-              doctorFee: _doctorFee,
-              hospitalCharge: _hospitalCharge,
-              channelingCharge: _channelingCharge,
-              totalAmount: _totalAmount,
-              transactionId: txnId,
-              paymentMethod: _methodLabel(_selectedMethod),
-              paidAt: paidAt,
-            ),
-          ),
-        );
-      } else { // ignore: dead_code
-        setState(() => _isProcessing = false);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentDeclinedScreen(
-              doctor: widget.doctor,
-              hospital: widget.hospital,
-              slot: widget.slot,
-              appointmentNumber: widget.appointmentNumber,
-              patient: widget.patient,
-              totalAmount: _totalAmount,
-              reason: declineReason,
-            ),
-          ),
-        );
-      }
-    });
+      setState(() => _isProcessing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { authMiddleware: auth } = require('../middleware/auth.middleware');
 const {
     createOrderFromPrescription,
     updatePaymentStatus,
@@ -14,6 +14,10 @@ const {
 
 // PayHere server-to-server webhook (defined before /:id)
 router.post('/pay/notify', handlePayhereNotification);
+
+// PayHere browser redirects after payment
+router.get('/pay/return', (req, res) => res.status(200).send('Payment complete.'));
+router.get('/pay/cancel', (req, res) => res.status(200).send('Payment cancelled.'));
 
 // GET all orders - Protected
 router.get('/', auth, getAllOrders);

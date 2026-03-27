@@ -65,18 +65,15 @@ class PaymentService {
           final payhere = globalContext['payhere'] as JSObject;
 
           payhere['onCompleted'] = (JSAny? oId) {
-            () async {
-              try {
-                final confirmRes = await dio.post('/api/v1/orders/$orderId/pay/confirm');
-                if (confirmRes.data['success'] == true) {
-                  onSuccess();
-                } else {
-                  onError(confirmRes.data['message'] ?? 'Payment verification failed.');
-                }
-              } catch (e) {
-                onError(e.toString());
+            dio.post('/api/v1/orders/$orderId/pay/confirm').then((confirmRes) {
+              if (confirmRes.data['success'] == true) {
+                onSuccess();
+              } else {
+                onError(confirmRes.data['message'] ?? 'Payment verification failed.');
               }
-            }();
+            }).catchError((e) {
+              onError(e.toString());
+            });
           }.toJS;
 
           payhere['onDismissed'] = () {
@@ -87,8 +84,62 @@ class PaymentService {
             onError('Payment Error: $err');
           }.toJS;
 
-          final jsPayment = (paymentData as Object).jsify();
-          payhere.callMethod('startPayment'.toJS, jsPayment);
+          final jsPayment = paymentData.jsify();
+          payhere.callMethodVarArgs('startPayment'.toJS, [jsPayment]);
+        }
+        return;
+      }
+
+      onError('Online payments are only available on the web app.');
+    } catch (e) {
+      onError('Could not start payment: ${e.toString()}');
+    }
+  }
+
+  /// Process appointment payment via PayHere JS SDK (Web only)
+  Future<void> processAppointmentPayment({
+    required String appointmentId,
+    required VoidCallback onSuccess,
+    required Function(String error) onError,
+  }) async {
+    final dio = ref.read(dioProvider);
+
+    try {
+      if (kIsWeb) {
+        bool sdkLoaded = false;
+        for (int i = 0; i < 20; i++) {
+          if (globalContext.hasProperty('payhere'.toJS).toDart) {
+            sdkLoaded = true;
+            break;
+          }
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+
+        if (!sdkLoaded) {
+          onError('PayHere SDK could not be loaded. Check your internet connection.');
+          return;
+        }
+
+        final res = await dio.post('/api/v1/doctor-channeling/appointments/$appointmentId/pay/initiate');
+        final paymentData = res.data['data'];
+
+        if (paymentData != null) {
+          final payhere = globalContext['payhere'] as JSObject;
+
+          payhere['onCompleted'] = (JSAny? oId) {
+            onSuccess();
+          }.toJS;
+
+          payhere['onDismissed'] = () {
+            onError('Payment was cancelled.');
+          }.toJS;
+
+          payhere['onError'] = (JSAny? err) {
+            onError('Payment Error: $err');
+          }.toJS;
+
+          final jsPayment = paymentData.jsify();
+          payhere.callMethodVarArgs('startPayment'.toJS, [jsPayment]);
         }
         return;
       }

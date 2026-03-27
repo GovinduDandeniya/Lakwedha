@@ -1,32 +1,33 @@
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const User = require('../models/user');
+const Admin = require('../models/Admin');
 
 async function seed() {
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB Atlas');
 
-    // Check if admin already exists
-    const existing = await User.findOne({ email: 'admin@lakwedha.com' });
+    const email    = 'admin1@lakwedha.com';
+    const password = 'WgAvi@2006';
+
+    const existing = await Admin.findOne({ email });
     if (existing) {
-        console.log('Admin user already exists:', existing.email);
+        console.log('Admin already exists:', existing.email);
         await mongoose.disconnect();
         return;
     }
 
-    // Create admin user
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    const admin = await User.create({
-        name: 'Admin',
-        email: 'admin@lakwedha.com',
-        password: hashedPassword,
-        role: 'admin',
-        status: 'active',
+    const hashed = await bcrypt.hash(password, 12);
+    await Admin.create({
+        fullName: 'Admin One',
+        email,
+        mobile:   '+94771234567',
+        nic:      '200012345678',
+        password: hashed,
     });
 
-    console.log('Admin user created:', admin.email);
+    console.log('Admin created:', email);
     await mongoose.disconnect();
 }
 

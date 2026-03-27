@@ -55,6 +55,11 @@ const prescriptionSchema = new mongoose.Schema(
             }
         ],
 
+        subtotal: { type: Number, default: 0 },
+        tax: { type: Number, default: 0 },
+        deliveryFee: { type: Number, default: 0 },
+        totalAmount: { type: Number, default: 0 },
+
         pharmacyNote: { type: String },
 
         rejectionReason: {
