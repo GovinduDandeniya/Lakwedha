@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:html' as html;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -574,15 +575,18 @@ class PaymentSuccessScreen extends StatelessWidget {
       ),
     );
 
-    final bytes = await pdf.save();
-    final downloadsDir = '${Platform.environment['USERPROFILE']}\\Downloads';
-    final file = File('$downloadsDir\\receipt_$transactionId.pdf');
-    await file.writeAsBytes(bytes);
+    final Uint8List bytes = await pdf.save();
+    final blob = html.Blob([bytes], 'application/pdf');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..download = 'receipt_$transactionId.pdf'
+      ..click();
+    html.Url.revokeObjectUrl(url);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Receipt saved to Downloads\\receipt_$transactionId.pdf'),
+          content: const Text('Receipt download started'),
           backgroundColor: _primary,
           behavior: SnackBarBehavior.floating,
           shape:
@@ -659,7 +663,7 @@ class PaymentSuccessScreen extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             const Text(
-              'Receipt Sent',
+              'Email Receipt',
               style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -667,7 +671,7 @@ class PaymentSuccessScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Your receipt has been sent to\n$email',
+              'A receipt will be sent to\n$email\nonce email notifications are enabled.',
               textAlign: TextAlign.center,
               style:
                   const TextStyle(fontSize: 13, color: Color(0xFF666666), height: 1.5),

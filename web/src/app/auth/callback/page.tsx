@@ -1,35 +1,27 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
 
-function AuthCallbackInner() {
-  const router = useRouter();
-  const params = useSearchParams();
-
+export default function AuthCallback() {
   useEffect(() => {
+    // Use window.location.search directly — always available on the client,
+    // no Suspense/useSearchParams timing issues
+    const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     const user = params.get('user');
     if (token && user) {
       localStorage.setItem('token', token);
       localStorage.setItem('user', user);
-      router.replace('/admin/dashboard');
+      // Full page reload so AuthContext reads localStorage fresh before dashboard mounts
+      window.location.replace('/admin/dashboard');
     } else {
-      router.replace('/login');
+      window.location.replace('/login');
     }
-  }, [params, router]);
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-green-50">
       <p className="text-gray-500">Redirecting…</p>
     </div>
-  );
-}
-
-export default function AuthCallback() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-green-50"><p className="text-gray-500">Redirecting…</p></div>}>
-      <AuthCallbackInner />
-    </Suspense>
   );
 }

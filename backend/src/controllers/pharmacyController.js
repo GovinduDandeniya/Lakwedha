@@ -174,6 +174,20 @@ exports.reviewPrescription = asyncHandler(async (req, res) => {
             return res.status(400).json({ success: false, data: null, message: 'Medicines and prices required for approval.' });
         }
 
+        for (const m of medicines) {
+            const qty = Number(m.qty || m.quantity);
+            const price = Number(m.unitPrice || m.price);
+            if (!m.name || !String(m.name).trim()) {
+                return res.status(400).json({ success: false, data: null, message: 'Each medicine must have a name.' });
+            }
+            if (isNaN(qty) || qty <= 0) {
+                return res.status(400).json({ success: false, data: null, message: `Invalid quantity for medicine "${m.name}". Must be a positive number.` });
+            }
+            if (isNaN(price) || price <= 0) {
+                return res.status(400).json({ success: false, data: null, message: `Invalid price for medicine "${m.name}". Must be a positive number.` });
+            }
+        }
+
         prescription.medicines = medicines.map((m) => ({
             name: m.name,
             quantity: Number(m.qty || m.quantity),
@@ -181,12 +195,21 @@ exports.reviewPrescription = asyncHandler(async (req, res) => {
         }));
 
         prescription.pharmacyStatus = 'approved';
-        await prescription.save();
+
+        const DELIVERY_FEE = parseFloat(process.env.PHARMACY_DELIVERY_FEE) || 350;
+        const TAX_RATE = parseFloat(process.env.PHARMACY_TAX_RATE) || 0.05;
 
         const subtotal = prescription.medicines.reduce((sum, item) => sum + item.quantity * item.price, 0);
-        const tax = subtotal * 0.05;
-        const deliveryFee = 350;
+        const tax = subtotal * TAX_RATE;
+        const deliveryFee = DELIVERY_FEE;
         const totalAmount = subtotal + tax + deliveryFee;
+
+        prescription.subtotal = subtotal;
+        prescription.tax = tax;
+        prescription.deliveryFee = deliveryFee;
+        prescription.totalAmount = totalAmount;
+
+        await prescription.save();
 
         const order = await Order.create({
             userId: prescription.userId,
@@ -232,6 +255,20 @@ exports.updatePrescriptionMedicines = asyncHandler(async (req, res) => {
 
     if (prescription.pharmacyStatus !== 'pending') {
         return res.status(400).json({ success: false, data: null, message: 'Denied: Prescription processed.' });
+    }
+
+    for (const m of medicines) {
+        const qty = Number(m.qty || m.quantity);
+        const price = Number(m.unitPrice || m.price);
+        if (!m.name || !String(m.name).trim()) {
+            return res.status(400).json({ success: false, data: null, message: 'Each medicine must have a name.' });
+        }
+        if (isNaN(qty) || qty <= 0) {
+            return res.status(400).json({ success: false, data: null, message: `Invalid quantity for medicine "${m.name}". Must be a positive number.` });
+        }
+        if (isNaN(price) || price <= 0) {
+            return res.status(400).json({ success: false, data: null, message: `Invalid price for medicine "${m.name}". Must be a positive number.` });
+        }
     }
 
     prescription.medicines = medicines.map((m) => ({

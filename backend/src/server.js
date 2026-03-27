@@ -1064,6 +1064,11 @@ app.post("/api/v1/save-token", requireAuth, async (req, res) => {
   }
 });
 
+// ── PayHere payment test page (served over HTTP so SDK works) ─────────────────
+app.get('/test-payment', (req, res) => {
+  res.sendFile(require('path').resolve(__dirname, '../test-payment.html'));
+});
+
 // Global error handler — must be last middleware
 app.use(errorHandler);
 

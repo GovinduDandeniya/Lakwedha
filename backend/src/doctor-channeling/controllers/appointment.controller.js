@@ -4,6 +4,7 @@ const ExtraAppointmentRequest = require('../models/extra_appointment_request.mod
 const ChannelingSession = require('../models/channelingSession.model');
 const RegisteredDoctor = require('../../models/RegisteredDoctor');
 const LegacyDoctor = require('../models/doctor.model');
+const User = require('../../models/user');
 const queueService = require('../services/queue.service');
 const notificationService = require('../services/notification.service');
 const { validateAppointment, validateStatusUpdate } = require('../validators/appointment.validator');
@@ -637,13 +638,19 @@ exports.initiateAppointmentPayment = async (req, res) => {
             return res.status(400).json({ success: false, error: 'This appointment has already been paid' });
         }
 
-        const merchantId = process.env.PAYHERE_MERCHANT_ID?.trim();
-        const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET?.trim();
+        if (!process.env.PAYHERE_MERCHANT_ID || !process.env.PAYHERE_MERCHANT_SECRET) {
+            return res.status(500).json({ success: false, error: 'PayHere credentials not configured' });
+        }
+
+        const merchantId = process.env.PAYHERE_MERCHANT_ID.trim();
+        const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET.trim();
         const orderId = appointment._id.toString();
         const amount = appointment.totalFee.toFixed(2);
         const currency = 'LKR';
 
         const hash = generatePayhereHash(merchantId, orderId, amount, currency, merchantSecret);
+
+        const user = await User.findById(req.user.id).select('first_name last_name email phone');
 
         res.json({
             success: true,
@@ -658,10 +665,10 @@ exports.initiateAppointmentPayment = async (req, res) => {
                 amount,
                 currency,
                 hash,
-                first_name: 'Patient',
-                last_name: '',
-                email: 'patient@lakwedha.com',
-                phone: '0771234567',
+                first_name: user?.first_name || 'Patient',
+                last_name: user?.last_name || '',
+                email: user?.email || 'patient@lakwedha.com',
+                phone: user?.phone || '0771234567',
                 address: 'Sri Lanka',
                 city: 'Colombo',
                 country: 'Sri Lanka'
@@ -694,7 +701,7 @@ exports.handleAppointmentPayhereNotification = async (req, res) => {
         }
 
         // status_code 2 = successful payment
-        if (status_code != 2) {
+        if (Number(status_code) !== 2) {
             return res.status(200).json({ success: true, message: 'Notification received' });
         }
 

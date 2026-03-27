@@ -19,16 +19,16 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Handle messages received while app is terminated / in background
-  FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
-
-  // Handle messages received while app is in foreground
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    debugPrint('Foreground message: ${message.notification?.title}');
-    // The notification is received — UI refresh or in-app banner can be triggered here
-  });
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint('Foreground message: ${message.notification?.title}');
+    });
+  } catch (e) {
+    debugPrint('Firebase init skipped: $e');
+  }
 
   runApp(const ProviderScope(child: RavanaApp()));
 }

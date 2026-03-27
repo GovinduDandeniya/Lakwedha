@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -191,7 +192,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           child: ClipOval(
                             child: imagePath != null && imagePath.isNotEmpty
-                              ? Image.file(File(imagePath), fit: BoxFit.cover)
+                              ? (kIsWeb
+                                  ? Image.network(imagePath, fit: BoxFit.cover)
+                                  : Image.file(File(imagePath), fit: BoxFit.cover))
                               : Container(
                                   color: Colors.white.withValues(alpha: 0.20),
                                   child: Center(

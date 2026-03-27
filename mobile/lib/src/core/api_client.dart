@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, Tar
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
+import '../../core/constants/app_constants.dart';
 
 final loggerProvider = Provider((ref) => Logger());
 
@@ -28,13 +30,17 @@ class _NativeTokenStorage implements _TokenStorage {
 }
 
 class _WebTokenStorage implements _TokenStorage {
-  final _map = <String, String>{};
+  @override
+  Future<String?> read(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(key);
+  }
 
   @override
-  Future<String?> read(String key) async => _map[key];
-
-  @override
-  Future<void> write(String key, String value) async => _map[key] = value;
+  Future<void> write(String key, String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, value);
+  }
 }
 
 final _tokenStorage = kIsWeb ? _WebTokenStorage() as _TokenStorage : _NativeTokenStorage();
@@ -74,12 +80,9 @@ final dioProvider = Provider((ref) {
       logger.i('REQUEST[${options.method}] => PATH: ${options.path}');
 
       // Inject Authorization token
-      final token = await _tokenStorage.read('jwt_token');
+      final token = await _tokenStorage.read(AppConstants.tokenKey);
       if (token != null && token.isNotEmpty) {
         options.headers['Authorization'] = 'Bearer $token';
-      } else {
-        // Fallback for dev environment without actual login
-        options.headers['Authorization'] = 'Bearer dummy-jwt-token-for-dev';
       }
 
       return handler.next(options);

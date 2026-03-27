@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -335,8 +336,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         child: ClipOval(
                           child: imagePath != null && imagePath.isNotEmpty
-                            ? Image.file(File(imagePath), fit: BoxFit.cover,
-                                width: 72, height: 72)
+                            ? (kIsWeb
+                                ? Image.network(imagePath, fit: BoxFit.cover,
+                                    width: 72, height: 72)
+                                : Image.file(File(imagePath), fit: BoxFit.cover,
+                                    width: 72, height: 72))
                             : Container(
                                 color: Colors.white.withValues(alpha: 0.18),
                                 child: Center(

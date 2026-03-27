@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Prescription = require('../models/Prescription');
 const Medicine = require('../models/Medicine');
+const User = require('../models/user');
 const crypto = require('crypto');
 
 const asyncHandler = require('../utils/asyncHandler');
@@ -24,15 +25,26 @@ exports.createOrderFromPrescription = asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, data: null, message: 'Verification Required: Pharmacy must approve prescription first.' });
     }
 
+    // Calculate financials from prescription medicines as fallback for older records
+    let { subtotal, tax, deliveryFee, totalAmount } = prescription;
+    if (!totalAmount) {
+        const DELIVERY_FEE = parseFloat(process.env.PHARMACY_DELIVERY_FEE) || 350;
+        const TAX_RATE = parseFloat(process.env.PHARMACY_TAX_RATE) || 0.05;
+        subtotal = prescription.medicines.reduce((sum, item) => sum + Number(item.quantity) * Number(item.price), 0);
+        tax = subtotal * TAX_RATE;
+        deliveryFee = DELIVERY_FEE;
+        totalAmount = subtotal + tax + deliveryFee;
+    }
+
     const order = await Order.create({
         userId: prescription.userId,
         prescriptionId: prescription._id,
         pharmacyId: prescription.pharmacyId,
         medicines: prescription.medicines,
-        subtotal: prescription.subtotal,
-        tax: prescription.tax,
-        deliveryFee: prescription.deliveryFee,
-        totalAmount: prescription.totalAmount,
+        subtotal,
+        tax,
+        deliveryFee,
+        totalAmount,
         status: ORDER_STATUSES.APPROVED,
         paymentStatus: 'pending',
         statusHistory: [{
@@ -121,6 +133,21 @@ exports.updatePaymentStatus = asyncHandler(async (req, res) => {
         return res.status(403).json({ success: false, data: null, message: 'Only administrators or assigned pharmacists can update payment records.' });
     }
 
+    // Manual payment confirmation is only valid for COD orders
+    if (order.paymentMethod !== 'cod') {
+        return res.status(400).json({ success: false, data: null, message: 'Manual payment confirmation is only allowed for Cash on Delivery orders.' });
+    }
+
+    // Only allow transitioning to paid or failed; not re-opening a paid order
+    const allowedStatuses = ['paid', 'failed'];
+    if (!allowedStatuses.includes(paymentStatus)) {
+        return res.status(400).json({ success: false, data: null, message: `Invalid payment status. Allowed values: ${allowedStatuses.join(', ')}.` });
+    }
+
+    if (order.paymentStatus === 'paid') {
+        return res.status(400).json({ success: false, data: null, message: 'This order has already been marked as paid.' });
+    }
+
     const oldStatus = order.paymentStatus;
     order.paymentStatus = paymentStatus;
     
@@ -185,11 +212,17 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'This order has already been paid' });
   }
 
+  if (!process.env.PAYHERE_MERCHANT_ID || !process.env.PAYHERE_MERCHANT_SECRET) {
+    return res.status(500).json({ success: false, message: 'PayHere credentials not configured' });
+  }
+
   const merchantId = process.env.PAYHERE_MERCHANT_ID.trim();
   const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET.trim();
   const orderId = order._id.toString();
   const amount = order.totalAmount.toFixed(2);
   const currency = 'LKR';
+
+  const user = await User.findById(req.user.id).select('first_name last_name email phone');
 
   // Generate hash exactly as PayHere docs specify
   const hashedSecret = crypto
@@ -209,18 +242,18 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
     data: {
       sandbox: process.env.PAYHERE_SANDBOX?.trim() === 'true',
       merchant_id: merchantId,
-      return_url: `${process.env.BACKEND_URL?.trim()}/api/orders/pay/return`,
-      cancel_url: `${process.env.BACKEND_URL?.trim()}/api/orders/pay/cancel`,
-      notify_url: `${process.env.BACKEND_URL?.trim()}/api/orders/pay/notify`,
+      return_url: `${process.env.BACKEND_URL?.trim()}/api/v1/orders/pay/return`,
+      cancel_url: `${process.env.BACKEND_URL?.trim()}/api/v1/orders/pay/cancel`,
+      notify_url: `${process.env.BACKEND_URL?.trim()}/api/v1/orders/pay/notify`,
       order_id: orderId,
       items: 'Ayurvedic Medicines',
       amount: amount,
       currency: currency,
       hash: hash,
-      first_name: 'Patient',
-      last_name: 'Patient',
-      email: 'patient@lakwedha.com',
-      phone: '0771234567',
+      first_name: user?.first_name || 'Patient',
+      last_name: user?.last_name || '',
+      email: user?.email || 'patient@lakwedha.com',
+      phone: user?.phone || '0771234567',
       address: 'Sri Lanka',
       city: 'Colombo',
       country: 'Sri Lanka'
@@ -243,7 +276,7 @@ exports.confirmPayment = asyncHandler(async (req, res) => {
   order.statusHistory.push({
     from: previousStatus,
     to: 'processing',
-    changedBy: 'payhere_confirmation',
+    changedBy: null,
     changedAt: new Date(),
     reason: 'Payment confirmed via PayHere callback'
   });
@@ -267,7 +300,7 @@ exports.handlePayhereNotification = asyncHandler(async (req, res) => {
     md5sig
   } = req.body;
 
-  const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
+  const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET?.trim();
 
   // Verify signature exactly as PayHere docs specify
   const hashedSecret = crypto
@@ -293,7 +326,7 @@ exports.handlePayhereNotification = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid signature' });
   }
 
-  if (status_code != 2) {
+  if (Number(status_code) !== 2) {
     return res.status(200).json({ success: true, message: 'Notification received' });
   }
 
@@ -310,7 +343,7 @@ exports.handlePayhereNotification = asyncHandler(async (req, res) => {
   order.statusHistory.push({
     from: previousStatus,
     to: 'processing',
-    changedBy: 'payhere_notification',
+    changedBy: null,
     changedAt: new Date(),
     reason: 'Payment confirmed via PayHere notification'
   });

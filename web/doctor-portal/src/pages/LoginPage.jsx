@@ -99,10 +99,12 @@ const LoginPage = () => {
     // ── Admin login ────────────────────────────────────────────────────────
     const handleAdminLogin = async () => {
         try {
-            const response = await axios.post('http://localhost:5000/api/admin/login', { email, password });
+            const apiRoot = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1').replace(/\/api\/v1\/?$/, '');
+            const adminPortal = process.env.REACT_APP_ADMIN_URL || 'http://localhost:3000';
+            const response = await axios.post(`${apiRoot}/api/admin/login`, { email, password });
             const { token, admin } = response.data;
             const adminUser = { _id: admin?.id, name: admin?.name, email: admin?.email || email, role: 'admin', status: 'active' };
-            window.location.href = `http://localhost:3000/auth/callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(adminUser))}`;
+            window.location.href = `${adminPortal}/auth/callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(adminUser))}`;
         } catch (err) {
             const msg =
                 err?.response?.data?.message ||
@@ -115,7 +117,7 @@ const LoginPage = () => {
     // ── Pharmacy login (direct API — separate from doctor auth) ───────────
     const handlePharmacyLogin = async () => {
         try {
-            const response = await axios.post(`http://localhost:5000/api/v1/pharmacy/login`, { email, password });
+            const response = await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/pharmacy/login`, { email, password });
             const { status, token, pharmacy, reason } = response.data;
 
             if (status === 'pending') {
