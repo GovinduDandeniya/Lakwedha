@@ -121,7 +121,8 @@ const LoginPage = () => {
     // ── Pharmacy login (direct API — separate from doctor auth) ───────────
     const handlePharmacyLogin = async () => {
         try {
-            const response = await axios.post('https://lakwedha.onrender.com/api/pharmacy/login', { email, password });
+            const API_URL = process.env.REACT_APP_API_URL || 'https://lakwedha.onrender.com/api/v1';
+            const response = await axios.post(`${API_URL}/pharmacy/login`, { email, password });
             const { status, token, pharmacy, reason } = response.data;
 
             if (status === 'pending') {
