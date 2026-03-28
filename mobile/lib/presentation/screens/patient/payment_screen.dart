@@ -564,8 +564,17 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     if (response.statusCode != 201) {
       throw Exception('Booking failed: ${body['error'] ?? 'Unknown error'}');
     }
-    final appointmentId = body['data']?['_id'] as String?;
-    if (appointmentId == null) throw Exception('Appointment ID missing from response.');
+    final data = body['data'];
+    String? appointmentId;
+    if (data is Map<String, dynamic>) {
+      final rawId = data['_id'] ?? data['appointmentId'] ?? data['id'];
+      if (rawId is String && rawId.trim().isNotEmpty) {
+        appointmentId = rawId;
+      }
+    }
+    if (appointmentId == null) {
+      throw Exception('Appointment ID missing from response.');
+    }
     return appointmentId;
   }
 

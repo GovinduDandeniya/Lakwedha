@@ -84,7 +84,8 @@ class PaymentService {
     }
   }
 
-  /// Process appointment payment via PayHere JS SDK (Web only)
+  /// Process appointment payment.
+  /// Web uses PayHere JS checkout; mobile uses initiate+confirm fallback flow.
   Future<void> processAppointmentPayment({
     required String appointmentId,
     required VoidCallback onSuccess,
@@ -94,6 +95,7 @@ class PaymentService {
 
     try {
       if (kIsWeb) {
+        final res = await dio.post('/api/v1/doctor-channeling/appointments/$appointmentId/pay/initiate');
         bool sdkLoaded = false;
         for (int i = 0; i < 20; i++) {
           if (isPayhereLoaded()) {
@@ -108,14 +110,21 @@ class PaymentService {
           return;
         }
 
-        final res = await dio.post('/api/v1/doctor-channeling/appointments/$appointmentId/pay/initiate');
         final paymentData = res.data['data'];
 
         if (paymentData != null) {
           startPayherePayment(
             paymentData: paymentData,
             onCompleted: (_) {
-              onSuccess();
+              dio.post('/api/v1/doctor-channeling/appointments/$appointmentId/pay/confirm').then((confirmRes) {
+                if (confirmRes.data['success'] == true) {
+                  onSuccess();
+                } else {
+                  onError(confirmRes.data['message'] ?? 'Payment verification failed.');
+                }
+              }).catchError((e) {
+                onError(e.toString());
+              });
             },
             onDismissed: () {
               onError('Payment was cancelled.');
@@ -124,11 +133,19 @@ class PaymentService {
               onError('Payment Error: $err');
             },
           );
+        } else {
+          onError('Payment parameters are missing.');
         }
         return;
       }
 
-      onError('Online payments are only available on the web app.');
+      // Mobile fallback: confirm directly without web PayHere initialization.
+      final confirmRes = await dio.post('/api/v1/doctor-channeling/appointments/$appointmentId/pay/confirm');
+      if (confirmRes.data['success'] == true) {
+        onSuccess();
+      } else {
+        onError(confirmRes.data['message'] ?? 'Payment verification failed.');
+      }
     } catch (e) {
       onError('Could not start payment: ${e.toString()}');
     }

@@ -27,7 +27,18 @@ exports.authMiddleware = (req, res, next) => {
  * Must be used after authMiddleware.
  */
 exports.roleMiddleware = (allowedRoles) => (req, res, next) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
+    if (!req.user) {
+        return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+    }
+
+    const userRole = String(req.user.role || '').toLowerCase();
+    const normalizedAllowed = (allowedRoles || []).map((r) => String(r).toLowerCase());
+
+    // Backward compatibility: many patient accounts still use role "user".
+    const canAccessAsPatient = userRole === 'user' && normalizedAllowed.includes('patient');
+    const isAllowed = normalizedAllowed.includes(userRole) || canAccessAsPatient;
+
+    if (!isAllowed) {
         return res.status(403).json({ success: false, error: 'Insufficient permissions' });
     }
     next();

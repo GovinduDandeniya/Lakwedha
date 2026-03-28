@@ -1,6 +1,12 @@
 const EMR = require('../models/EMR');
 const { encrypt, decrypt } = require('../utils/encryption');
 const logger = require('../utils/logger');
+const crypto = require('crypto');
+
+const getAesKey = () => {
+    const raw = process.env.AES_SECRET_KEY || '';
+    return crypto.createHash('sha256').update(String(raw)).digest();
+};
 
 /**
  * Helper to decrypt an EMR record safely
@@ -80,11 +86,14 @@ exports.getEMRs = async (req, res) => {
         if (userRole === 'PATIENT') {
             query.patientId = userId; // Patient can only view their own
         } else if (userRole === 'DOCTOR') {
-            const { patientId } = req.query; // Doctor must provide patientId or we get all for this doctor
+            const { patientId } = req.query;
             if (patientId) {
+                // Doctor viewing a patient should see full medical history.
                 query.patientId = patientId;
+            } else {
+                // Without patient scope, doctor sees own uploaded records only.
+                query.doctorId = userId;
             }
-            query.doctorId = userId; // Doctor can only view EMRs they created
         } else {
             return res.status(403).json({ message: 'Forbidden' });
         }
@@ -113,7 +122,7 @@ exports.getEMRs = async (req, res) => {
  */
 exports.uploadEMRRecord = async (req, res) => {
     try {
-        const { patientId, type, title, diagnosis, notes, appointmentId, uploadedDate } = req.body;
+        const { patientId, type, title, diagnosis, treatment, notes, appointmentId, uploadedDate } = req.body;
         const doctorId = req.user.id;
 
         if (!patientId || !type) {
@@ -125,11 +134,10 @@ exports.uploadEMRRecord = async (req, res) => {
         if (req.file) {
             const fs     = require('fs');
             const path   = require('path');
-            const crypto = require('crypto');
 
             const rawBuffer = req.file.buffer;
             const iv        = crypto.randomBytes(16);
-            const cipher    = crypto.createCipheriv('aes-256-cbc', Buffer.from(process.env.AES_SECRET_KEY, 'utf-8'), iv);
+            const cipher    = crypto.createCipheriv('aes-256-cbc', getAesKey(), iv);
             const encryptedBuffer = Buffer.concat([iv, cipher.update(rawBuffer), cipher.final()]);
 
             const uploadDir = path.join(__dirname, '../../uploads/emr');
@@ -149,6 +157,7 @@ exports.uploadEMRRecord = async (req, res) => {
             fileUrl,
             uploadedDate: uploadedDate || new Date().toISOString().slice(0, 10),
             encryptedDiagnosis: diagnosis ? encrypt(diagnosis) : undefined,
+            encryptedTreatment: treatment ? encrypt(treatment) : undefined,
             encryptedNotes:     notes     ? encrypt(notes)     : undefined,
         };
 
@@ -171,6 +180,14 @@ exports.uploadEMRRecord = async (req, res) => {
  */
 exports.getEMRsByPatientId = async (req, res) => {
     try {
+        const userId = req.user.id || req.user._id;
+        const userRole = String(req.user.role || '').toUpperCase();
+
+        // Patient can only access own records. Doctors can access patient records.
+        if (userRole === 'PATIENT' && String(req.params.id) !== String(userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         const emrs = await EMR.find({ patientId: req.params.id })
             .populate('doctorId', 'name email')
             .sort({ createdAt: -1 });
@@ -189,7 +206,6 @@ exports.getEMRFile = (req, res) => {
     try {
         const fs = require('fs');
         const path = require('path');
-        const crypto = require('crypto');
 
         const filename = req.params.filename;
         const filePath = path.join(__dirname, '../../uploads/emr', filename);
@@ -198,23 +214,47 @@ exports.getEMRFile = (req, res) => {
             return res.status(404).json({ error: 'Vault file missing entirely.' });
         }
 
-        const encryptedData = fs.readFileSync(filePath);
-        const iv = encryptedData.slice(0, 16);
-        const content = encryptedData.slice(16);
+        const relativeUrl = `/api/emr/files/${filename}`;
 
-        const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(process.env.AES_SECRET_KEY, 'utf-8'), iv);
-        let decrypted = Buffer.concat([decipher.update(content), decipher.final()]);
+        EMR.findOne({ fileUrl: relativeUrl })
+            .then((record) => {
+                if (!record) {
+                    return res.status(404).json({ error: 'Record not found for file.' });
+                }
 
-        // Guess mime type roughly from extension
-        let ext = filename.split('.').pop().toLowerCase();
-        let mime = 'application/octet-stream';
-        if (['jpg', 'jpeg'].includes(ext)) mime = 'image/jpeg';
-        else if (ext === 'png') mime = 'image/png';
-        else if (ext === 'pdf') mime = 'application/pdf';
-        else if (ext === 'txt') mime = 'text/plain';
+                const userId = req.user.id || req.user._id;
+                const userRole = String(req.user.role || '').toUpperCase();
 
-        res.setHeader('Content-Type', mime);
-        res.send(decrypted);
+                if (userRole === 'PATIENT' && String(record.patientId) !== String(userId)) {
+                    return res.status(403).json({ error: 'Forbidden' });
+                }
+
+                // Doctors are allowed to read patient records for medical continuity.
+                if (!['DOCTOR', 'PATIENT'].includes(userRole)) {
+                    return res.status(403).json({ error: 'Forbidden' });
+                }
+
+                const encryptedData = fs.readFileSync(filePath);
+                const iv = encryptedData.slice(0, 16);
+                const content = encryptedData.slice(16);
+                const decipher = crypto.createDecipheriv('aes-256-cbc', getAesKey(), iv);
+                const decrypted = Buffer.concat([decipher.update(content), decipher.final()]);
+
+                // Guess mime type roughly from extension
+                let ext = filename.split('.').pop().toLowerCase();
+                let mime = 'application/octet-stream';
+                if (['jpg', 'jpeg'].includes(ext)) mime = 'image/jpeg';
+                else if (ext === 'png') mime = 'image/png';
+                else if (ext === 'pdf') mime = 'application/pdf';
+                else if (ext === 'txt') mime = 'text/plain';
+
+                res.setHeader('Content-Type', mime);
+                return res.send(decrypted);
+            })
+            .catch((err) => {
+                logger.error(`Decrypt Stream Lookup Error: ${err.message}`);
+                return res.status(500).json({ error: 'File access failed.' });
+            });
     } catch (err) {
         logger.error(`Decrypt Stream Error: ${err.message}`);
         res.status(500).json({ error: 'Decryption failed locally.' });

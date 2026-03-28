@@ -36,14 +36,22 @@ const formatDate = (dateStr) => {
 /* ── Single record card ──────────────────────────────────────────────────────── */
 const RecordCard = ({ record }) => {
     const cfg   = TYPE_CONFIG[record.type] || TYPE_CONFIG.file;
-    const date  = record.uploadedDate || formatDate(record.createdAt);
+    const date  = formatDate(record.uploadedDate || record.createdAt);
     const hasFile = Boolean(record.fileUrl);
 
-    const openFile = () => {
-        // The file URL is the API endpoint that decrypts and streams the file
+    const openFile = async () => {
         const filename = record.fileUrl?.split('/').pop();
         if (!filename) return;
-        window.open(`${api.defaults.baseURL}/emr/files/${filename}`, '_blank', 'noopener');
+
+        try {
+            const res = await api.get(`/emr/files/${filename}`, { responseType: 'blob' });
+            const url = window.URL.createObjectURL(res.data);
+            window.open(url, '_blank', 'noopener');
+            // Cleanup object URL after opening.
+            setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+        } catch {
+            // Keep this intentionally silent to preserve existing dialog UX.
+        }
     };
 
     return (

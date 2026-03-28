@@ -75,4 +75,10 @@ router.post('/:id/pay/initiate',
     appointmentController.initiateAppointmentPayment
 );
 
+// Patient: confirm appointment payment (used by mobile/manual flow)
+router.post('/:id/pay/confirm',
+    roleMiddleware(['patient']),
+    appointmentController.confirmAppointmentPayment
+);
+
 module.exports = router;

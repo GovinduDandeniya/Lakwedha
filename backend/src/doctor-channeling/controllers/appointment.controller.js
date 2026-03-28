@@ -665,7 +665,12 @@ exports.getMyExtraRequests = async (req, res) => {
  */
 exports.initiateAppointmentPayment = async (req, res) => {
     try {
-        const appointment = await Appointment.findById(req.params.id);
+        const lookupId = String(req.params.id || '').trim();
+        const isObjectId = /^[a-f\d]{24}$/i.test(lookupId);
+
+        const appointment = isObjectId
+            ? await Appointment.findById(lookupId)
+            : await Appointment.findOne({ appointmentId: lookupId });
         if (!appointment) {
             return res.status(404).json({ success: false, error: 'Appointment not found' });
         }
@@ -713,6 +718,42 @@ exports.initiateAppointmentPayment = async (req, res) => {
             },
             message: 'Payment parameters generated'
         });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
+ * POST /api/v1/doctor-channeling/appointments/:id/pay/confirm
+ * Patient: confirm payment for a pending appointment
+ */
+exports.confirmAppointmentPayment = async (req, res) => {
+    try {
+        const lookupId = String(req.params.id || '').trim();
+        const isObjectId = /^[a-f\d]{24}$/i.test(lookupId);
+
+        const appointment = isObjectId
+            ? await Appointment.findById(lookupId)
+            : await Appointment.findOne({ appointmentId: lookupId });
+        if (!appointment) {
+            return res.status(404).json({ success: false, error: 'Appointment not found' });
+        }
+        if (appointment.patientId.toString() !== req.user.id) {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+        if (appointment.paymentStatus === 'paid') {
+            return res.status(200).json({ success: true, message: 'Already paid' });
+        }
+
+        appointment.paymentStatus = 'paid';
+        appointment.paidAt = new Date();
+        appointment.status = 'confirmed';
+        appointment.updatedAt = new Date();
+        await appointment.save();
+
+        await notificationService.sendAppointmentConfirmation(appointment);
+
+        res.status(200).json({ success: true, message: 'Payment confirmed' });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
