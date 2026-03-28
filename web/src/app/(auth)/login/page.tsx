@@ -3,9 +3,6 @@
 import { useEffect } from 'react';
 
 export default function LoginPage() {
-  useEffect(() => {
-    window.location.href = "/login";
-  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-green-50">
