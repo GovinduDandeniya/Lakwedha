@@ -33,7 +33,7 @@ export default function Topbar() {
 
   const handleLogout = () => {
     logout();
-    router.push("/login");
+    window.location.href = 'https://app.lakwedha.lk/login';
   };
 
   return (
