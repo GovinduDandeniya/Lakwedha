@@ -145,6 +145,17 @@ const MedicalRecordsDialog = ({ open, onClose, patient, patientId }) => {
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    const formatRecordDate = (dateStr) => {
+        if (!dateStr) return '—';
+        try {
+            return new Date(dateStr).toLocaleDateString('en-GB', {
+                day: '2-digit', month: 'short', year: 'numeric'
+            });
+        } catch {
+            return dateStr;
+        }
+    };
+
     useEffect(() => {
         if (!open || !patientId) return;
         setLoading(true);
@@ -188,7 +199,7 @@ const MedicalRecordsDialog = ({ open, onClose, patient, patientId }) => {
                                                 {r.diagnosis && <Typography variant="body2" sx={{ mb: 0.3 }}><strong>Diagnosis:</strong> {r.diagnosis}</Typography>}
                                                 {r.notes && <Typography variant="body2" color="text.secondary">{r.notes}</Typography>}
                                                 <Typography variant="caption" color="text.disabled">
-                                                    {r.uploadedDate || r.createdAt ? new Date(r.uploadedDate || r.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                                                    Date: {formatRecordDate(r.uploadedDate || r.createdAt)}
                                                 </Typography>
                                             </Box>
                                         }
