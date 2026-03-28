@@ -2,9 +2,79 @@ const PharmacyRequest       = require('../models/PharmacyRequest');
 const Pharmacy              = require('../models/pharmacy.model');
 const User                  = require('../models/user');
 const Notification          = require('../models/Notification');
+const crypto                = require('crypto');
 const asyncHandler          = require('../utils/asyncHandler');
 const { sendPushNotification } = require('../utils/sendNotification');
 const { sendSMS }           = require('../services/smsService');
+
+function resolvePayHereConfig() {
+    const merchantId = (
+        process.env.PAYHERE_MERCHANT_ID ||
+        process.env.PAYHERE_MERCHANTID ||
+        process.env.PAYHERE_MERCHANT_KEY ||
+        ''
+    ).trim();
+
+    const merchantSecret = (
+        process.env.PAYHERE_MERCHANT_SECRET ||
+        process.env.PAYHERE_SECRET ||
+        ''
+    ).trim();
+
+    const missing = [];
+    if (!merchantId) missing.push('PAYHERE_MERCHANT_ID');
+    if (!merchantSecret) missing.push('PAYHERE_MERCHANT_SECRET');
+
+    return { merchantId, merchantSecret, missing };
+}
+
+async function markRequestPaidAndNotify(request, userId) {
+    request.status        = 'paid';
+    request.paymentStatus = 'paid';
+    request.paidAt        = new Date();
+    await request.save();
+
+    try {
+        const [pharmacyUser, patient] = await Promise.all([
+            User.findById(request.pharmacyId).select('fcmToken'),
+            User.findById(userId).select('fcmToken phone first_name name'),
+        ]);
+
+        const patientName = patient?.first_name || patient?.name || 'A patient';
+
+        if (pharmacyUser?.fcmToken) {
+            await sendPushNotification(
+                pharmacyUser.fcmToken,
+                'Payment Received — New Order 💰',
+                `${patientName} paid LKR ${request.price} for their prescription. Please process the order.`
+            );
+        }
+
+        await Notification.create({
+            userId,
+            title:   'Payment Confirmed 🎉',
+            message: `Your payment of LKR ${request.price} was received. The pharmacy will now process your order.`,
+            type:    'PHARMACY_ORDER_PAID',
+        });
+
+        if (patient?.fcmToken) {
+            await sendPushNotification(
+                patient.fcmToken,
+                'Payment Confirmed 🎉',
+                `Your payment of LKR ${request.price} was received. The pharmacy will process your order shortly.`
+            );
+        }
+
+        if (patient?.phone) {
+            await sendSMS(
+                patient.phone,
+                `Lakwedha Pharmacy 💊\nPayment Confirmed!\nAmount: LKR ${request.price}\nYour order is being processed. Thank you!`
+            );
+        }
+    } catch (notifyErr) {
+        console.error('[PharmacyRequest] Pay notification error:', notifyErr.message);
+    }
+}
 
 // ── Patient: Submit prescription request to one or more pharmacies ─────────────
 exports.createRequest = asyncHandler(async (req, res) => {
@@ -184,56 +254,103 @@ exports.payForRequest = asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, message: 'Request is not awaiting payment.' });
     }
 
-    request.status        = 'paid';
-    request.paymentStatus = 'paid';
-    request.paidAt        = new Date();
-    await request.save();
+    await markRequestPaidAndNotify(request, userId);
 
-    // ── Notify pharmacy admin that payment was received ───────────────────────
-    try {
-        const [pharmacyUser, patient] = await Promise.all([
-            User.findById(request.pharmacyId).select('fcmToken'),
-            User.findById(userId).select('fcmToken phone first_name name'),
-        ]);
+    res.json({ success: true, data: request, message: 'Payment confirmed. Pharmacy will process your order.' });
+});
 
-        const patientName = patient?.first_name || patient?.name || 'A patient';
+// ── Patient: Initiate PayHere payment for approved request ──────────────────
+exports.initiatePayForRequest = asyncHandler(async (req, res) => {
+    const userId = req.user?.id;
+    const { requestId } = req.body;
 
-        // Push to pharmacy admin
-        if (pharmacyUser?.fcmToken) {
-            await sendPushNotification(
-                pharmacyUser.fcmToken,
-                'Payment Received — New Order 💰',
-                `${patientName} paid LKR ${request.price} for their prescription. Please process the order.`
-            );
-        }
-
-        // Save payment confirmation notification for the user
-        await Notification.create({
-            userId,
-            title:   'Payment Confirmed 🎉',
-            message: `Your payment of LKR ${request.price} was received. The pharmacy will now process your order.`,
-            type:    'PHARMACY_ORDER_PAID',
-        });
-
-        // Push confirmation to user
-        if (patient?.fcmToken) {
-            await sendPushNotification(
-                patient.fcmToken,
-                'Payment Confirmed 🎉',
-                `Your payment of LKR ${request.price} was received. The pharmacy will process your order shortly.`
-            );
-        }
-
-        // SMS to user confirming payment
-        if (patient?.phone) {
-            await sendSMS(
-                patient.phone,
-                `Lakwedha Pharmacy 💊\nPayment Confirmed!\nAmount: LKR ${request.price}\nYour order is being processed. Thank you!`
-            );
-        }
-    } catch (notifyErr) {
-        console.error('[PharmacyRequest] Pay notification error:', notifyErr.message);
+    if (!requestId) {
+        return res.status(400).json({ success: false, message: 'requestId is required.' });
     }
+
+    const request = await PharmacyRequest.findOne({ _id: requestId, userId });
+    if (!request) {
+        return res.status(404).json({ success: false, message: 'Request not found.' });
+    }
+    if (request.status !== 'price_sent') {
+        return res.status(400).json({ success: false, message: 'Request is not awaiting payment.' });
+    }
+    if (!request.price || Number(request.price) <= 0) {
+        return res.status(400).json({ success: false, message: 'This request has no valid payable amount.' });
+    }
+
+    const { merchantId, merchantSecret, missing } = resolvePayHereConfig();
+    if (missing.length > 0) {
+        return res.status(500).json({
+            success: false,
+            message: `PayHere credentials not configured. Missing: ${missing.join(', ')}`,
+        });
+    }
+
+    const amount = Number(request.price).toFixed(2);
+    const currency = 'LKR';
+    const orderId = request._id.toString();
+
+    const patient = await User.findById(userId).select('first_name last_name name email phone');
+
+    const hashedSecret = crypto
+        .createHash('md5')
+        .update(merchantSecret)
+        .digest('hex')
+        .toUpperCase();
+
+    const hash = crypto
+        .createHash('md5')
+        .update(merchantId + orderId + amount + currency + hashedSecret)
+        .digest('hex')
+        .toUpperCase();
+
+    const firstName = patient?.first_name || patient?.name?.split(' ')[0] || 'Patient';
+    const lastName = patient?.last_name || '';
+
+    res.json({
+        success: true,
+        data: {
+            sandbox: process.env.PAYHERE_SANDBOX?.trim() === 'true',
+            merchant_id: merchantId,
+            return_url: `${process.env.BACKEND_URL?.trim() || process.env.FRONTEND_URL?.trim() || 'http://localhost:5000'}/api/v1/pharmacy/pay/return`,
+            cancel_url: `${process.env.BACKEND_URL?.trim() || process.env.FRONTEND_URL?.trim() || 'http://localhost:5000'}/api/v1/pharmacy/pay/cancel`,
+            notify_url: `${process.env.BACKEND_URL?.trim() || 'http://localhost:5000'}/api/v1/pharmacy/pay/notify`,
+            order_id: orderId,
+            items: 'Lakwedha Pharmacy Order',
+            amount,
+            currency,
+            hash,
+            first_name: firstName,
+            last_name: lastName,
+            email: patient?.email || 'patient@lakwedha.com',
+            phone: patient?.phone || '0771234567',
+            address: 'Sri Lanka',
+            city: 'Colombo',
+            country: 'Sri Lanka',
+        },
+        message: 'PayHere payment parameters generated',
+    });
+});
+
+// ── Patient: Confirm PayHere payment for request ────────────────────────────
+exports.confirmPayForRequest = asyncHandler(async (req, res) => {
+    const userId = req.user?.id;
+    const { requestId } = req.body;
+
+    if (!requestId) {
+        return res.status(400).json({ success: false, message: 'requestId is required.' });
+    }
+
+    const request = await PharmacyRequest.findOne({ _id: requestId, userId });
+    if (!request) {
+        return res.status(404).json({ success: false, message: 'Request not found.' });
+    }
+    if (request.status !== 'price_sent') {
+        return res.status(400).json({ success: false, message: 'Request is not awaiting payment.' });
+    }
+
+    await markRequestPaidAndNotify(request, userId);
 
     res.json({ success: true, data: request, message: 'Payment confirmed. Pharmacy will process your order.' });
 });

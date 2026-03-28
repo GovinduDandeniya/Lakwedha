@@ -615,7 +615,45 @@ exports.submitExtraRequest = async (req, res) => {
             urgencyNote: urgencyNote || '',
         });
 
+        notificationService.sendEmergencyRequestReceived(session.doctorId).catch(() => {});
+
         res.status(201).json({ success: true, data: request });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
+ * GET /api/v1/doctor-channeling/appointments/extra-requests/my
+ * Patient: view their own submitted extra appointment requests
+ */
+exports.getMyExtraRequests = async (req, res) => {
+    try {
+        const requests = await ExtraAppointmentRequest.find({ patientId: req.user.id })
+            .sort({ createdAt: -1 })
+            .populate('sessionId', 'hospitalName date startTime')
+            .populate('doctorId', 'fullName firstName lastName specialization');
+
+        const data = requests.map(r => ({
+            _id: r._id,
+            requestId: r.requestId,
+            status: r.status,
+            reason: r.reason,
+            urgencyNote: r.urgencyNote,
+            doctorResponse: r.doctorResponse,
+            createdAt: r.createdAt,
+            session: r.sessionId ? {
+                hospitalName: r.sessionId.hospitalName,
+                date: r.sessionId.date,
+                startTime: r.sessionId.startTime,
+            } : null,
+            doctor: r.doctorId ? {
+                name: r.doctorId.fullName || `${r.doctorId.firstName || ''} ${r.doctorId.lastName || ''}`.trim(),
+                specialization: r.doctorId.specialization,
+            } : null,
+        }));
+
+        res.json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

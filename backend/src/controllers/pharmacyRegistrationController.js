@@ -1,6 +1,7 @@
 const Pharmacy = require('../models/pharmacy.model');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { findProvince, findDistrict } = require('../utils/sriLankaLocations');
 
 const SECRET_KEY = process.env.JWT_SECRET || 'mysecretkey123';
 
@@ -31,6 +32,16 @@ exports.registerPharmacy = async (req, res) => {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
+    const canonicalProvince = findProvince(province);
+    if (!canonicalProvince) {
+      return res.status(400).json({ success: false, message: `Invalid province: "${province}". Use the exact province name (e.g. "Western", "Central", "North Western").` });
+    }
+
+    const canonicalDistrict = findDistrict(canonicalProvince, district);
+    if (!canonicalDistrict) {
+      return res.status(400).json({ success: false, message: `Invalid district: "${district}" for province "${canonicalProvince}".` });
+    }
+
     const existingEmail = await Pharmacy.findOne({ email: email.toLowerCase().trim() });
     if (existingEmail) {
       return res.status(400).json({ success: false, message: 'Email already registered' });
@@ -52,9 +63,9 @@ exports.registerPharmacy = async (req, res) => {
       pharmacyName,
       businessRegNumber,
       permitNumber,
-      province,
-      district,
-      city,
+      province: canonicalProvince,
+      district: canonicalDistrict,
+      city: city.trim(),
       address,
       postalCode,
       ownerName,

@@ -11,7 +11,9 @@ function formatRegisteredDoctor(d) {
         _id: d._id,
         name: d.fullName || `${d.firstName || ''} ${d.lastName || ''}`.trim(),
         specialization: d.specialization,
-        qualification: null,
+        qualification: Array.isArray(d.qualifications)
+            ? d.qualifications.map((q) => q?.title).filter(Boolean).join(', ')
+            : '',
         experience: 0,
         rating: 0,
         reviewCount: 0,
@@ -329,7 +331,9 @@ exports.getDoctorAvailabilityById = async (req, res) => {
                 id: regDoctor._id.toString(),
                 name: regDoctor.fullName || `${regDoctor.firstName} ${regDoctor.lastName}`,
                 specialization: regDoctor.specialization,
-                qualification: null,
+                qualification: Array.isArray(regDoctor.qualifications)
+                    ? regDoctor.qualifications.map((q) => q?.title).filter(Boolean).join(', ')
+                    : '',
                 is_verified: true,
             };
         } else {
@@ -432,7 +436,9 @@ exports.getDoctorAvailabilityByName = async (req, res) => {
                 id: regDoctor._id.toString(),
                 name: regDoctor.fullName || `${regDoctor.firstName} ${regDoctor.lastName}`,
                 specialization: regDoctor.specialization,
-                qualification: null,
+                qualification: Array.isArray(regDoctor.qualifications)
+                    ? regDoctor.qualifications.map((q) => q?.title).filter(Boolean).join(', ')
+                    : '',
                 is_verified: true,
             };
         } else {
