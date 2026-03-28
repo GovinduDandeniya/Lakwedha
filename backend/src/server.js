@@ -968,6 +968,7 @@ app.use('/api/prescriptions', prescriptionRoutes);
 
 // ── User / Auth / Forgot-password routes ─────────────────────────────────────
 app.use("/api/admin",               adminRoutes);
+app.use("/api/v1/admin",            adminRoutes);
 app.use("/api/admin",               adminManagementRoutes);
 app.use("/api/v1/users",            userRoutes);
 app.use("/api/v1/auth",             registrationRoutes);
