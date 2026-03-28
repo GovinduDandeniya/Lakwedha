@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 export default function LoginPage() {
   useEffect(() => {
-    window.location.href = 'http://localhost:3002/login';
+    window.location.href = "/login";
   }, []);
 
   return (
