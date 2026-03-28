@@ -10,7 +10,9 @@ import '../../../data/datasources/remote/api_service.dart';
 import '../../../data/models/appointment_model.dart';
 import '../../../data/models/doctor_model.dart';
 import '../../../src/screens/pharmacy_finder_screen.dart';
-import '../../../src/screens/pharmacy_order_status_screen.dart';
+import '../../../src/screens/pharmacy_payment_gateway_screen.dart';
+import '../../../src/screens/patient_orders_screen.dart';
+import '../patient/appointment_history_screen.dart';
 import '../patient/doctor_search_screen.dart';
 import 'edit_profile_screen.dart';
 
@@ -45,17 +47,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _fetchPharmacyOrders() async {
-    try {
-      return await _apiService.getMyPharmacyRequests();
-    } catch (_) {
-      return [];
-    }
+    return await _apiService.getMyPharmacyRequests();
   }
 
   void _refreshPharmacyOrders() {
     setState(() {
       _pharmacyOrdersFuture = _fetchPharmacyOrders();
     });
+  }
+
+  Future<void> _payNow(Map<String, dynamic> order) async {
+    final pharmacy     = _pharmacyMap(order['pharmacy']);
+    final pharmacyName = pharmacy?['pharmacyName'] as String? ?? 'Pharmacy';
+    final price        = order['price'];
+    final requestId    = order['_id'] as String?;
+    if (requestId == null) return;
+
+    final amount = (price is num) ? price : num.tryParse(price?.toString() ?? '0') ?? 0;
+    final paid = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PharmacyPaymentGatewayScreen(
+          requestId: requestId,
+          pharmacyName: pharmacyName,
+          amount: amount,
+        ),
+      ),
+    );
+
+    if (paid == true && mounted) {
+      _refreshPharmacyOrders();
+    }
+  }
+
+  Map<String, dynamic>? _pharmacyMap(dynamic raw) {
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
   }
 
   @override
@@ -428,11 +455,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ── Quick actions ─────────────────────────────────────────────────────────
   Widget _buildQuickActions(BuildContext context, AuthProvider auth) {
     final actions = [
-      _QA(Icons.calendar_month_rounded, 'Appointments', const Color(0xFF1565C0), () {}),
-      _QA(Icons.favorite_rounded,       'My Doctors',   _green,                  () {}),
+      _QA(Icons.calendar_month_rounded, 'Appointments', const Color(0xFF1565C0), () {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const AppointmentHistoryScreen(),
+        ));
+      }),
+      _QA(Icons.favorite_rounded,       'My Doctors',   _green,                  () {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const DoctorSearchScreen(),
+        ));
+      }),
       _QA(Icons.shopping_bag_rounded,   'My Orders',    const Color(0xFF00796B), () {
         Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const PharmacyOrderStatusScreen(),
+          builder: (_) => const PatientOrdersScreen(),
         )).then((_) => _refreshPharmacyOrders());
       }),
       _QA(Icons.edit_rounded,   'Edit Profile', const Color(0xFF6A1B9A), () {
@@ -476,29 +511,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _quickAction(IconData icon, String label, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 80,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 52, height: 52,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: color.withValues(alpha: 0.20)),
-              ),
-              child: Icon(icon, color: color, size: 24),
+    return SizedBox(
+      width: 94,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 52, height: 52,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: color.withValues(alpha: 0.20)),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(height: 6),
+                Text(label, style: GoogleFonts.poppins(
+                  fontSize: 10, fontWeight: FontWeight.w600, color: _subText),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+              ],
             ),
-            const SizedBox(height: 6),
-            Text(label, style: GoogleFonts.poppins(
-              fontSize: 10, fontWeight: FontWeight.w600, color: _subText),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis),
-          ],
+          ),
         ),
       ),
     );
@@ -546,6 +588,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         }
 
+        if (snapshot.hasError) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: _cardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.error_outline_rounded, color: Colors.red.shade400, size: 36),
+                const SizedBox(height: 10),
+                Text(
+                  'No orders found',
+                  style: GoogleFonts.poppins(
+                    color: _text, fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Could not load your orders. Tap retry.',
+                  style: GoogleFonts.poppins(color: _subText, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: _refreshPharmacyOrders,
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: Text('Retry', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
         final orders = snapshot.data ?? <Map<String, dynamic>>[];
         // "Pending" = waiting for pharmacy response OR price sent but unpaid
         final pendingOrders = orders
@@ -558,7 +640,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (orders.isEmpty) {
           return _buildEmptyState(
             icon: Icons.shopping_bag_outlined,
-            message: 'No orders yet.\nBrowse our Ayurveda pharmacy.',
+            message: 'No orders found.\nBrowse our Ayurveda pharmacy.',
             actionLabel: 'Browse Medicine',
             onActionTap: () {
               Navigator.push(
@@ -610,10 +692,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 for (final order in pendingOrders.take(3))
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const PharmacyOrderStatusScreen()),
-                      ).then((_) => _refreshPharmacyOrders());
+                      if ((order['status'] as String?) == 'price_sent') {
+                        _payNow(order);
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PatientOrdersScreen()),
+                        ).then((_) => _refreshPharmacyOrders());
+                      }
                     },
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -631,7 +717,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              ((order['pharmacy'] as Map?)?['pharmacyName'] ?? 'Pharmacy').toString(),
+                              (_pharmacyMap(order['pharmacy'])?['pharmacyName'] ?? 'Pharmacy').toString(),
                               style: GoogleFonts.poppins(
                                 color: _subText,
                                 fontSize: 12,
@@ -667,7 +753,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const PharmacyOrderStatusScreen()),
+                          builder: (_) => const PatientOrdersScreen()),
                     ).then((_) => _refreshPharmacyOrders());
                   },
                   icon: const Icon(Icons.shopping_bag_outlined, size: 18),

@@ -282,23 +282,184 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getMyPharmacyRequests() async {
-    final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}/api/v1/pharmacy/my-requests'),
+  Future<Map<String, dynamic>> initiatePharmacyRequestPayment(
+      String requestId) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/api/v1/pharmacy/pay/initiate'),
       headers: await _getHeaders(),
+      body: json.encode({'requestId': requestId}),
     ).timeout(const Duration(seconds: 15));
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body) as Map<String, dynamic>;
-      final list = (data['data'] as List?) ?? <dynamic>[];
-      return list
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 200 && body['data'] is Map<String, dynamic>) {
+      return body['data'] as Map<String, dynamic>;
+    }
+    throw Exception(body['message'] ?? 'Failed to initiate payment');
+  }
+
+  Future<void> confirmPharmacyRequestPayment(String requestId) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/api/v1/pharmacy/pay/confirm'),
+      headers: await _getHeaders(),
+      body: json.encode({'requestId': requestId}),
+    ).timeout(const Duration(seconds: 15));
+
+    if (response.statusCode != 200) {
+      final body = json.decode(response.body);
+      throw Exception(body['message'] ?? 'Failed to confirm payment');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getMyPharmacyRequests() async {
+    Exception? primaryError;
+
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/api/v1/pharmacy/my-requests'),
+        headers: await _getHeaders(),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final list = _extractListFromEnvelope(json.decode(response.body));
+        final normalized = list
+            .whereType<Map>()
+            .map((e) => _normalizePharmacyOrder(
+                  Map<String, dynamic>.from(e),
+                  source: 'pharmacy_request',
+                ))
+            .toList();
+
+        if (normalized.isNotEmpty) return normalized;
+      } else {
+        try {
+          final body = json.decode(response.body) as Map<String, dynamic>;
+          primaryError = Exception(body['message'] ?? 'Failed to load pharmacy orders');
+        } catch (_) {
+          primaryError = Exception('Failed to load pharmacy orders');
+        }
+      }
+    } catch (e) {
+      primaryError = Exception(e.toString().replaceFirst('Exception: ', ''));
     }
 
-    final body = json.decode(response.body);
-    throw Exception(body['message'] ?? 'Failed to load pharmacy orders');
+    final legacyOrders = await _fetchLegacyOrders();
+    if (legacyOrders.isNotEmpty) return legacyOrders;
+
+    if (primaryError != null) throw primaryError;
+    return <Map<String, dynamic>>[];
+  }
+
+  List<dynamic> _extractListFromEnvelope(dynamic decoded) {
+    if (decoded is List) return decoded;
+    if (decoded is Map<String, dynamic>) {
+      final data = decoded['data'];
+      if (data is List) return data;
+      if (data is Map<String, dynamic>) {
+        if (data['requests'] is List) return data['requests'] as List;
+        if (data['items'] is List) return data['items'] as List;
+      }
+      if (decoded['requests'] is List) return decoded['requests'] as List;
+      if (decoded['items'] is List) return decoded['items'] as List;
+    }
+    return const <dynamic>[];
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchLegacyOrders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentUserId = prefs.getString(AppConstants.userIdKey);
+    final endpoints = <String>['/api/v1/orders', '/api/orders'];
+
+    for (final endpoint in endpoints) {
+      try {
+        final response = await http.get(
+          Uri.parse('${AppConstants.baseUrl}$endpoint'),
+          headers: await _getHeaders(),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode != 200) continue;
+
+        final list = _extractListFromEnvelope(json.decode(response.body));
+        final normalized = list
+            .whereType<Map>()
+            .map((e) => _normalizeLegacyOrder(Map<String, dynamic>.from(e)))
+            .where((o) => _matchesCurrentUser(o['userId'], currentUserId))
+            .toList();
+
+        if (normalized.isNotEmpty) return normalized;
+      } catch (_) {
+        continue;
+      }
+    }
+
+    return <Map<String, dynamic>>[];
+  }
+
+  bool _matchesCurrentUser(dynamic userField, String? currentUserId) {
+    if (currentUserId == null || currentUserId.isEmpty) return true;
+    if (userField is String) return userField == currentUserId;
+    if (userField is Map) {
+      final map = Map<String, dynamic>.from(userField);
+      final id = (map['_id'] ?? map['id'])?.toString();
+      return id == currentUserId;
+    }
+    return false;
+  }
+
+  Map<String, dynamic> _normalizeLegacyOrder(Map<String, dynamic> order) {
+    final rawStatus = (order['status'] ?? 'pending').toString().toLowerCase();
+    final paymentStatus = (order['paymentStatus'] ?? 'pending').toString().toLowerCase();
+
+    var mappedStatus = rawStatus;
+    if (rawStatus == 'approved' && paymentStatus == 'pending') {
+      mappedStatus = 'price_sent';
+    } else if (paymentStatus == 'paid' && (rawStatus == 'approved' || rawStatus == 'pending')) {
+      mappedStatus = 'paid';
+    } else if (rawStatus == 'shipped') {
+      mappedStatus = 'processing';
+    }
+
+    final mapped = Map<String, dynamic>.from(order)
+      ..['status'] = mappedStatus
+      ..['price'] = order['price'] ?? order['totalAmount'];
+
+    return _normalizePharmacyOrder(mapped, source: 'legacy_order');
+  }
+
+  Map<String, dynamic> _normalizePharmacyOrder(
+    Map<String, dynamic> order, {
+    String source = 'pharmacy_request',
+  }) {
+    final normalized = Map<String, dynamic>.from(order);
+    normalized['orderSystem'] = source;
+
+    if (normalized['_id'] == null && normalized['id'] != null) {
+      normalized['_id'] = normalized['id'];
+    }
+
+    final rawPharmacy = normalized['pharmacy'];
+    Map<String, dynamic>? pharmacy;
+    if (rawPharmacy is Map) {
+      pharmacy = Map<String, dynamic>.from(rawPharmacy);
+    } else if (rawPharmacy is String && rawPharmacy.isNotEmpty) {
+      pharmacy = {'_id': rawPharmacy};
+    }
+
+    if (pharmacy == null) {
+      final rawPharmacyId = normalized['pharmacyId'];
+      if (rawPharmacyId is String && rawPharmacyId.isNotEmpty) {
+        pharmacy = {'_id': rawPharmacyId};
+      }
+    }
+
+    if (pharmacy != null) {
+      final rawName = pharmacy['pharmacyName'] ?? pharmacy['name'] ?? normalized['pharmacyName'];
+      if (rawName is String && rawName.isNotEmpty) {
+        pharmacy['pharmacyName'] = rawName;
+      }
+      normalized['pharmacy'] = pharmacy;
+    }
+
+    return normalized;
   }
 
   Future<void> cancelPharmacyRequest(String requestId) async {
