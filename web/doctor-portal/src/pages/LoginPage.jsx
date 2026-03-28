@@ -92,7 +92,7 @@ const LoginPage = () => {
     const handleDoctorLogin = async () => {
         const result = await login(email, password);
         if (!result.success) {
-            setError(result.error || 'Login failed. Please check your credentials.');
+            setError(result.error || 'Login iled. Please check your credentials.');
         }
     };
 
