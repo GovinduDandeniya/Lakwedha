@@ -1,10 +1,14 @@
 const express = require("express");
 const router = express.Router();
-const { register, login } = require("../controllers/admin.controller");
+const { login } = require("../controllers/admin.controller");
 const verifyAdmin = require("../middleware/verifyAdmin");
 
 // Public
-router.post("/register", register);
+router.all("/register", (req, res) => {
+  return res.status(403).json({
+    message: "System admin self-registration is disabled.",
+  });
+});
 router.post("/login",    login);
 
 // Example protected admin route — guards any downstream admin-only endpoints
