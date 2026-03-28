@@ -31,6 +31,9 @@ class Doctor {
   });
 
   factory Doctor.fromJson(Map<String, dynamic> json) {
+    final rawConsultationFee =
+        json['consultationFee'] ?? json['consultation_fee'] ?? json['doctor_fee'] ?? 0;
+
     return Doctor(
       id: json['_id'] ?? json['id'] ?? '',
       name: json['name'] ??
@@ -47,7 +50,7 @@ class Doctor {
       clinicName: json['clinicName'] ?? '',
       clinicAddress: json['clinicAddress'] ?? '',
       distance: json['distance'] != null ? (json['distance'] as num).toDouble() : null,
-      consultationFee: (json['consultationFee'] ?? 0).toDouble(),
+      consultationFee: (rawConsultationFee as num).toDouble(),
       isVerified: json['isVerified'] ?? false,
     );
   }

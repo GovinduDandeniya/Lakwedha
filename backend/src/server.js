@@ -1092,6 +1092,65 @@ app.get("/test-email", async (_req, res) => {
   res.json(result);
 });
 
+// Send appointment payment receipt to patient email
+app.post('/api/v1/receipts/appointment/email', requireAuth, async (req, res) => {
+  try {
+    const {
+      to,
+      doctorName,
+      hospitalName,
+      date,
+      time,
+      appointmentNumber,
+      transactionId,
+      paymentMethod,
+      paidAt,
+      doctorFee,
+      hospitalCharge,
+      channelingCharge,
+      totalAmount,
+    } = req.body || {};
+
+    if (!to || typeof to !== 'string' || !to.includes('@')) {
+      return res.status(400).json({ success: false, error: 'Valid recipient email is required' });
+    }
+
+    const subject = `Lakwedha Appointment Receipt - ${transactionId || 'Payment'}`;
+    const lines = [
+      'Your appointment payment was successful.',
+      '',
+      'RECEIPT DETAILS',
+      `Doctor: ${doctorName || '-'}`,
+      `Hospital: ${hospitalName || '-'}`,
+      `Date: ${date || '-'}`,
+      `Time: ${time || '-'}`,
+      `Appointment No: ${appointmentNumber ?? '-'}`,
+      '',
+      'PAYMENT BREAKDOWN',
+      `Doctor Fee: LKR ${Number(doctorFee || 0).toFixed(2)}`,
+      `Hospital Charge: LKR ${Number(hospitalCharge || 0).toFixed(2)}`,
+      `Channeling Charge: LKR ${Number(channelingCharge || 0).toFixed(2)}`,
+      `Total Paid: LKR ${Number(totalAmount || 0).toFixed(2)}`,
+      '',
+      'TRANSACTION',
+      `Transaction ID: ${transactionId || '-'}`,
+      `Payment Method: ${paymentMethod || '-'}`,
+      `Paid At: ${paidAt || '-'}`,
+      '',
+      'Thank you for choosing Lakwedha Healthcare.',
+    ];
+
+    const result = await sendEmail(to, subject, lines.join('\n'));
+    if (!result.success) {
+      return res.status(500).json({ success: false, error: result.error || 'Failed to send receipt email' });
+    }
+
+    return res.status(200).json({ success: true, message: 'Receipt email sent successfully' });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));

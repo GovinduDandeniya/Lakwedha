@@ -473,6 +473,47 @@ class ApiService {
       throw Exception(body['message'] ?? 'Cancellation failed');
     }
   }
+  
+  Future<void> sendAppointmentReceiptEmail({
+    required String to,
+    required String doctorName,
+    required String hospitalName,
+    required String date,
+    required String time,
+    required int appointmentNumber,
+    required String transactionId,
+    required String paymentMethod,
+    required DateTime paidAt,
+    required double doctorFee,
+    required double hospitalCharge,
+    required double channelingCharge,
+    required double totalAmount,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/api/v1/receipts/appointment/email'),
+      headers: await _getHeaders(),
+      body: json.encode({
+        'to': to,
+        'doctorName': doctorName,
+        'hospitalName': hospitalName,
+        'date': date,
+        'time': time,
+        'appointmentNumber': appointmentNumber,
+        'transactionId': transactionId,
+        'paymentMethod': paymentMethod,
+        'paidAt': paidAt.toIso8601String(),
+        'doctorFee': doctorFee,
+        'hospitalCharge': hospitalCharge,
+        'channelingCharge': channelingCharge,
+        'totalAmount': totalAmount,
+      }),
+    );
+  
+    final data = json.decode(response.body);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['error'] ?? data['message'] ?? 'Failed to send receipt email');
+    }
+  }
 
   Future<Appointment> updateAppointmentStatus(
     String appointmentId,

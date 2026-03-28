@@ -20,7 +20,7 @@ function formatRegisteredDoctor(d) {
         profileImage: null,
         clinicName: d.hospitals?.[0]?.name || '',
         clinicAddress: d.hospitals?.[0]?.location || '',
-        consultationFee: 0,
+        consultationFee: Number(d.consultationFee || 0),
         isVerified: true,
         isRegistered: true,
     };

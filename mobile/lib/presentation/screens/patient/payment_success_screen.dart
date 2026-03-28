@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../../data/models/doctor_availability_model.dart';
 import '../../../data/models/doctor_model.dart';
+import '../../../data/datasources/remote/api_service.dart';
 
 const Color _primary = Color(0xFF2E7D32);
 const Color _bg = Color(0xFFF4FAF4);
@@ -645,63 +646,66 @@ class PaymentSuccessScreen extends StatelessWidget {
     );
   }
 
-  // ── Email (placeholder) ─────────────────────────────────────────────────────
+  // ── Email ──────────────────────────────────────────────────────────────────
 
-  void _sendEmail(BuildContext context) {
-    final email = patient['email'] as String;
+  Future<void> _sendEmail(BuildContext context) async {
+    final email = (patient['email'] ?? '').toString().trim();
+    if (email.isEmpty || !email.contains('@')) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Valid patient email is required to send receipt.'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE3F2FD),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.email_rounded,
-                  size: 28, color: Color(0xFF1565C0)),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'Email Receipt',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A2E)),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'A receipt will be sent to\n$email\nonce email notifications are enabled.',
-              textAlign: TextAlign.center,
-              style:
-                  const TextStyle(fontSize: 13, color: Color(0xFF666666), height: 1.5),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1565C0),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-                child: const Text('OK',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
-        ),
-      ),
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
+
+    try {
+      await ApiService().sendAppointmentReceiptEmail(
+        to: email,
+        doctorName: doctor.name,
+        hospitalName: hospital.hospitalName,
+        date: _fmtDate(slot.date),
+        time: slot.startTime,
+        appointmentNumber: appointmentNumber,
+        transactionId: transactionId,
+        paymentMethod: paymentMethod,
+        paidAt: paidAt,
+        doctorFee: doctorFee,
+        hospitalCharge: hospitalCharge,
+        channelingCharge: channelingCharge,
+        totalAmount: totalAmount,
+      );
+
+      if (context.mounted) Navigator.of(context).pop();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Receipt sent to $email'),
+          backgroundColor: _primary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) Navigator.of(context).pop();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
