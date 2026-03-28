@@ -11,13 +11,15 @@ const {
     respondToRequest,
     getUserRequests,
     payForRequest,
+    initiatePayForRequest,
+    confirmPayForRequest,
     updateRequestStatus,
     getAllRequests,
     cancelRequest,
 } = require('../controllers/pharmacyRequestController');
 
-// Patient: find approved pharmacies by location (v1 alias used by mobile)
-router.get('/nearby', auth, getNearbyPharmacies);
+// Patient: find approved pharmacies by location — public, no auth required
+router.get('/nearby', getNearbyPharmacies);
 
 // Patient: upload prescription file (image or PDF)
 router.post('/upload-prescription', auth, (req, res) => {
@@ -54,6 +56,13 @@ router.get('/my-requests', auth, getUserRequests);
 
 // Patient: pay for an approved request
 router.post('/pay', auth, payForRequest);
+router.post('/pay/initiate', auth, initiatePayForRequest);
+router.post('/pay/confirm', auth, confirmPayForRequest);
+
+// PayHere redirect/webhook endpoints for pharmacy-request payments
+router.get('/pay/return', (_req, res) => res.status(200).send('Payment complete.'));
+router.get('/pay/cancel', (_req, res) => res.status(200).send('Payment cancelled.'));
+router.post('/pay/notify', (_req, res) => res.status(200).send('OK'));
 
 // Pharmacy: get requests for this pharmacy
 router.get('/pharmacy-requests', auth, getPharmacyRequests);

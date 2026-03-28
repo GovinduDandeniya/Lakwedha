@@ -306,11 +306,57 @@ export default function AvailabilityPage() {
 
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
-  // Fetch hospital master list from admin-managed API
+  // Fetch hospital options from both sources:
+  // 1) admin-managed master list and 2) doctor's own registered hospitals.
+  // This prevents an empty dropdown when master hospitals are not populated yet.
   useEffect(() => {
-    api.get('/hospitals')
-      .then(res => setHospitals(res.data || []))
-      .catch(() => {});
+    let mounted = true;
+
+    const normalizeHospital = (h) => ({
+      _id: h?._id || `${(h?.name || '').trim()}::${(h?.location || '').trim()}`,
+      name: (h?.name || '').trim(),
+      location: (h?.location || '').trim(),
+    });
+
+    const loadHospitals = async () => {
+      try {
+        const [masterRes, doctorRes] = await Promise.allSettled([
+          api.get('/hospitals'),
+          api.get('/doctor-channeling/doctors/me/hospitals'),
+        ]);
+
+        const masterHospitals =
+          masterRes.status === 'fulfilled' && Array.isArray(masterRes.value?.data)
+            ? masterRes.value.data
+            : [];
+
+        const doctorHospitals =
+          doctorRes.status === 'fulfilled' && Array.isArray(doctorRes.value?.data?.hospitals)
+            ? doctorRes.value.data.hospitals
+            : [];
+
+        const merged = [...masterHospitals, ...doctorHospitals]
+          .map(normalizeHospital)
+          .filter((h) => h.name);
+
+        const uniqueByName = [];
+        const seen = new Set();
+        for (const h of merged) {
+          const key = h.name.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          uniqueByName.push(h);
+        }
+
+        uniqueByName.sort((a, b) => a.name.localeCompare(b.name));
+        if (mounted) setHospitals(uniqueByName);
+      } catch {
+        if (mounted) setHospitals([]);
+      }
+    };
+
+    loadHospitals();
+    return () => { mounted = false; };
   }, []);
 
   // ── Summary counts ───────────────────────────────────────────────────────

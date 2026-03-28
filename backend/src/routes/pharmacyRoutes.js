@@ -10,8 +10,8 @@ const {
     getPharmacyStats,
 } = require('../controllers/pharmacyController');
 
-// GET nearby pharmacies - Protected
-router.get('/nearby', auth, getNearbyPharmacies);
+// GET nearby pharmacies - Public
+router.get('/nearby', getNearbyPharmacies);
 
 // POST upload prescription - Protected
 router.post('/prescriptions', auth, uploadPrescription);

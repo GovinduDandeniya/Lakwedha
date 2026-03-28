@@ -20,6 +20,12 @@ router.get('/extra-requests',
     appointmentController.getExtraRequests
 );
 
+// Patient: view their own submitted extra requests
+router.get('/extra-requests/my',
+    roleMiddleware(['patient']),
+    appointmentController.getMyExtraRequests
+);
+
 // Doctor: respond (accept/reject) to a specific extra request
 router.patch('/extra-requests/:id/respond',
     roleMiddleware(['doctor']),

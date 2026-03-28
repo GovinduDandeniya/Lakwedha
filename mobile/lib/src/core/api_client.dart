@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
 import '../../core/constants/app_constants.dart';
@@ -18,17 +17,6 @@ abstract class _TokenStorage {
   Future<void> write(String key, String value);
 }
 
-class _NativeTokenStorage implements _TokenStorage {
-  final _storage = const FlutterSecureStorage();
-
-  @override
-  Future<String?> read(String key) => _storage.read(key: key);
-
-  @override
-  Future<void> write(String key, String value) =>
-      _storage.write(key: key, value: value);
-}
-
 class _WebTokenStorage implements _TokenStorage {
   @override
   Future<String?> read(String key) async {
@@ -43,7 +31,8 @@ class _WebTokenStorage implements _TokenStorage {
   }
 }
 
-final _tokenStorage = kIsWeb ? _WebTokenStorage() as _TokenStorage : _NativeTokenStorage();
+// Always use SharedPreferences — auth_provider.dart writes the token there on all platforms.
+final _tokenStorage = _WebTokenStorage() as _TokenStorage;
 
 // ---------------------------------------------------------------------------
 // Base URL

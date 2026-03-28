@@ -39,6 +39,7 @@ class _PharmacyOrderStatusScreenState extends State<PharmacyOrderStatusScreen> {
   List<Map<String, dynamic>> _requests = [];
   bool   _isLoading    = true;
   bool   _isRefreshing = false;
+  bool   _isPaying     = false;
   String? _error;
   Timer? _autoRefreshTimer;
 
@@ -139,6 +140,7 @@ class _PharmacyOrderStatusScreenState extends State<PharmacyOrderStatusScreen> {
     );
     if (confirm != true || !mounted) return;
 
+    setState(() => _isPaying = true);
     try {
       await _api.payForPharmacyRequest(request['_id'] as String);
       if (!mounted) return;
@@ -161,6 +163,8 @@ class _PharmacyOrderStatusScreenState extends State<PharmacyOrderStatusScreen> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ));
+    } finally {
+      if (mounted) setState(() => _isPaying = false);
     }
   }
 
@@ -302,6 +306,7 @@ class _PharmacyOrderStatusScreenState extends State<PharmacyOrderStatusScreen> {
           index: i,
           onPayNow: () => _payNow(_requests[i]),
           onCancel: () => _cancelOrder(_requests[i]),
+          isPaying: _isPaying,
         ),
       ),
     );
@@ -417,12 +422,14 @@ class _OrderCard extends StatefulWidget {
   final int index;
   final VoidCallback onPayNow;
   final VoidCallback onCancel;
+  final bool isPaying;
 
   const _OrderCard({
     required this.request,
     required this.index,
     required this.onPayNow,
     required this.onCancel,
+    this.isPaying = false,
   });
 
   @override
@@ -607,7 +614,7 @@ class _OrderCardState extends State<_OrderCard> {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: widget.onPayNow,
+                    onPressed: widget.isPaying ? null : widget.onPayNow,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _blue,
                       foregroundColor: Colors.white,
@@ -615,8 +622,14 @@ class _OrderCardState extends State<_OrderCard> {
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text('Pay Now',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                    child: widget.isPaying
+                        ? const SizedBox(
+                            width: 16, height: 16,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text('Pay Now',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
                   ),
                 ]),
               ),

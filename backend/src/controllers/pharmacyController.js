@@ -84,17 +84,27 @@ exports.getAllPrescriptions = asyncHandler(async (req, res) => {
 exports.getNearbyPharmacies = asyncHandler(async (req, res) => {
     const { province, district, city } = req.query;
 
-    const filter = { status: 'approved' };
-    if (province) filter.province = { $regex: new RegExp(`^${province}$`, 'i') };
-    if (district) filter.district = { $regex: new RegExp(`^${district}$`, 'i') };
-    if (city)     filter.city     = { $regex: new RegExp(city, 'i') };
+    const locationFilter = {};
+    if (province) locationFilter.province = { $regex: new RegExp(`^${province}$`, 'i') };
+    if (district) locationFilter.district = { $regex: new RegExp(`^${district}$`, 'i') };
+    if (city)     locationFilter.city     = { $regex: new RegExp(city, 'i') };
 
-    const pharmacies = await Pharmacy.find(filter)
+    // Primary: new Pharmacy registration model
+    const registrationPharmacies = await Pharmacy.find({ status: 'approved', ...locationFilter })
         .select('pharmacyName address phone province district city')
         .lean();
 
-    // normalise field name so mobile app gets consistent 'name' field
-    const data = pharmacies.map((p) => ({ ...p, name: p.pharmacyName }));
+    // Secondary: legacy pharmacies stored in User model (role=pharmacy, status=active)
+    const legacyPharmacies = await User.find({ role: 'pharmacy', status: 'active', ...locationFilter })
+        .select('pharmacyName name address phone province district city')
+        .lean();
+
+    const normalize = (p) => ({ ...p, name: p.pharmacyName || p.name || 'Pharmacy' });
+
+    const data = [
+        ...registrationPharmacies.map(normalize),
+        ...legacyPharmacies.map(normalize),
+    ];
 
     res.json({
         success: true,

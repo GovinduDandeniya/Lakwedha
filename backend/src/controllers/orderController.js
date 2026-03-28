@@ -169,9 +169,9 @@ exports.updatePaymentStatus = asyncHandler(async (req, res) => {
 // Retrieve orders (Filtered by role)
 exports.getAllOrders = asyncHandler(async (req, res) => {
     let query = {};
-    if (req.user.role === 'pharmacist') {
+  if (req.user.role === 'pharmacist' || req.user.role === 'pharmacy') {
         query = { pharmacyId: req.user.id };
-    } else if (req.user.role === 'user') {
+  } else if (req.user.role === 'user' || req.user.role === 'patient') {
         query = { userId: req.user.id };
     }
 

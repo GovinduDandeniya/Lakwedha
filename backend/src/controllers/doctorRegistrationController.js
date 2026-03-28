@@ -44,7 +44,9 @@ exports.getApprovedDoctors = async (req, res) => {
       _id: d._id,
       name: d.fullName || `${d.title || ''} ${d.firstName || ''} ${d.lastName || ''}`.trim(),
       specialization: d.specialization,
-      qualification: '',
+      qualification: Array.isArray(d.qualifications)
+        ? d.qualifications.map((q) => q?.title).filter(Boolean).join(', ')
+        : '',
       experience: 0,
       rating: 0,
       reviewCount: 0,

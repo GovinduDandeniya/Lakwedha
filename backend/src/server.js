@@ -1,4 +1,5 @@
-require("dotenv").config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 // Override system DNS with Google DNS — local DNS doesn't support MongoDB Atlas SRV/A records
 const dns = require("dns");
@@ -123,6 +124,10 @@ app.post("/api/v1/auth/login", async (req, res) => {
           email: registered.email,
           role: "doctor",
           specialization: registered.specialization,
+          qualifications: registered.qualifications || [],
+          qualification: Array.isArray(registered.qualifications)
+            ? registered.qualifications.map((q) => q?.title).filter(Boolean).join(', ')
+            : '',
           status: "APPROVED",
         },
       });
@@ -157,6 +162,10 @@ app.get("/api/v1/auth/verify", async (req, res) => {
           email: registered.email,
           role: "doctor",
           specialization: registered.specialization,
+          qualifications: registered.qualifications || [],
+          qualification: Array.isArray(registered.qualifications)
+            ? registered.qualifications.map((q) => q?.title).filter(Boolean).join(', ')
+            : '',
           status: registered.status,
         },
       });
