@@ -108,8 +108,7 @@ const LoginPage = () => {
 });
             const { token, admin } = response.data;
             const adminUser = { _id: admin?.id, name: admin?.name, email: admin?.email || email, role: 'admin', status: 'active' };
-            window.location.href = `${adminPortal}/auth/callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(adminUser))}`;
-        } catch (err) {
+            window.location.href = `${adminPortal}/admin/dashboard`;
             const msg =
                 err?.response?.data?.message ||
                 err?.response?.data?.error ||
