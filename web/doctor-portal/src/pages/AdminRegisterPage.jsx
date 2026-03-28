@@ -10,7 +10,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 
-const ADMIN_API = 'http://localhost:5000/api/admin';
+const ADMIN_API = 'https://lakwedha.onrender.com/api/admin';
 const NIC_REGEX = /^([0-9]{9}[vVxX]|[0-9]{12})$/;
 const MOBILE_REGEX = /^\+94[0-9]{9}$/;
 

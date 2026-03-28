@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+const BASE = process.env.REACT_APP_API_URL || 'https://lakwedha.onrender.com/api/v1';
 
 const pharmacyApi = axios.create({
     baseURL: BASE,
