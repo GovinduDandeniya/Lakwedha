@@ -99,9 +99,13 @@ const LoginPage = () => {
     // ── Admin login ────────────────────────────────────────────────────────
     const handleAdminLogin = async () => {
         try {
-            const apiRoot = (process.env.REACT_APP_API_URL || 'https://lakwedha.onrender.com/api/v1').replace(/\/api\/v1\/?$/, '');
-            const adminPortal = process.env.REACT_APP_ADMIN_URL || 'http://localhost:3000';
-            const response = await axios.post(`${apiRoot}/api/admin/login`, { email, password });
+            const API_URL = process.env.REACT_APP_API_URL || 'https://lakwedha.onrender.com';
+            const adminPortal = process.env.REACT_APP_ADMIN_URL || 'https://lakwedha.vercel.app';
+
+            const response = await axios.post(`${API_URL}/api/admin/login`, {
+            email,
+            password,
+});
             const { token, admin } = response.data;
             const adminUser = { _id: admin?.id, name: admin?.name, email: admin?.email || email, role: 'admin', status: 'active' };
             window.location.href = `${adminPortal}/auth/callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(adminUser))}`;
