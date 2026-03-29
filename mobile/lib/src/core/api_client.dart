@@ -44,9 +44,9 @@ final _tokenStorage = _WebTokenStorage() as _TokenStorage;
 // ---------------------------------------------------------------------------
 String _baseUrl() {
   if (kIsWeb || defaultTargetPlatform == TargetPlatform.windows) {
-    return 'http://localhost:5000';
+    return 'https://lakwedha.onrender.com';
   }
-  return String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:5000');
+  return String.fromEnvironment('API_URL', defaultValue: 'https://lakwedha.onrender.com');
 }
 
 final dioProvider = Provider((ref) {
