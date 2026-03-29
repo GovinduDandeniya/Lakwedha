@@ -204,7 +204,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label),
+          Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
           if (unread > 0) ...[
             const SizedBox(width: 5),
             Container(

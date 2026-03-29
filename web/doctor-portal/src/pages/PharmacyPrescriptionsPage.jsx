@@ -239,7 +239,7 @@ export default function PharmacyPrescriptionsPage() {
                                 <Box sx={{ mt: 2, textAlign: 'center' }}>
                                     {selected.prescriptionFileUrl.match(/\.(jpg|jpeg|png)$/i) ? (
                                         <img
-                                            src={selected.prescriptionFileUrl}
+                                            src={selected.prescriptionFileUrl.startsWith('http') ? selected.prescriptionFileUrl : `https://lakwedha.onrender.com${selected.prescriptionFileUrl}`}
                                             alt="Prescription"
                                             style={{ maxWidth: '100%', borderRadius: 12, pointerEvents: 'none' }}
                                             onContextMenu={(e) => e.preventDefault()}

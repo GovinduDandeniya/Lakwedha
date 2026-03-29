@@ -601,13 +601,14 @@ class _OrderCardState extends State<_OrderCard> {
                 child: Row(children: [
                   const Icon(Icons.monetization_on_rounded, color: _blue, size: 20),
                   const SizedBox(width: 10),
-                  Expanded(
+                  Flexible(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('Total Amount',
                             style: TextStyle(color: _blue, fontSize: 11, fontWeight: FontWeight.w600)),
                         Text('LKR $price',
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                                 color: _blue, fontSize: 20, fontWeight: FontWeight.w900)),
                       ],
@@ -828,7 +829,7 @@ class _PrescriptionPreview extends StatelessWidget {
     }
 
     // Determine base URL for image
-    final baseUrl = url.startsWith('http') ? url : 'http://10.0.2.2:5000$url';
+    final baseUrl = url.startsWith('http') ? url : 'https://lakwedha.onrender.com$url';
 
     return Image.network(
       baseUrl,

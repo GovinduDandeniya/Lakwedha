@@ -865,7 +865,7 @@ class _PrescriptionPreview extends StatelessWidget {
 
     final resolved = url.startsWith('http')
         ? url
-        : '${const String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:5000')}$url';
+        : 'https://lakwedha.onrender.com$url';
 
     return Image.network(
       resolved,
