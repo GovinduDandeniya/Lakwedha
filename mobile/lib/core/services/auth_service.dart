@@ -21,7 +21,7 @@ class AuthService {
           'email': credential,
           'password': password,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 
@@ -55,7 +55,7 @@ class AuthService {
           'email': email,
           'password': password,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 
@@ -85,7 +85,7 @@ class AuthService {
         Uri.parse('${AppConstants.baseUrl}${AppConstants.regSendOtpEndpoint}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'phone': phone, 'country_code': countryCode}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) return data;
       throw data['message'] as String? ?? 'Failed to send OTP.';
@@ -110,7 +110,7 @@ class AuthService {
         Uri.parse('${AppConstants.baseUrl}${AppConstants.regVerifyOtpEndpoint}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'phone': phone, 'country_code': countryCode, 'otp': otp}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) {
         return data['verifyToken'] as String;

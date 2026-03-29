@@ -664,7 +664,7 @@ class ApiService {
         Uri.parse('${AppConstants.baseUrl}${AppConstants.fpSendOtpEndpoint}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'method': method, 'value': value}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
       final data = json.decode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) return data;
       throw ForgotPasswordException(
@@ -692,7 +692,7 @@ class ApiService {
         Uri.parse('${AppConstants.baseUrl}${AppConstants.fpVerifyOtpEndpoint}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'method': method, 'value': value, 'otp': otp}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
       final data = json.decode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) return data;
       throw ForgotPasswordException(
@@ -718,7 +718,7 @@ class ApiService {
         Uri.parse('${AppConstants.baseUrl}${AppConstants.fpResetPasswordEndpoint}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'resetToken': resetToken, 'new_password': newPassword}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
       if (response.statusCode != 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
         throw ForgotPasswordException(data['message'] as String? ?? 'Reset failed.');
