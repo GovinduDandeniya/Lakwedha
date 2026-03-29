@@ -9,7 +9,7 @@ class AppConstants {
   // Default fallback is the emulator address for convenience.
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://10.0.2.2:5000',
+    defaultValue: 'https://lakwedha.onrender.com',
   );
 
   // ── Endpoints ────────────────────────────────────────────────────────────────
