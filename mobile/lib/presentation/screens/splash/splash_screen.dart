@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../shell/main_shell.dart';
-import '../../widgets/lakwedha_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -64,7 +63,7 @@ class _SplashScreenState extends State<SplashScreen>
         .drive(Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero));
 
     // Progress bar
-    _progressCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800));
+    _progressCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
     _progressValue = CurvedAnimation(parent: _progressCtrl, curve: Curves.easeInOut)
         .drive(Tween<double>(begin: 0.0, end: 1.0));
 
@@ -89,7 +88,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 3200));
+    await Future.delayed(const Duration(milliseconds: 2000));
     if (!mounted) return;
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -193,7 +192,11 @@ class _SplashScreenState extends State<SplashScreen>
                   scale: _logoScale,
                   child: FadeTransition(
                     opacity: _logoFade,
-                    child: const LakwedhaLogo(size: 120),
+                    child: Image.asset(
+                      'assets/images/splash_logo.png',
+                      width: 200,
+                      height: 200,
+                    ),
                   ),
                 ),
 
