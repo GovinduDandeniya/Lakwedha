@@ -20,8 +20,8 @@
     "yaml": "^2.8.3"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "node init && react-scripts start",
+    "build": "node init && react-scripts build",
     "test": "react-scripts test --watchAll=false",
     "eject": "react-scripts eject",
     "lint": "eslint src"

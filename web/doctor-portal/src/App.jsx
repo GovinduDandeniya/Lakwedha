@@ -10,12 +10,22 @@ import PharmacySidebar from './components/common/PharmacySidebar';
 const DRAWER_WIDTH = 240;
 
 const theme = createTheme({
+    typography: {
+        fontFamily: '"Plus Jakarta Sans", "Inter", "Segoe UI", sans-serif',
+    },
     palette: {
         primary: { main: '#2E7D32' },
         secondary: { main: '#1565C0' },
     },
     components: {
         MuiButton: { styleOverrides: { root: { textTransform: 'none' } } },
+        MuiCssBaseline: {
+            styleOverrides: {
+                body: {
+                    fontFamily: '"Plus Jakarta Sans", "Inter", "Segoe UI", sans-serif',
+                },
+            },
+        },
     },
 });
 
